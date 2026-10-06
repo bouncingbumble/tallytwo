@@ -1,6 +1,24 @@
-.DS_Store
-node_modules/
-tally-web/dist/
-tally-web/dev-dist/
-tally-web/e2e/shots/
+# Logs
+logs
 *.log
+npm-debug.log*
+
+node_modules
+dist
+dev-dist
+dist-ssr
+*.local
+.DS_Store
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# e2e screenshots
+e2e/shots
