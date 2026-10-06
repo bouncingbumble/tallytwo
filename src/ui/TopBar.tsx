@@ -1,6 +1,6 @@
 /**
- * Round number, the human's running tally (with a + for a positive total, P:906) and the
- * menu button (P:233-237).
+ * The head of the side column: the round number, the human's running tally (with a + for a
+ * positive total, P:906) and the menu button (P:233-237).
  */
 import { COPY } from "../game/copy";
 import { HUMAN } from "../game/selectors";

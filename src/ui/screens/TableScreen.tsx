@@ -1,6 +1,11 @@
 /**
- * The live round: topbar, three seats, felt, hand, status, controls (P:232-251). Owns the one
- * piece of UI-only state the table has: the "Sorted by rank." flash on the status line.
+ * The live round, a phone held sideways (styles/table.css):
+ *
+ *     felt    side        felt: the opponents and the trick; side: round, tally, menu, the sign, the status, the buttons
+ *     hand    side        the fan
+ *
+ * Owns the one piece of UI-only state the table has: the "Sorted by rank." flash on the status
+ * line.
  */
 import { useEffect, useState } from "react";
 import { COPY } from "../../game/copy";
@@ -8,11 +13,10 @@ import { useGame } from "../../game/useGame";
 import { Controls } from "../Controls";
 import { Felt } from "../Felt";
 import { Hand } from "../Hand";
-import { Seat } from "../Seat";
+import { Sign } from "../Sign";
 import { StatusLine } from "../StatusLine";
 import { TopBar } from "../TopBar";
 
-const OPPONENTS = [1, 2, 3];
 /** How long the Sort flash stays. (Belongs in game/timing.ts, which has no slot for it yet.) */
 const SORT_FLASH_MS = 1200;
 
@@ -33,18 +37,16 @@ export function TableScreen({ onMenu }: { onMenu: () => void }) {
   const shown = flash !== null && flash.over === status.text ? flash.text : null;
   return (
     <section className="screen table">
-      <TopBar onMenu={onMenu} />
-      <div className="opps">
-        {OPPONENTS.map((seat) => (
-          <Seat key={seat} seat={seat} />
-        ))}
-      </div>
       <Felt />
+      <aside className="side">
+        <TopBar onMenu={onMenu} />
+        <Sign />
+        <StatusLine flash={shown} />
+        <Controls onSort={(by) => setFlash({ text: COPY.status.sortedBy(by), over: status.text })} />
+      </aside>
       <div className="handwrap">
         <Hand />
       </div>
-      <StatusLine flash={shown} />
-      <Controls onSort={(by) => setFlash({ text: COPY.status.sortedBy(by), over: status.text })} />
     </section>
   );
 }

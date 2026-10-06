@@ -1,7 +1,8 @@
 /**
- * One opponent's seat: portrait, name, back chips and count, the "passed" badge and any bark
- * bubbles (P:846-867). Active / low / out are classes on .opp; the portrait comes from
- * portraitFor() in selectors.ts, so this file never reaches into ai/.
+ * One opponent's badge on the felt: portrait, name, back chips and count, the "passed" badge
+ * and any bark bubbles (P:846-867). Active / low / out are classes on .opp; the portrait comes
+ * from portraitFor() in selectors.ts, so this file never reaches into ai/. The seat's current
+ * play sits in the slot directly beneath (ui/Pile.tsx).
  */
 import { COPY } from "../game/copy";
 import { portraitFor } from "../game/selectors";
@@ -16,20 +17,22 @@ export function Seat({ seat }: { seat: number }) {
   if (!game) return null;
   const p = game.players[seat];
   const n = p.hand.length;
-  const cls = ["opp", game.turn === seat && game.phase === "playing" && "active", n <= 3 && "low", n === 0 && "out"].filter(Boolean).join(" ");
+  const cls = ["opp", `seat-${seat}`, game.turn === seat && game.phase === "playing" && "active", n <= 3 && "low", n === 0 && "out"].filter(Boolean).join(" ");
   const key = portraitFor(p);
   return (
     <div className={cls}>
       {/* the portrait is a CSS class per key (styles/table.css): an image-set over the 1x/2x/3x files, drawn 1:1 */}
       <div className={"face" + (key ? " " + key : "")} />
-      <div className="nm">{p.name}</div>
-      <div className="cnt">
-        <span className="backs">
-          {Array.from({ length: Math.min(MAX_CHIPS, n) }, (_, i) => (
-            <i key={i} />
-          ))}
-        </span>
-        <b>{n}</b>
+      <div className="info">
+        <div className="nm">{p.name}</div>
+        <div className="cnt">
+          <span className="backs">
+            {Array.from({ length: Math.min(MAX_CHIPS, n) }, (_, i) => (
+              <i key={i} />
+            ))}
+          </span>
+          <b>{n}</b>
+        </div>
       </div>
       {p.passed && game.lastPlay && <span className="badge">{COPY.seat.passed}</span>}
       {barks.filter((b) => b.seat === seat).map((b) => <Bark key={b.id} text={b.text} />)}

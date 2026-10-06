@@ -14,14 +14,12 @@ import type { Sheet } from "./game/selectors";
 import { useGame } from "./game/useGame";
 import { useTurnLoop } from "./game/useTurnLoop";
 import { useDevice } from "./platform/useDevice";
-import { useLandscapeShort } from "./platform/useLandscapeShort";
 import { usePageVisibility } from "./platform/usePageVisibility";
 import { webStorage } from "./platform/webStorage";
 import { SettingsProvider } from "./settings/SettingsProvider";
 import { useSettings } from "./settings/useSettings";
 import { CrashScreen } from "./ui/CrashScreen";
 import { ErrorBoundary } from "./ui/ErrorBoundary";
-import { TurnPhone } from "./ui/Overlay";
 import { HowToSheet } from "./ui/screens/HowToSheet";
 import { ResultsPoster } from "./ui/screens/ResultsPoster";
 import { SettingsSheet } from "./ui/screens/SettingsSheet";
@@ -60,9 +58,9 @@ function Screens({ seed }: { seed?: number }) {
   const { game, crash, act, audio } = useGame();
   const { opts } = useSettings();
   const [sheet, setSheet] = useState<Sheet>("none");
-  const hidden = usePageVisibility();
-  const landscape = useLandscapeShort();
-  const paused = hidden || landscape;
+  // The table is laid out for a phone held sideways (styles/table.css); there is no orientation
+  // gate yet, so only a hidden tab pauses the AI.
+  const paused = usePageVisibility();
   useDevice();
   useTurnLoop(paused);
   useAudio({ sheet, paused });
@@ -98,7 +96,6 @@ function Screens({ seed }: { seed?: number }) {
       )}
       {!crash && sheet === "settings" && <SettingsSheet onClose={closeSheet} />}
       {!crash && sheet === "howto" && <HowToSheet onClose={closeSheet} />}
-      <TurnPhone />
     </div>
   );
 }

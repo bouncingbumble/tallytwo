@@ -1,6 +1,6 @@
 # Tally Two
 
-Big Two — the Hong Kong climbing card game — played four-handed in a saloon: you against Marshal Cobb, Dusty Vane and Lucky Pearl. A Vite 8 + React 19 + TypeScript 6 web app for a portrait phone (iPhone Safari first), built around one idea: a pure `(state, action) => state` engine that React's `useReducer` runs unchanged. A second, 30-line reducer wraps it; a third runs settings. No state library.
+Big Two — the Hong Kong climbing card game — played four-handed in a saloon: you against Marshal Cobb, Dusty Vane and Lucky Pearl. A Vite 8 + React 19 + TypeScript 6 web app for a phone held sideways (iPhone Safari first), built around one idea: a pure `(state, action) => state` engine that React's `useReducer` runs unchanged. A second, 30-line reducer wraps it; a third runs settings. No state library.
 
 - `docs/ARCHITECTURE.md` is the long version of this README.
 - `docs/ASSETS.md` is the asset truth: what is wired, in which format, and why.
@@ -41,7 +41,7 @@ npm i --no-save playwright && npx playwright install webkit chromium
 node e2e/play.mjs http://localhost:5173 2     # two rounds per browser
 ```
 
-It plays full rounds through the real UI in WebKit at iPhone SE (375x667 @2) and iPhone 15 (393x852 @3) geometry and once in Chromium, and checks: 13 cards dealt, `?seed=3` gives you the 3♦, every card's rest transform is a whole CSS px, cards are 96x128, the fan is ≤ 360 px, the column fits with no scroll, every poster's deltas sum to zero, settings persist, `?dev=spike` renders, no console errors. Screenshots land in `e2e/shots/`. Playwright's Chromium has no AAC decoder, so it reports the audio files as unavailable and plays silently — by design (`docs/ASSETS.md` §4).
+It plays full rounds through the real UI in WebKit at iPhone SE (667x375 @2) and iPhone 15 (852x393 @3) geometry — the phones held sideways — and once in Chromium, and checks: 13 cards dealt, `?seed=3` gives you the 3♦, every card's rest transform is a whole CSS px, cards are 96x128, the 13-card fan steps ≥ 34 px and fits the strip, the hand and the buttons fit with no scroll, every poster's deltas sum to zero, settings persist, `?dev=spike` renders, no console errors. Screenshots land in `e2e/shots/`. Playwright's Chromium has no AAC decoder, so it reports the audio files as unavailable and plays silently — by design (`docs/ASSETS.md` §4).
 
 For pixel crispness use a real Safari: boot an iOS Simulator, open `http://localhost:5173/?dev=spike`, screenshot with `xcrun simctl io booted screenshot`, and histogram the checker tile — the pass condition is exactly two values, 0 and 255 (`docs/ARCHITECTURE.md` §10 records the last run).
 
@@ -78,10 +78,10 @@ src/
   audio/                   PURE   sfxTable (event -> files/gain/ducks, music loops), pool (round-robin), musicLatch, port (AudioPort)
                            HOOKS  useAudio (the music/bus state machine)   WEB WebAudio.ts (AudioContext, three buses)
   assets/                  PURE   names.ts (AssetName union)   WEB manifest.ts (explicit ?url import table) + cards/ sprites/ sfx/ music/
-  platform/                WEB    webStorage, usePageVisibility, useLandscapeShort, useDevice, useElementWidth
+  platform/                WEB    webStorage, usePageVisibility, useDevice, useElementSize, useElementWidth
   ui/                      WEB    Card Hand Pile Sign Felt Seat Bark TopBar StatusLine Controls Switch Overlay Doors CopyButton CrashScreen ErrorBoundary
                                   screens/ TitleScreen TableScreen ResultsPoster SettingsSheet HowToSheet
-  styles/                  WEB    tokens base buttons table cards overlays motion responsive
+  styles/                  WEB    tokens base buttons table cards overlays motion
   dev/                     WEB    Spike (?dev=spike), DevHook (window.__tally in DEV builds)
   App.tsx  main.tsx        WEB    providers, ?seed= parsing, the one pointerdown -> audio.resume() listener
 ```

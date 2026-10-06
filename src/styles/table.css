@@ -1,5 +1,20 @@
-/* P:78-132 and P:146-161, at 96-px cards. Portraits are 64x64 sprites drawn at 64 CSS px. */
+/* The table, a phone held sideways. A grid of
+     felt    side
+     hand    side
+   The felt holds the three opponents (portrait + name + count) along its top edge with the
+   trick's four plays staggered in three rows beneath; the side column holds the round and
+   tally, the sign, the status line and the buttons; the hand fans along the bottom, its cards
+   overhanging the felt's edge by 6 px. Portraits are 96x104 sprites drawn 1:1. The vertical
+   budget on a 375-px-tall phone, with the play rows fully overlapped: 2 + (2 + 106 + 2 + play
+   + 6) + 2 + 122 + 2, i.e. 310 at dpr 2 and 331 at dpr 3 (render/scale.ts reportFor). */
 .table {
+  --side-w: 124px;
+  --hand-h: calc(var(--ch) - 6px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--side-w);
+  grid-template-rows: minmax(0, 1fr) var(--hand-h);
+  gap: 2px 6px;
+  padding: 2px max(6px, env(safe-area-inset-right)) 2px max(6px, env(safe-area-inset-left));
   background:
     linear-gradient(180deg, rgba(42, 26, 15, 0.92), rgba(28, 17, 8, 0.97)),
     image-set(url("../assets/sprites/wood.png") 1x, url("../assets/sprites/wood@2x.png") 2x, url("../assets/sprites/wood@3x.png") 3x);
@@ -7,52 +22,66 @@
     auto,
     96px 96px;
 }
-.topbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+
+/* ---------- felt ---------- */
+.felt {
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
+  min-height: 0;
+  border-radius: 8px;
   background:
-    linear-gradient(180deg, rgba(56, 34, 15, 0.82), rgba(36, 20, 8, 0.94)),
-    image-set(url("../assets/sprites/wood.png") 1x, url("../assets/sprites/wood@2x.png") 2x, url("../assets/sprites/wood@3x.png") 3x);
+    radial-gradient(120% 90% at 50% 38%, rgba(90, 160, 110, 0.3) 0%, rgba(20, 60, 40, 0.1) 48%, rgba(4, 18, 12, 0.55) 100%),
+    image-set(url("../assets/sprites/felt.png") 1x, url("../assets/sprites/felt@2x.png") 2x, url("../assets/sprites/felt@3x.png") 3x);
+  background-color: var(--felt);
   background-size:
     auto,
-    96px 96px;
-  border-bottom: 2px solid #120a04;
-  flex: 0 0 auto;
+    32px 32px;
+  image-rendering: pixelated;
+  box-shadow:
+    inset 0 0 0 5px #2b1a0c,
+    inset 0 0 40px rgba(0, 0, 0, 0.45);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+  gap: 2px 6px;
+  padding: 2px 8px 6px;
 }
-.topbar .rd {
-  font-size: 13px;
-  color: var(--dust);
+.felt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.35);
 }
-.topbar .tally {
-  margin-left: auto;
-  font-size: 13px;
-  color: var(--dust);
-}
-.topbar .tally b {
-  color: var(--amber);
-  font-size: 15px;
+.felt.nudge {
+  animation: nudge 0.16s ease;
 }
 
-/* opponents */
-.opps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  padding: 10px 10px 6px;
-  flex: 0 0 auto;
-}
+/* an opponent's badge: portrait left, name and count right */
 .opp {
+  grid-row: 1;
   position: relative;
-  background: linear-gradient(180deg, #3e2715, #2b1a0c);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 1px 4px;
+  background: linear-gradient(180deg, rgba(62, 39, 21, 0.9), rgba(43, 26, 12, 0.92));
   border-radius: 5px;
-  padding: 7px 6px 6px;
   box-shadow: inset 0 0 0 2px #120a04;
-  text-align: center;
-  transition:
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+  image-rendering: auto;
+  transition: box-shadow 0.2s ease;
+}
+.opp.seat-1 {
+  grid-column: 1;
+}
+.opp.seat-2 {
+  grid-column: 2;
+}
+.opp.seat-3 {
+  grid-column: 3;
 }
 .opp.active {
   box-shadow:
@@ -66,7 +95,7 @@
 .opp .face {
   width: 96px;
   height: 104px;
-  margin: 0 auto 1px;
+  flex: 0 0 auto;
   background-size: 96px 104px;
   background-repeat: no-repeat;
   background-position: center;
@@ -85,18 +114,26 @@
 .face.wanted {
   background-image: image-set(url("../assets/sprites/wanted.png") 1x, url("../assets/sprites/wanted@2x.png") 2x, url("../assets/sprites/wanted@3x.png") 3x);
 }
+.opp .info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* two lines where the badge is narrow (an iPhone SE: "Marshal" / "Cobb"), one where it is not */
 .opp .nm {
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.15;
   color: var(--dust);
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  max-height: 2.3em;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 .opp .cnt {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
+  gap: 4px;
   font-size: 12px;
   color: var(--bone);
 }
@@ -116,15 +153,16 @@
 }
 .opp .cnt b {
   color: var(--amber);
-  font-size: 13px;
+  font-size: 14px;
 }
 .opp.low .cnt b {
   color: #ff8a6b;
 }
+/* "passed" sits under the count, in the info column's empty lower half */
 .opp .badge {
   position: absolute;
-  top: -6px;
-  right: -4px;
+  bottom: 6px;
+  right: 6px;
   font-size: 10px;
   padding: 1px 5px;
   border-radius: 3px;
@@ -132,11 +170,12 @@
   color: var(--dust);
   box-shadow: 0 0 0 1px #000;
 }
+/* a bark pops up over the badge (motion.css barkpop lifts it 10-16 px further) */
 .bark {
   position: absolute;
   left: 50%;
-  top: -10px;
-  transform: translate(-50%, -6px);
+  top: 4px;
+  transform: translate(-50%, 0);
   background: var(--bone);
   color: #241408;
   font-size: 11px;
@@ -152,101 +191,40 @@
   animation: barkpop 1.9s ease forwards;
 }
 
-/* felt */
-.felt {
-  flex: 1 1 auto;
-  min-height: 0;
-  margin: 2px 10px 6px;
-  border-radius: 8px;
-  position: relative;
-  background:
-    radial-gradient(120% 90% at 50% 38%, rgba(90, 160, 110, 0.3) 0%, rgba(20, 60, 40, 0.1) 48%, rgba(4, 18, 12, 0.55) 100%),
-    image-set(url("../assets/sprites/felt.png") 1x, url("../assets/sprites/felt@2x.png") 2x, url("../assets/sprites/felt@3x.png") 3x);
-  background-color: var(--felt);
-  background-size:
-    auto,
-    32px 32px;
-  image-rendering: pixelated;
-  box-shadow:
-    inset 0 0 0 5px #2b1a0c,
-    inset 0 0 40px rgba(0, 0, 0, 0.45);
-  /* a 3x3 grid: the opponents' plays under their seats, the sign, the human's play (ui/Pile.tsx) */
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: auto 1fr auto;
-  align-items: center;
-  gap: 4px 6px;
-  padding: 10px 8px 8px;
-  overflow: hidden;
-}
-.felt::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.35);
-}
-.sign {
-  position: relative;
+/* The trick: four plays staggered in three rows so each spreads wider than a third of the felt.
+   Top row: Dusty's (the middle seat), the full width, centred under its badge. Middle row:
+   Marshal Cobb's and Lucky Pearl's, half the width each, against the edges under theirs. Bottom
+   row: the human's own play, centred. Each slot's top comes from the area's measured height
+   (ui/Pile.tsx), so the rows separate where the felt is tall and overlap where it is short, the
+   latest play on top. Cards sit at integer x, resting at rotate(0). */
+.plays {
   grid-column: 1 / -1;
   grid-row: 2;
-  justify-self: center;
-  max-width: 88%;
-  padding: 7px 16px;
-  border-radius: 3px;
-  text-align: center;
-  background: linear-gradient(180deg, #6b4526, #4a2e19);
-  color: var(--bone);
-  font-size: 13px;
-  box-shadow:
-    inset 0 0 0 2px #2b1a0c,
-    0 5px 12px var(--shadow);
-  z-index: 2;
-  image-rendering: auto;
-}
-.sign .who {
-  display: block;
-  font-size: 10px;
-  color: var(--dust);
-  margin-bottom: 1px;
-}
-.sign::before,
-.sign::after {
-  content: "";
-  position: absolute;
-  top: -9px;
-  width: 2px;
-  height: 9px;
-  background: #8a6b45;
-}
-.sign::before {
-  left: 16px;
-}
-.sign::after {
-  right: 16px;
-}
-/* The pile: cards absolutely positioned at integer x (PILE_STEP apart, centred by ui/Pile.tsx),
-   resting at rotate(0) — the slap tilts them on the way in only. */
-/* one slot per seat: cards absolutely positioned at integer x (ui/Pile.tsx), resting at rotate(0) */
-.play {
   position: relative;
-  z-index: 1;
+  min-height: calc(var(--ch-small) + 2px);
+}
+.play {
+  position: absolute;
+  top: 0;
   min-width: 0;
-  height: calc(var(--ch-small) + 8px);
-  grid-row: 1;
+  height: calc(var(--ch-small) + 2px);
+  z-index: 1;
+}
+.play.seat-2,
+.play.seat-0 {
+  left: 0;
+  right: 0;
 }
 .play.seat-1 {
-  grid-column: 1;
-}
-.play.seat-2 {
-  grid-column: 2;
+  left: 0;
+  width: calc(50% - 4px);
 }
 .play.seat-3 {
-  grid-column: 3;
+  right: 0;
+  width: calc(50% - 4px);
 }
-.play.seat-0 {
-  grid-column: 1 / -1;
-  grid-row: 3;
+.play.latest {
+  z-index: 2;
 }
 .play .cards {
   position: absolute;
@@ -255,7 +233,7 @@
 .play .card {
   position: absolute;
   left: 0;
-  top: 4px;
+  top: 1px;
 }
 .play .card.in {
   animation: slap 0.28s cubic-bezier(0.2, 1.3, 0.4, 1) backwards;
@@ -268,27 +246,115 @@
   opacity: 0.72;
 }
 .felt-empty {
-  grid-column: 1 / -1;
-  grid-row: 3;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: rgba(242, 232, 213, 0.5);
   font-size: 13px;
   text-align: center;
   padding: 0 24px;
   image-rendering: auto;
 }
-.felt.nudge {
-  animation: nudge 0.16s ease;
+
+/* ---------- side column: round and tally, the sign, the status, the buttons ---------- */
+/* the buttons keep clear of the home indicator; the hand (which only loses a sliver of card edge) does not */
+.side {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  min-width: 0;
+  padding: 2px 0 env(safe-area-inset-bottom, 0px);
+  image-rendering: auto;
+}
+.topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 4px;
+  font-size: 12px;
+  color: var(--dust);
+  white-space: nowrap;
+}
+.topbar .rd {
+  grid-column: 1;
+  grid-row: 1;
+}
+.topbar .tally {
+  grid-column: 1;
+  grid-row: 2;
+}
+.topbar .iconbtn {
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
+.topbar .rd b {
+  color: var(--bone);
+}
+.topbar .tally b {
+  color: var(--amber);
+  font-size: 14px;
+}
+.side .sign {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 13px;
+  line-height: 1.25;
+  color: var(--bone);
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: rgba(18, 10, 4, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(201, 176, 138, 0.14);
+}
+.side .sign .who {
+  font-size: 11px;
+  color: var(--dust);
+}
+.status {
+  flex: 0 0 auto;
+  min-height: 34px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--dust);
+  text-align: center;
+  padding: 2px 2px;
+  overflow: hidden;
+}
+.status.bad {
+  color: #e88a6b;
+}
+.status.good {
+  color: #8fd08a;
+}
+.controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-top: auto;
+}
+.controls .btn {
+  padding: 9px 8px;
+  font-size: 14px;
 }
 
-/* hand */
+/* ---------- hand ---------- */
+/* above the felt (whose play slots are z-index 1-2): the cards overhang its edge and the select lift rises over it */
 .handwrap {
-  flex: 0 0 auto;
+  grid-column: 1;
+  grid-row: 2;
+  position: relative;
+  z-index: 3;
   padding: 0 8px;
+  min-width: 0;
 }
 .hand {
   position: relative;
-  height: calc(var(--ch) + 22px);
-  margin: 0 auto;
+  height: var(--hand-h);
   width: 100%;
 }
 .hand .card {
@@ -312,29 +378,4 @@
 }
 .hand .card.deal {
   animation: deal 0.38s ease backwards;
-}
-
-.status {
-  height: 20px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--dust);
-  padding: 2px 12px 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 0 0 auto;
-}
-.status.bad {
-  color: #e88a6b;
-}
-.status.good {
-  color: #8fd08a;
-}
-.controls {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1.5fr;
-  gap: 7px;
-  padding: 6px 10px calc(8px + env(safe-area-inset-bottom));
-  flex: 0 0 auto;
 }

@@ -128,5 +128,4 @@ export const COPY = {
     title: "Something went wrong",
     saddleUp: "Saddle up",
   },
-  landscape: "Turn your phone to play",
 } as const;

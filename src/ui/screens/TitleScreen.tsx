@@ -47,24 +47,29 @@ export function TitleScreen({ seed, onSheet }: TitleScreenProps) {
     onSheet(sheet);
   };
 
+  // sideways: the name and the doors on the left, the three buttons on the right (base.css .title)
   return (
     <section className="screen title">
-      <h1 className="western">{COPY.title.name}</h1>
-      <p className="sub">{COPY.title.sub}</p>
-      <Doors open={doorsOpen} />
-      {loaded && (
-        <>
-          <button type="button" className="btn primary tbtn" onClick={deal}>
-            {COPY.title.deal}
-          </button>
-          <button type="button" className="btn ghost tbtn" onClick={() => openSheet("howto")}>
-            {COPY.title.howto}
-          </button>
-          <button type="button" className="btn ghost tbtn" onClick={() => openSheet("settings")}>
-            {COPY.title.settings}
-          </button>
-        </>
-      )}
+      <div className="marquee">
+        <h1 className="western">{COPY.title.name}</h1>
+        <p className="sub">{COPY.title.sub}</p>
+        <Doors open={doorsOpen} />
+      </div>
+      <div className="menu">
+        {loaded && (
+          <>
+            <button type="button" className="btn primary tbtn" onClick={deal}>
+              {COPY.title.deal}
+            </button>
+            <button type="button" className="btn ghost tbtn" onClick={() => openSheet("howto")}>
+              {COPY.title.howto}
+            </button>
+            <button type="button" className="btn ghost tbtn" onClick={() => openSheet("settings")}>
+              {COPY.title.settings}
+            </button>
+          </>
+        )}
+      </div>
     </section>
   );
 }

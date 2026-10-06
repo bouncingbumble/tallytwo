@@ -24,19 +24,20 @@ export function Controls({ onSort }: { onSort?: (by: SortBy) => void }) {
   const play = () => {
     if (exact) act({ type: "PLAY", player: HUMAN, cards: exact.cards });
   };
+  // stacked in the side column: Play on top, then Pass, Hint, Sort
   return (
     <div className="controls">
+      <button type="button" className="btn primary" disabled={!exact} onClick={play}>
+        {COPY.controls.play}
+      </button>
       <button type="button" className="btn" disabled={!canPass} onClick={() => act({ type: "PASS", player: HUMAN })}>
         {COPY.controls.pass}
-      </button>
-      <button type="button" className="btn" onClick={sort}>
-        {COPY.controls.sort}
       </button>
       <button type="button" className="btn" disabled={!humanTurn(game) || !legal.length} onClick={hint}>
         {COPY.controls.hint}
       </button>
-      <button type="button" className="btn primary" disabled={!exact} onClick={play}>
-        {COPY.controls.play}
+      <button type="button" className="btn" onClick={sort}>
+        {COPY.controls.sort}
       </button>
     </div>
   );

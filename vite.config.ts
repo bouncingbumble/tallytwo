@@ -15,7 +15,7 @@ export default defineConfig({
         short_name: "Tally Two",
         description: "Big Two, four-handed, in a saloon.",
         display: "standalone",
-        orientation: "portrait",
+        orientation: "landscape",
         background_color: "#241408",
         theme_color: "#241408",
         icons: [
