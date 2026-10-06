@@ -1,0 +1,159 @@
+# Tally Two (web)
+
+Big Two — the Hong Kong climbing card game — played four-handed in a saloon: you against Marshal Cobb, Dusty Vane and Lucky Pearl. A Vite 8 + React 19 + TypeScript 6 web app for a portrait phone (iPhone Safari first), built around one idea: a pure `(state, action) => state` engine that React's `useReducer` runs unchanged. A second, 30-line reducer wraps it; a third runs settings. No state library.
+
+- The implementation plan is `../tally-two-handoff/docs/WEB-PLAN.md` (933 lines; §3 is the architecture, §5 the milestones).
+- The behaviour spec is the browser prototype `../tally-two-handoff/reference/tally-two-saloon.html` (do not open line 327 in an editor: it is a 2.4 MB data-URI line).
+- `docs/ARCHITECTURE.md` is the long version of this README; `docs/ASSETS.md` is the asset truth for this build; `docs/PORTING.md` is what the React Native port copies and rewrites.
+
+## Run it
+
+Node 24 through nvm (`.nvmrc` says `24`; the machine default, 22.0, cannot run Vite 8 — `package.json` demands `>=22.18`). Nothing else is needed: no ffmpeg, no Python, no native toolchain.
+
+```sh
+nvm use 24
+npm install
+npm run dev          # vite --host: open the printed LAN URL on the phone
+```
+
+| Script | What it does |
+| --- | --- |
+| `npm run dev` | Vite dev server on the LAN (`--host`) so an iPhone on the same Wi-Fi can load it |
+| `npm run build` | `tsc -b && vite build` → `dist/`, including the service worker and webmanifest from vite-plugin-pwa |
+| `npm run preview` | serves `dist/` on the LAN — what you use for Add to Home Screen and offline checks |
+| `npm run typecheck` | `tsc -b --noEmit` (the app, with the DOM lib) **and** `tsc -p tsconfig.core.json --noEmit` (the pure files, without it) |
+| `npm run lint` | oxlint; `react/rules-of-hooks` is the one that matters |
+| `npm test` | Vitest, `environment: node`, every `src/**/*.test.ts`; no jsdom, no React Testing Library |
+| `npm run sim -- 300` | the legality-and-termination gate: 300 AI-only games through the real reducer |
+| `npm run verify:port -- 600` | the differential check: 600 games move-for-move against the prototype's own engine |
+| `npm run check` | typecheck + lint + test + `sim 300` + `vite build` — the single gate |
+
+## Device checks
+
+The plan's manual device gates are scripted in `e2e/play.mjs` (Playwright; not a dependency of the app):
+
+```sh
+npm run dev                                   # in one terminal
+npm i --no-save playwright && npx playwright install webkit chromium
+node e2e/play.mjs http://localhost:5173 2     # two rounds per browser
+```
+
+It plays full rounds through the real UI in WebKit at iPhone SE (375x667 @2) and iPhone 15 (393x852 @3) geometry and once in Chromium, and checks: 13 cards dealt, `?seed=3` gives you the 3♦, every card's rest transform is a whole CSS px, cards are 96x128, the fan is ≤ 360 px, the column fits with no scroll, every poster's deltas sum to zero, settings persist, `?dev=spike` renders, no console errors. Screenshots land in `e2e/shots/`. Playwright's Chromium has no AAC decoder, so it reports the audio files as unavailable and plays silently — by design (`docs/ASSETS.md` §4).
+
+For pixel crispness use a real Safari: boot an iOS Simulator, open `http://localhost:5173/?dev=spike`, screenshot with `xcrun simctl io booted screenshot`, and histogram the checker tile — the pass condition is exactly two values, 0 and 255 (`docs/ARCHITECTURE.md` §11 records the last run).
+
+Dev URL switches: `?seed=N` deals a fixed seed (seat 0 holds the 3♦ for seeds 3, 9, 14, 17; seed 17 also holds A-2-3-4-5); `?dev=spike` opens the crispness diagnostics page (dpr, scale, checker probe, 13-card fan).
+
+## Folder map: three buckets
+
+Every file belongs to one of three buckets, and the bucket is the whole import rule (WEB-PLAN §3.2). The tooling enforces it; nothing relies on memory.
+
+| Bucket | Files | The rule | Enforced by |
+| --- | --- | --- | --- |
+| **PURE** | `src/engine/`, `src/ai/`, `src/render/*.ts`, `src/game/*.ts` (not `use*.ts`), `src/settings/{settings,storage}.ts`, `src/audio/{sfxTable,pool,musicLatch,port}.ts`, `src/assets/names.ts` | needs no `window`, `setTimeout`, `console`, `URLSearchParams` or `import.meta` | `tsconfig.core.json` (no DOM lib, `types: []`): those names are "Cannot find name" |
+| **HOOKS** | `src/game/{GameProvider,useTurnLoop,useBarks,useGame}`, `src/settings/{SettingsProvider,useSettings}`, `src/audio/useAudio.ts` | React + `setTimeout` only; platform objects (`audio`, `storage`) arrive as props, never as imports | `src/game/boundary.test.ts` |
+| **WEB** | `src/ui/**`, `src/styles/*`, `src/platform/*`, `src/audio/WebAudio.ts`, `src/assets/manifest.ts`, `src/App.tsx`, `src/main.tsx`, `src/dev/*` | anything goes, but no game rules: an `if` about the rules of the game belongs in `src/game/selectors.ts` | `boundary.test.ts` (`ui/**` never imports `engine/reducer` or `ai/*` as values) |
+
+PURE and HOOKS copy into the React Native app unchanged; WEB is rewritten there (`docs/PORTING.md`).
+
+```
+tally-web/
+  index.html                 viewport, theme-color, apple-mobile-web-app-* tags, /icons/icon-192.png
+  vite.config.ts             defineConfig from "vitest/config"; react() + VitePWA (installable, offline precache)
+  tsconfig.app.json          the react-ts template as-is (TS ~6.0, es2023, erasableSyntaxOnly, verbatimModuleSyntax)
+  tsconfig.core.json         the PURE check: lib ["ES2023"], types []; folder includes + a naming rule (use*, *.test, *.tsx excluded)
+  scripts/                   sim.mjs (gate + difficulty numbers), verify-port.mjs (oracle diff), register-resolver.mjs + ts-resolve.mjs
+                             (Node module hook so plain Node resolves extensionless .ts imports; always run them via npm run)
+  public/icons/              icon-192.png, icon-512.png (wood tile + card back, nearest-neighbour; see docs/ASSETS.md)
+  docs/                      ARCHITECTURE.md  ASSETS.md  PORTING.md
+  src/
+    engine/                  PURE   cards rules scoring combos compare state reducer — the handoff engine, verbatim
+    ai/                      PURE   moves partition evaluate personalities choose + getPersonality aiTurn index
+    render/                  PURE   atlas (card -> atlas cell), scale (iPhone matrix, integer scale), fanLayout (integer fan)
+    game/                    PURE   appReducer (AppState, tryReduce), selectors (every rules-of-the-game `if`), cues (action -> sounds/bark),
+                                    copy (every string), timing (every ms), seeds
+                             HOOKS  GameProvider, useGame, useTurnLoop, useBarks
+    settings/                PURE   settings (Opts, DEFAULTS, parseSettings), storage (StoragePort)   HOOKS SettingsProvider, useSettings
+    audio/                   PURE   sfxTable (event -> files/gain/ducks, music loops), pool (round-robin), musicLatch, port (AudioPort)
+                             HOOKS  useAudio (the music/bus state machine)   WEB WebAudio.ts (AudioContext, three buses)
+    assets/                  PURE   names.ts (AssetName union)   WEB manifest.ts (explicit ?url import table) + cards/ sprites/ sfx/ music/
+    platform/                WEB    webStorage, usePageVisibility, useLandscapeShort, useDevice
+    ui/                      WEB    Card Hand Pile Sign Felt Seat Bark TopBar StatusLine Controls Switch Overlay Doors CrashScreen ErrorBoundary
+                                    screens/ TitleScreen TableScreen ResultsPoster SettingsSheet HowToSheet
+    styles/                  WEB    tokens base buttons table cards overlays motion responsive (the prototype's CSS at 96x128 cards)
+    dev/                     WEB    Spike (?dev=spike), DevHook (window.__tally in DEV builds)
+    App.tsx  main.tsx        WEB    providers, ?seed= parsing, the one pointerdown -> audio.resume() listener
+```
+
+## The gates
+
+Each is a command that exits non-zero when the thing it protects breaks; `npm run check` runs them all.
+
+| Gate | Protects | How |
+| --- | --- | --- |
+| `tsc -p tsconfig.core.json` | the PURE bucket has no platform dependency | the pure folders are compiled without the DOM lib; a `window`, `setTimeout` or `import x from "./a.png?url"` in a pure file is a type error at the importer |
+| `boundary.test.ts` | the HOOKS bucket stays portable; `ui/` stays rule-free | regex over the hook files (`window.`, `document.`, `localStorage`, `navigator.`, `react-dom`, `./WebAudio`, `../platform`, `../assets/manifest`) and over `ui/**` (`from "../engine/reducer"`, `from "../ai`) |
+| `engine.test.ts`, `ai/sim.test.ts` | the rules and the AI | the handoff's 65 engine assertions; 200 seeded games with 0 throws / 0 stalls and a golden action list |
+| `npm run sim -- N` | legality and termination at scale | every game runs through the real `reduce()`, which throws on any illegal action, so "0 illegal actions" is a proof |
+| `npm run verify:port -- N` | the port is the prototype | the prototype's engine (`reference/proto-oracle.cjs`) and ours play the same seeds with the same random stream; every decision is compared |
+| `manifest.test.ts` + the explicit import table | every asset exists and every name is wired | a missing file is a Vite resolve error; a missing key is TS2741; every portrait key is in `PORTRAITS` |
+| `vite build` | it ships | `tsc -b` first, then the bundle, service worker and webmanifest |
+
+## Where things are decided
+
+- `../tally-two-handoff/docs/WEB-PLAN.md` — the plan this code follows (sections are cited as `§3.4` etc. in doc comments).
+- `../tally-two-handoff/docs/DECISIONS.md` — the product decisions (rules as flags, portrait phone, 96x128 cards, settings-only persistence, "Hard is not stronger than Medium").
+- `../tally-two-handoff/docs/ENGINE.md` — the engine and AI API reference.
+- `../tally-two-handoff/docs/ASSET-DECISIONS.md` — the asset triage; `docs/ASSETS.md` here is what this build actually wires.
+- `../tally-two-handoff/README.md` — what the handoff package is and in which order to read it.
+
+## Verification
+
+`verify:port` needs the handoff package next to this folder (`../tally-two-handoff/reference/proto-oracle.cjs`, resolved from `scripts/`). Both commands run in a few seconds; only the millisecond figures vary from run to run.
+
+```sh
+export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 24
+cd tally-web
+npm run sim -- 300
+```
+
+Expected output (2026-10-05, Node 24.15.0):
+
+```text
+> tally-web@0.1.0 sim
+> node --experimental-strip-types --import ./scripts/register-resolver.mjs scripts/sim.mjs 300
+
+✓ 300 games in 375 ms
+illegal actions : 0
+stalled games   : 0
+all Regular                      75 games, seat wins 20/18/22/15, avg 25.1 plays
+Card sharp vs three Greenhorns   75 games, seat 0 wins 48 (64%; even odds would be 25%)
+Regular vs three Greenhorns      75 games, seat 0 wins 47 (63%; even odds would be 25%)
+Card sharp vs three Regulars     75 games, seat 0 wins 25 (33%; even odds would be 25%)
+✓ legality and termination gates pass
+```
+
+The three percentages are the "Hard is not measurably stronger than Medium" finding from `DECISIONS.md`: Card sharp (hard) beats three Greenhorns 64 % of the time, Regular (medium) beats them 63 %, and Card sharp against three Regulars wins 33 % — barely above the 25 % of even odds. Seeds are `1000 + i`, so the numbers are exact and repeatable; they are printed, not asserted (the gate is the two zeros).
+
+```sh
+npm run verify:port -- 600
+```
+
+Expected output:
+
+```text
+> tally-web@0.1.0 verify:port
+> node --experimental-strip-types --import ./scripts/register-resolver.mjs scripts/verify-port.mjs 600
+
+unit-level mismatches (classify/beats/genMoves/legalMoves/partition over 3000 random hands x 2 rule sets): 0
+full games compared: 600; identical move-for-move: 600; same winner: 600; 2999 ms
+✓ the TypeScript port is move-for-move identical to the prototype
+```
+
+The whole gate:
+
+```sh
+npm run check     # typecheck (app + core) → lint → vitest → sim 300 → vite build; exit 0 is the answer
+```
+
+Node 24 accepts `--experimental-strip-types` (the plan was written against 22.17, which also needs the flag); the template's `erasableSyntaxOnly` is what keeps the `.ts` files runnable under it — no enums, no namespaces, no parameter properties.

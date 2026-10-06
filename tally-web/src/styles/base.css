@@ -1,0 +1,153 @@
+/* P:26-40. The game is a phone-width column; on a desktop it sits centred on the wood. */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+html,
+body {
+  height: 100%;
+}
+/* Every sprite is an image-set over 1x/2x/3x nearest-neighbour files: iOS Safari resamples
+   image-rendering: pixelated backgrounds, but draws the file matching its dpr 1:1. */
+body {
+  margin: 0;
+  color: var(--bone);
+  background-color: var(--oak-deep);
+  background-image: image-set(url("../assets/sprites/wood.png") 1x, url("../assets/sprites/wood@2x.png") 2x, url("../assets/sprites/wood@3x.png") 3x);
+  background-size: 96px 96px;
+  image-rendering: pixelated;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  overflow: hidden;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+button,
+input,
+select {
+  image-rendering: auto;
+}
+.western {
+  font-family: "Rye", Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+#root {
+  height: 100dvh;
+  display: flex;
+  justify-content: center;
+}
+/* the game root: never wider than the largest iPhone, never scaled */
+.game {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--oak-deep);
+  box-shadow: 0 0 0 1px #120a04;
+}
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  opacity: 1;
+}
+.muted {
+  color: var(--dust);
+  font-size: 12px;
+}
+/* the crispness probe tile (dev/Spike.tsx) */
+.checker-tile {
+  background-image: image-set(url("../assets/sprites/checker.png") 1x, url("../assets/sprites/checker@2x.png") 2x, url("../assets/sprites/checker@3x.png") 3x);
+  background-size: 32px 32px;
+  background-repeat: repeat;
+  image-rendering: pixelated;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- title (P:43-63) ---------- */
+.title {
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+  background:
+    radial-gradient(120% 70% at 50% 12%, rgba(232, 163, 61, 0.28), transparent 62%),
+    linear-gradient(180deg, #2e1b0c 0%, #1a0f07 100%);
+}
+.title h1 {
+  font-size: clamp(34px, 11vw, 54px);
+  margin: 0;
+  color: var(--amber);
+  text-shadow:
+    0 3px 0 #6b3f12,
+    0 6px 14px rgba(0, 0, 0, 0.6);
+}
+.title .sub {
+  color: var(--dust);
+  font-size: 14px;
+  margin: 0 0 6px;
+}
+.doors {
+  width: min(300px, 80vw);
+  aspect-ratio: 3/2;
+  margin: 14px 0 22px;
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #120a04, #241408);
+  box-shadow:
+    inset 0 0 0 4px var(--oak),
+    0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.doors::before,
+.doors::after {
+  content: "";
+  position: absolute;
+  top: 8%;
+  bottom: 8%;
+  width: 46%;
+  background: repeating-linear-gradient(180deg, var(--oak-light) 0 10px, var(--oak) 10px 20px);
+  box-shadow: inset 0 0 0 3px #1a0f07;
+  transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.doors::before {
+  left: 3%;
+  transform-origin: left center;
+}
+.doors::after {
+  right: 3%;
+  transform-origin: right center;
+}
+.doors.open::before {
+  transform: perspective(500px) rotateY(72deg);
+}
+.doors.open::after {
+  transform: perspective(500px) rotateY(-72deg);
+}
+.doors .glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(60% 60% at 50% 55%, rgba(232, 163, 61, 0.85), rgba(232, 163, 61, 0) 70%);
+  opacity: 0.35;
+}
+.tbtn {
+  display: block;
+  width: min(300px, 80vw);
+  margin: 8px auto;
+}

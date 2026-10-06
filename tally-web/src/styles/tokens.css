@@ -1,0 +1,34 @@
+/* The prototype's palette (P:6-19) plus the card size. Cards are 96x128 CSS px, always:
+   on a dpr 2/3 phone the browser blits the @2x/@3x atlas one device pixel per atlas pixel. */
+:root {
+  --oak-deep: #241408;
+  --oak: #3e2715;
+  --oak-light: #5c3a20;
+  --felt: #1e4a38;
+  --felt-dark: #153627;
+  --amber: #e8a33d;
+  --bone: #f2e8d5;
+  --ink: #191310;
+  --red: #b8372b;
+  --blue: #2e6e9e;
+  --sage: #4a8446;
+  --dust: #c9b08a;
+  --shadow: rgba(0, 0, 0, 0.45);
+
+  --cw: 96px;
+  --ch: 128px;
+  /* set by platform/useDevice.ts; 1 until then */
+  --dpr: 1;
+  /* the pile's card size: one scale step below the hand (48 px on dpr 2, 64 px on dpr 3) */
+  --cw-small: calc(var(--cw) * max(1, var(--dpr) - 1) / var(--dpr));
+  --ch-small: calc(var(--ch) * max(1, var(--dpr) - 1) / var(--dpr));
+
+  /* Textures and portraits are image-set() declarations written in the rules that use them
+     (base.css, table.css), not here: the bundler adds the -webkit-image-set() fallback for
+     iOS <= 16 only inside a rule, never inside a custom property. */
+
+  color-scheme: dark;
+}
+:root:not([data-theme="light"]) {
+  color-scheme: dark;
+}

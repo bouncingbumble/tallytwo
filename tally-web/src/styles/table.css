@@ -1,0 +1,313 @@
+/* P:78-132 and P:146-161, at 96-px cards. Portraits are 64x64 sprites drawn at 64 CSS px. */
+.table {
+  background:
+    linear-gradient(180deg, rgba(42, 26, 15, 0.92), rgba(28, 17, 8, 0.97)),
+    image-set(url("../assets/sprites/wood.png") 1x, url("../assets/sprites/wood@2x.png") 2x, url("../assets/sprites/wood@3x.png") 3x);
+  background-size:
+    auto,
+    96px 96px;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+  background:
+    linear-gradient(180deg, rgba(56, 34, 15, 0.82), rgba(36, 20, 8, 0.94)),
+    image-set(url("../assets/sprites/wood.png") 1x, url("../assets/sprites/wood@2x.png") 2x, url("../assets/sprites/wood@3x.png") 3x);
+  background-size:
+    auto,
+    96px 96px;
+  border-bottom: 2px solid #120a04;
+  flex: 0 0 auto;
+}
+.topbar .rd {
+  font-size: 13px;
+  color: var(--dust);
+}
+.topbar .tally {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--dust);
+}
+.topbar .tally b {
+  color: var(--amber);
+  font-size: 15px;
+}
+
+/* opponents */
+.opps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 10px 10px 6px;
+  flex: 0 0 auto;
+}
+.opp {
+  position: relative;
+  background: linear-gradient(180deg, #3e2715, #2b1a0c);
+  border-radius: 5px;
+  padding: 7px 6px 6px;
+  box-shadow: inset 0 0 0 2px #120a04;
+  text-align: center;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+.opp.active {
+  box-shadow:
+    inset 0 0 0 2px var(--amber),
+    0 0 14px rgba(232, 163, 61, 0.35);
+}
+.opp.out {
+  opacity: 0.55;
+}
+.opp .face {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1px;
+  background-size: 64px 64px;
+  background-repeat: no-repeat;
+  background-position: center;
+  image-rendering: pixelated;
+}
+/* portraits by key (selectors.portraitFor): 64x64 sprites at 1x/2x/3x, drawn 1:1 */
+.face.p_marshal {
+  background-image: image-set(url("../assets/sprites/p_marshal.png") 1x, url("../assets/sprites/p_marshal@2x.png") 2x, url("../assets/sprites/p_marshal@3x.png") 3x);
+}
+.face.p_outlaw {
+  background-image: image-set(url("../assets/sprites/p_outlaw.png") 1x, url("../assets/sprites/p_outlaw@2x.png") 2x, url("../assets/sprites/p_outlaw@3x.png") 3x);
+}
+.face.p_gambler {
+  background-image: image-set(url("../assets/sprites/p_gambler.png") 1x, url("../assets/sprites/p_gambler@2x.png") 2x, url("../assets/sprites/p_gambler@3x.png") 3x);
+}
+.face.wanted {
+  background-image: image-set(url("../assets/sprites/wanted.png") 1x, url("../assets/sprites/wanted@2x.png") 2x, url("../assets/sprites/wanted@3x.png") 3x);
+}
+.opp .nm {
+  font-size: 11px;
+  color: var(--dust);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.opp .cnt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--bone);
+}
+.opp .backs {
+  display: inline-flex;
+}
+.opp .backs i {
+  width: 9px;
+  height: 12px;
+  border-radius: 1px;
+  margin-left: -4px;
+  background: repeating-linear-gradient(45deg, #7a2b24 0 2px, #5e1f1a 2px 4px);
+  box-shadow: 0 0 0 1px #120a04;
+}
+.opp .backs i:first-child {
+  margin-left: 0;
+}
+.opp .cnt b {
+  color: var(--amber);
+  font-size: 13px;
+}
+.opp.low .cnt b {
+  color: #ff8a6b;
+}
+.opp .badge {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #120a04;
+  color: var(--dust);
+  box-shadow: 0 0 0 1px #000;
+}
+.bark {
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  transform: translate(-50%, -6px);
+  background: var(--bone);
+  color: #241408;
+  font-size: 11px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  z-index: 5;
+}
+.bark.show {
+  animation: barkpop 1.9s ease forwards;
+}
+
+/* felt */
+.felt {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 2px 10px 6px;
+  border-radius: 8px;
+  position: relative;
+  background:
+    radial-gradient(120% 90% at 50% 38%, rgba(90, 160, 110, 0.3) 0%, rgba(20, 60, 40, 0.1) 48%, rgba(4, 18, 12, 0.55) 100%),
+    image-set(url("../assets/sprites/felt.png") 1x, url("../assets/sprites/felt@2x.png") 2x, url("../assets/sprites/felt@3x.png") 3x);
+  background-color: var(--felt);
+  background-size:
+    auto,
+    32px 32px;
+  image-rendering: pixelated;
+  box-shadow:
+    inset 0 0 0 5px #2b1a0c,
+    inset 0 0 40px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  overflow: hidden;
+}
+.felt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.35);
+}
+.sign {
+  position: relative;
+  max-width: 88%;
+  padding: 7px 16px;
+  border-radius: 3px;
+  text-align: center;
+  background: linear-gradient(180deg, #6b4526, #4a2e19);
+  color: var(--bone);
+  font-size: 13px;
+  box-shadow:
+    inset 0 0 0 2px #2b1a0c,
+    0 5px 12px var(--shadow);
+  z-index: 2;
+  image-rendering: auto;
+}
+.sign .who {
+  display: block;
+  font-size: 10px;
+  color: var(--dust);
+  margin-bottom: 1px;
+}
+.sign::before,
+.sign::after {
+  content: "";
+  position: absolute;
+  top: -9px;
+  width: 2px;
+  height: 9px;
+  background: #8a6b45;
+}
+.sign::before {
+  left: 16px;
+}
+.sign::after {
+  right: 16px;
+}
+/* The pile: cards absolutely positioned at integer x (PILE_STEP apart, centred by ui/Pile.tsx),
+   resting at rotate(0) — the slap tilts them on the way in only. */
+.pile {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: calc(var(--ch-small) + 6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pile .cards {
+  position: absolute;
+  inset: 0;
+}
+.pile .card {
+  position: absolute;
+  left: 0;
+  top: 3px;
+}
+.pile .card.in {
+  animation: slap 0.28s cubic-bezier(0.2, 1.3, 0.4, 1) backwards;
+}
+.empty {
+  color: rgba(242, 232, 213, 0.5);
+  font-size: 13px;
+  text-align: center;
+  padding: 0 24px;
+  image-rendering: auto;
+}
+.felt.nudge {
+  animation: nudge 0.16s ease;
+}
+
+/* hand */
+.handwrap {
+  flex: 0 0 auto;
+  padding: 0 8px;
+}
+.hand {
+  position: relative;
+  height: calc(var(--ch) + 22px);
+  margin: 0 auto;
+  width: 100%;
+}
+.hand .card {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  transition:
+    transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    filter 0.16s ease,
+    opacity 0.16s ease;
+}
+/* the lift itself is in the inline transform (ui/Hand.tsx, SELECT_LIFT), so it never fights the deal keyframes */
+.hand .card.sel {
+  box-shadow:
+    0 8px 14px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 2px var(--amber);
+}
+.hand .card.dim {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55)) brightness(0.62) saturate(0.6);
+  opacity: 0.85;
+}
+.hand .card.deal {
+  animation: deal 0.38s ease backwards;
+}
+
+.status {
+  height: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--dust);
+  padding: 2px 12px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 0 auto;
+}
+.status.bad {
+  color: #e88a6b;
+}
+.status.good {
+  color: #8fd08a;
+}
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1.5fr;
+  gap: 7px;
+  padding: 6px 10px calc(8px + env(safe-area-inset-bottom));
+  flex: 0 0 auto;
+}

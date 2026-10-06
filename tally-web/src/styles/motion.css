@@ -1,0 +1,55 @@
+/* Keyframes (P:128-132, 153-154) and the two ways to turn them off (P:215-216). Every
+   animation ends on the integer rest pose; see render/fanLayout.ts. */
+@keyframes barkpop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.9);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, -10px) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, -10px);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -16px);
+  }
+}
+@keyframes slap {
+  from {
+    transform: translate(var(--x, 0px), -26px) scale(1.18) rotate(var(--rot, 0deg));
+    opacity: 0;
+  }
+  to {
+    transform: translate(var(--x, 0px), 0) rotate(0deg);
+    opacity: 1;
+  }
+}
+@keyframes nudge {
+  50% {
+    transform: translateY(2px);
+  }
+}
+@keyframes deal {
+  from {
+    transform: translate(-40vw, -38vh) rotate(-40deg) scale(0.7);
+    opacity: 0;
+  }
+  to {
+    transform: translate(var(--x, 0px), 0);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+body.nomotion * {
+  animation-duration: 0.01ms !important;
+  transition: none !important;
+}

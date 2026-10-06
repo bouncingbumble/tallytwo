@@ -1,0 +1,270 @@
+/* P:163-205: sheets, switches, the WANTED poster, the crash screen, the landscape overlay. */
+/* Auto margins, not align/justify center: a sheet taller than the screen then starts at the
+   top and scrolls, instead of being centred with its head clipped out of reach. */
+.ov {
+  position: absolute;
+  inset: 0;
+  background: rgba(12, 7, 3, 0.82);
+  display: flex;
+  padding: 16px;
+  z-index: 20;
+  overflow: auto;
+  image-rendering: auto;
+}
+.ov > * {
+  margin: auto;
+}
+.sheet {
+  width: min(420px, 100%);
+  background: linear-gradient(180deg, #3a2412, #251506);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow:
+    inset 0 0 0 3px #120a04,
+    0 18px 40px rgba(0, 0, 0, 0.6);
+}
+.sheet h2 {
+  font-size: 22px;
+  margin: 0 0 10px;
+  color: var(--amber);
+}
+.sheet h3 {
+  font-size: 14px;
+  margin: 16px 0 6px;
+  color: var(--dust);
+  font-weight: 600;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(201, 176, 138, 0.14);
+  font-size: 14px;
+}
+.row:last-of-type {
+  border-bottom: 0;
+}
+.row label {
+  flex: 1;
+  cursor: pointer;
+}
+.row .hintline {
+  display: block;
+  font-size: 11px;
+  color: var(--dust);
+  margin-top: 2px;
+}
+/* 16px, never smaller: iOS Safari zooms the page to bring a smaller focused control to 16px,
+   and with body overflow hidden there is no scrolling back. */
+select {
+  font: inherit;
+  font-size: 16px;
+  background: #1a0f07;
+  color: var(--bone);
+  border: 1px solid #5c3a20;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+.sw {
+  width: 46px;
+  height: 26px;
+  border-radius: 13px;
+  background: #1a0f07;
+  position: relative;
+  flex: 0 0 auto;
+  border: 1px solid #5c3a20;
+  cursor: pointer;
+  padding: 0;
+}
+.sw::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--dust);
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
+}
+.sw[aria-checked="true"] {
+  background: #4a2e19;
+  border-color: var(--amber);
+}
+.sw[aria-checked="true"]::after {
+  transform: translateX(20px);
+  background: var(--amber);
+}
+input[type="range"] {
+  flex: 0 0 120px;
+  accent-color: var(--amber);
+}
+.ovbtns {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.ovbtns .btn {
+  flex: 1;
+}
+.note {
+  font-size: 12px;
+  color: var(--dust);
+  margin: 6px 0 0;
+}
+
+/* poster */
+.poster {
+  width: min(360px, 100%);
+  background: linear-gradient(180deg, #efe2c2, #dcc9a0);
+  color: #2a1a0f;
+  border-radius: 3px;
+  padding: 16px 16px 14px;
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.6);
+  position: relative;
+  text-align: center;
+  background-image: radial-gradient(rgba(120, 90, 50, 0.16) 1px, transparent 1px);
+  background-size: 5px 5px;
+}
+.poster::before,
+.poster::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #8a6b45;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.4);
+}
+.poster::before {
+  left: 10px;
+}
+.poster::after {
+  right: 10px;
+}
+.poster h2 {
+  font-size: 38px;
+  margin: 2px 0 0;
+  letter-spacing: 0.06em;
+  color: #2a1a0f;
+}
+.poster h2.final {
+  font-size: 30px;
+}
+.poster .rule {
+  height: 3px;
+  background: #2a1a0f;
+  margin: 6px 0 10px;
+}
+/* the 64x64 portrait or the 61x71 WANTED face, drawn at exactly 2x */
+.poster .face {
+  width: 128px;
+  height: 128px;
+  margin: 2px auto 0;
+  background-size: 128px 128px;
+  background-repeat: no-repeat;
+  background-position: center;
+  image-rendering: pixelated;
+}
+.poster .face.wanted {
+  width: 122px;
+  height: 142px;
+  background-size: 122px 142px;
+}
+.poster .winner {
+  font-size: 20px;
+  margin: 2px 0 0;
+}
+.poster .reward {
+  font-size: 13px;
+  margin-top: 4px;
+}
+.poster .reward b {
+  font-size: 26px;
+  display: block;
+  line-height: 1.1;
+}
+.poster table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #2a1a0f;
+}
+.poster th {
+  font-size: 10px;
+  text-transform: none;
+  color: #6b5433;
+  font-weight: 600;
+  text-align: right;
+  padding-bottom: 2px;
+}
+.poster th:first-child {
+  text-align: left;
+}
+.poster td {
+  padding: 4px 0;
+  border-top: 1px solid rgba(42, 26, 15, 0.2);
+  text-align: right;
+}
+.poster td:first-child {
+  text-align: left;
+}
+.poster .neg {
+  color: #8a2c22;
+}
+.poster .pos {
+  color: #2f6b2c;
+  font-weight: 700;
+}
+.poster .ovbtns .btn.ghost {
+  color: #2a1a0f;
+  box-shadow: inset 0 0 0 2px rgba(42, 26, 15, 0.35);
+}
+
+/* how to play */
+.howto p {
+  font-size: 14px;
+  margin: 6px 0;
+}
+.howto .ex {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 12px;
+  flex-wrap: wrap;
+}
+
+/* crash + error */
+pre.out {
+  background: #120a04;
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  max-height: 42vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: #cfe6c9;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* landscape */
+.turn-phone {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  background: var(--oak-deep);
+  color: var(--dust);
+  font-size: 18px;
+}

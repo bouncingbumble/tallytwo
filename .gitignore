@@ -1,0 +1,6 @@
+.DS_Store
+node_modules/
+tally-web/dist/
+tally-web/dev-dist/
+tally-web/e2e/shots/
+*.log
