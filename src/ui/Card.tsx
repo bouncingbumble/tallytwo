@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { type Card as CardValue, cardName } from "../engine/cards";
 import { atlasCell } from "../render/atlas";
 
@@ -10,6 +10,8 @@ export interface CardProps {
   dim?: boolean;
   /** No handler = a disabled button, so it is not a tab stop. */
   onClick?: (value: CardValue) => void;
+  /** The start of a possible drag (ui/Hand.tsx); the hand listens for the moves. */
+  onPointerDown?: (value: CardValue, e: ReactPointerEvent<HTMLButtonElement>) => void;
   className?: string;
   style?: CSSProperties;
 }
@@ -18,7 +20,7 @@ export interface CardProps {
  * One card face from the atlas. The face is a CSS background positioned by --col/--row
  * (styles/cards.css); the element itself is exactly --cw x --ch so the sprite never scales.
  */
-export function Card({ value, small, selected, dim, onClick, className, style }: CardProps) {
+export function Card({ value, small, selected, dim, onClick, onPointerDown, className, style }: CardProps) {
   const { col, row } = atlasCell(value);
   const cls = ["card", small && "small", selected && "sel", dim && "dim", className].filter(Boolean).join(" ");
   const css = { "--col": col, "--row": row, ...style } as CSSProperties;
@@ -31,6 +33,7 @@ export function Card({ value, small, selected, dim, onClick, className, style }:
       aria-pressed={onClick ? !!selected : undefined}
       disabled={!onClick}
       onClick={onClick ? () => onClick(value) : undefined}
+      onPointerDown={onPointerDown ? (e) => onPointerDown(value, e) : undefined}
     />
   );
 }

@@ -12,7 +12,7 @@ import { COPY } from "../../game/copy";
 import { gameLog } from "../../game/selectors";
 import { SPEED_MULTIPLIERS, type Speed, type SpeedMultiplier } from "../../game/timing";
 import { useGame } from "../../game/useGame";
-import type { RoundsPerMatch, Volume } from "../../settings/settings";
+import type { RoundsPerMatch, SortBy, Volume } from "../../settings/settings";
 import { useSettings } from "../../settings/useSettings";
 import { CopyButton } from "../CopyButton";
 import { Overlay } from "../Overlay";
@@ -50,6 +50,10 @@ const ROUNDS: readonly Option<RoundsPerMatch>[] = [
   { value: 0, label: t.endless },
   { value: 5, label: "5" },
   { value: 10, label: "10" },
+];
+const SORT: readonly Option<SortBy>[] = [
+  { value: "rank", label: t.byRank },
+  { value: "suit", label: t.bySuit },
 ];
 
 /** One labelled row (P:260): the label names the control through htmlFor and its own id. */
@@ -141,6 +145,7 @@ export function SettingsSheet({ onClose, onCopyLog }: SettingsSheetProps) {
         <SelectRow id={id("gameSpeed")} label={t.gameSpeed} hint={t.gameSpeedHint} value={opts.speedMultiplier} options={GAME_SPEED} onChange={(v) => setOpts({ speedMultiplier: v })} />
         <SelectRow id={id("speed")} label={t.speed} hint={t.speedHint} value={opts.speed} options={SPEED} onChange={(v) => setOpts({ speed: v })} />
         <SelectRow id={id("roundsPerMatch")} label={t.roundsPerMatch} value={opts.roundsPerMatch} options={ROUNDS} onChange={(v) => setOpts({ roundsPerMatch: v })} />
+        <SelectRow id={id("sortBy")} label={t.sortBy} hint={t.sortByHint} value={opts.sortBy} options={SORT} onChange={(v) => setOpts({ sortBy: v })} />
         <SwitchRow id={id("music")} label={t.music} hint={t.musicHint} on={opts.music} onChange={(v) => setOpts({ music: v })} />
         <SwitchRow id={id("sfx")} label={t.sfx} on={opts.sfx} onChange={(v) => setOpts({ sfx: v })} />
         <RangeRow id={id("volumeMusic")} label={`${t.volume} · ${t.volumeMusic}`} value={opts.volume.music} onChange={(v) => setVolume({ music: v })} />

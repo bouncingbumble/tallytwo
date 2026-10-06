@@ -114,6 +114,23 @@ async function runDevice(browserType, dev, label) {
   note(label, `seed 3: seat ${g0?.turn} leads; leftmost card is the 3♦`, g0?.turn === 0 && first === "Three of Diamonds");
   await page.screenshot({ path: `${shots}/table-dealt.png` });
 
+  // Drag the 3♦ (leftmost) to the right end of the fan: the hand reorders, the drag's click
+  // selects nothing, and every card rests on a whole px again.
+  const card0 = await page.locator(".hand .card").first().boundingBox();
+  const strip = await page.locator(".hand").boundingBox();
+  await page.mouse.move(card0.x + 16, card0.y + 64);
+  await page.mouse.down();
+  await page.mouse.move(card0.x + 40, card0.y + 64, { steps: 4 });
+  await page.mouse.move(strip.x + strip.width - 20, card0.y + 64, { steps: 12 });
+  await page.mouse.up();
+  await sleep(300);
+  const dragged = await page.evaluate(() => {
+    const els = [...document.querySelectorAll(".hand .card")].map((el) => ({ label: el.getAttribute("aria-label"), x: new DOMMatrixReadOnly(getComputedStyle(el).transform).e, pressed: el.getAttribute("aria-pressed") }));
+    els.sort((a, b) => a.x - b.x);
+    return { last: els[els.length - 1].label, selected: els.filter((e) => e.pressed === "true").length, whole: els.every((e) => Number.isInteger(e.x)) };
+  });
+  note(label, `drag: the 3♦ dropped at the right end (rightmost now ${dragged.last}); ${dragged.selected} selected; whole-px rest`, dragged.last === "Three of Diamonds" && dragged.selected === 0 && dragged.whole);
+
   const rest = await page.evaluate(() => {
     const els = [...document.querySelectorAll(".hand .card")];
     const xs = els.map((el) => {
@@ -124,7 +141,8 @@ async function runDevice(browserType, dev, label) {
     const rights = els.map((el) => el.getBoundingClientRect().right);
     const hand = document.querySelector(".hand").getBoundingClientRect();
     const c = document.querySelector(".controls").getBoundingClientRect();
-    const step = els.length > 1 ? xs[1].x - xs[0].x : 0;
+    const sortedX = xs.map((p) => p.x).sort((a, b) => a - b); // DOM order is value order, not fan order
+    const step = els.length > 1 ? sortedX[1] - sortedX[0] : 0;
     return { xs, step, span: Math.max(...rights) - Math.min(...lefts), handW: hand.width, handBottom: hand.bottom, w: els[0]?.getBoundingClientRect().width, h: els[0]?.getBoundingClientRect().height, bottom: c.bottom, scroll: document.documentElement.scrollHeight, inner: innerHeight };
   });
   note(label, `card rest transforms are whole CSS px (${rest.xs.slice(0, 3).map((p) => p.x + "," + p.y).join(" | ")} ...)`, rest.xs.every((p) => Number.isInteger(p.x) && Number.isInteger(p.y)));

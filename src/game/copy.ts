@@ -24,7 +24,6 @@ export const COPY = {
     notAHand: (n: number) => `${n} cards — that's not a hand.`,
     needs3D: (desc: string) => `${desc} — must include the 3♦.`,
     doesntBeat: (desc: string) => `${desc} — doesn't beat it.`,
-    sortedBy: (by: "rank" | "suit") => `Sorted by ${by}.`,
   },
   sign: {
     table: "Table",
@@ -39,7 +38,6 @@ export const COPY = {
   },
   controls: {
     pass: "Pass",
-    sort: "Sort",
     hint: "Hint",
     play: "Play",
   },
@@ -87,6 +85,10 @@ export const COPY = {
     slow: "Slow",
     roundsPerMatch: "Rounds per match",
     endless: "Endless",
+    sortBy: "Fresh deals sorted by",
+    sortByHint: "Drag cards to rearrange your hand any time",
+    byRank: "Rank",
+    bySuit: "Suit",
     music: "Saloon piano",
     musicHint: "Looping table music",
     sfx: "Card sounds",

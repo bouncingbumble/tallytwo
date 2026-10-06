@@ -169,10 +169,6 @@ test("status: a hand that does not beat the table -> doesntBeat, bad", () => {
   expect(COPY.status.doesntBeat("Three of Clubs")).toBe("Three of Clubs — doesn't beat it.");
 });
 
-test("status: sortedBy is the Sort button's transient line", () => {
-  expect(COPY.status.sortedBy("rank")).toBe("Sorted by rank.");
-  expect(COPY.status.sortedBy("suit")).toBe("Sorted by suit.");
-});
 
 /* ---- the controls ---- */
 

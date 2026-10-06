@@ -352,19 +352,27 @@
   padding: 0 8px;
   min-width: 0;
 }
+/* touch-action none: a finger sliding along the fan is a drag (ui/Hand.tsx), never a pan */
 .hand {
   position: relative;
   height: var(--hand-h);
   width: 100%;
+  touch-action: none;
 }
 .hand .card {
   position: absolute;
   bottom: 0;
   left: 0;
+  -webkit-touch-callout: none;
   transition:
     transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.2),
     filter 0.16s ease,
     opacity 0.16s ease;
+}
+/* the card under the finger follows it without easing; the others slide into the gap */
+.hand .card.drag {
+  transition: none;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.55);
 }
 /* the lift itself is in the inline transform (ui/Hand.tsx, SELECT_LIFT), so it never fights the deal keyframes */
 .hand .card.sel {
