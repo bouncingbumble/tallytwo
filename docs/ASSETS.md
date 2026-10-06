@@ -23,9 +23,9 @@ What this build actually wires, and how it got here. The 47 slots are the origin
 | 13 | music-tension | ost_3 ("Ghost Town Blues"), layered over ost_1 with a 2-s crossfade when any seat is at ≤ 3 cards | wired |
 | 14 | music-results | ost_4 ("Dusty Trails") | wired |
 | 15 | music-howto | ost_4 (ost_5 quarantined); playable because `init()` runs from the How to play button too and `setMusic` is latched | wired |
-| 16 | persona-marshal-idle | `sprites/p_marshal.png` 64x64 (from B-4) | wired |
-| 17 | persona-outlaw-idle | `sprites/p_outlaw.png` 64x64 (from B-6) | wired |
-| 18 | persona-gambler-idle | `sprites/p_gambler.png` 64x64 (from B-6) | wired |
+| 16 | persona-marshal-idle | `sprites/p_marshal.png` 96x104 canvas, the 90x91 framed portrait from B-4 at 1x | wired |
+| 17 | persona-outlaw-idle | `sprites/p_outlaw.png` 96x104 canvas, the 43x52 framed portrait from B-6 at exactly 2x | wired |
+| 18 | persona-gambler-idle | `sprites/p_gambler.png` 96x104 canvas, the 77x88 framed portrait from B-6 at 1x | wired |
 | 19-21 | persona-{marshal,outlaw,gambler}-states | — ; substitutes: active glow, red count at ≤ 3, dim at 0, "passed" badge, barks (all CSS/state) | **nothing** |
 | 22 | display-wood | `sprites/wood.png` 96x96 (A4-Walls 0,0,96,96) | wired |
 | 23 | display-felt | `sprites/felt.png` 32x32 (B-4-derived, synthesised) | wired |
@@ -80,7 +80,7 @@ Round-robin without an immediate repeat (`pool.ts` `pickVariant`), ±4 % true-pi
 
 ## 3. The pipeline
 
-1. **Sprites**: `src/assets/sprites/{wood,felt,p_marshal,p_outlaw,p_gambler,wanted,checker}.png`, each with its `@2x` and `@3x` nearest-neighbour upscale (§7). The six display sprites were decoded from the prototype's embedded asset pack; the tileset sheets they were cut from are source material only and are not in this repo (every `ui-*` 9-slice slot is deferred).
+1. **Sprites**: `src/assets/sprites/{wood,felt,p_marshal,p_outlaw,p_gambler,wanted,checker}.png`, each with its `@2x` and `@3x` nearest-neighbour upscale (§7). The wood, felt and WANTED sprites were decoded from the prototype's embedded asset pack; the three portraits were re-cut from the B-4/B-6 tileset sheets at native pixel size (the prototype's 64x64 copies were resampled and had the frames clipped); the tileset sheets they were cut from are source material only and are not in this repo (every `ui-*` 9-slice slot is deferred).
 2. **Cards**: `src/assets/cards/` (6 PNGs: atlas and back at @1x/@2x/@3x; the @2x/@3x are exact nearest-neighbour upscales).
 3. **Audio**: the 34 SFX and 3 loops named in the tables above, as AAC `.m4a` (§4), in `src/assets/sfx/` and `src/assets/music/` (`ost_1.m4a`, `ost_3.m4a`, `ost_4.m4a`; the long Ogg names are dropped).
 4. **Names, then URLs.** `src/assets/names.ts` (PURE) declares `AssetName` as a closed union, identifier-shaped so each name is also a variable name (`sfx_DeckShuffle01`, `music_ost_1`, `cards_atlas_2x`), plus `PortraitKey`. `src/assets/manifest.ts` (WEB) is an **explicit import table**, one `import x from "./….m4a?url"` line per asset, and `export const MANIFEST = { … } satisfies Record<AssetName, string>`. A missing or misspelled **file** is a Vite resolve error (`npm run dev` and `npm run build` both stop); a missing or misspelled **key** is TS2741. A DEV-only guard throws on the first asset whose URL resolved to nothing, so a bad URL surfaces on `npm run dev`, not only under `npm test`. `import.meta.glob` cannot do this (an eager `?url` glob is typed `Record<string, string>`, which satisfies anything), which is why the table is written out.
@@ -154,7 +154,7 @@ So every sprite now ships the way the cards do: nearest-neighbour upscales made 
 | --- | --- | --- |
 | wood | 96x96 | 192x192 | 288x288 |
 | felt | 32x32 | 64x64 | 96x96 |
-| p_marshal / p_outlaw / p_gambler | 64x64 | 128x128 | 192x192 |
+| p_marshal / p_outlaw / p_gambler | 96x104 | 192x208 | 288x312 |
 | wanted | 61x71 | 122x142 | 183x213 |
 | checker | 32x32 | 64x64 | 96x96 |
 

@@ -160,12 +160,12 @@ input[type="range"] {
   background: #2a1a0f;
   margin: 6px 0 10px;
 }
-/* the 64x64 portrait or the 61x71 WANTED face, drawn at exactly 2x */
+/* the 96x104 portrait at 1x, or the 61x71 WANTED face at exactly 2x */
 .poster .face {
-  width: 128px;
-  height: 128px;
+  width: 96px;
+  height: 104px;
   margin: 2px auto 0;
-  background-size: 128px 128px;
+  background-size: 96px 104px;
   background-repeat: no-repeat;
   background-position: center;
   image-rendering: pixelated;

@@ -2,11 +2,6 @@
    (a) short portrait screens: smaller portraits, one-line sign — the SE fallback list.
    (b) landscape phones: no layout exists on purpose; the table is covered and the AI pauses. */
 @media (max-height: 700px) {
-  .opp .face {
-    width: 32px;
-    height: 32px;
-    background-size: 32px 32px;
-  }
   .opp {
     padding: 5px 6px 4px;
   }

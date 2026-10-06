@@ -62,16 +62,17 @@
 .opp.out {
   opacity: 0.55;
 }
+/* the portraits are 96x104 sprites (the framed art at its native pixel size, Dusty's at exactly 2x), drawn 1:1 */
 .opp .face {
-  width: 64px;
-  height: 64px;
+  width: 96px;
+  height: 104px;
   margin: 0 auto 1px;
-  background-size: 64px 64px;
+  background-size: 96px 104px;
   background-repeat: no-repeat;
   background-position: center;
   image-rendering: pixelated;
 }
-/* portraits by key (selectors.portraitFor): 64x64 sprites at 1x/2x/3x, drawn 1:1 */
+/* portraits by key (selectors.portraitFor): sprites at 1x/2x/3x, drawn 1:1 */
 .face.p_marshal {
   background-image: image-set(url("../assets/sprites/p_marshal.png") 1x, url("../assets/sprites/p_marshal@2x.png") 2x, url("../assets/sprites/p_marshal@3x.png") 3x);
 }
