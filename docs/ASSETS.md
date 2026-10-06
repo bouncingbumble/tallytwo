@@ -2,7 +2,7 @@
 
 What this build actually wires, and how it got here. The 47 slots are the original asset plan's; where this build deviates from it, the row says so.
 
-**Counts.** 47 slots: **23 wired**, **18 deferred** (a kept candidate exists but the build uses the prototype's CSS or behaviour instead), **6 with nothing to wire**. 23 + 18 + 6 = 47. On disk under `src/assets/`: 6 card PNGs, 7 sprites at 1x/2x/3x (21 PNGs, §7), 34 SFX (`.m4a`, 33 one-shots + the ambience loop), 3 music loops (`.m4a`).
+**Counts.** 47 slots: **27 wired**, **14 deferred** (a kept candidate exists but the build uses the prototype's CSS or behaviour instead), **6 with nothing to wire**. 27 + 14 + 6 = 47. On disk under `src/assets/`: 6 card PNGs, 28 sprites at 1x/2x/3x (84 PNGs, §7 — the 7 table sprites plus 21 saloon props cut from the B-4 / B-6 sheets on 2026-10-06), 34 SFX (`.m4a`, 33 one-shots + the ambience loop), 3 music loops (`.m4a`).
 
 ## 1. The 47 slots
 
@@ -30,11 +30,11 @@ What this build actually wires, and how it got here. The 47 slots are the origin
 | 22 | display-wood | `sprites/wood.png` 96x96 (A4-Walls 0,0,96,96) | wired |
 | 23 | display-felt | `sprites/felt.png` 32x32 (B-4-derived, synthesised) | wired |
 | 24 | display-wanted-poster | `sprites/wanted.png` 61x71 (B-4) | wired |
-| 25 | display-title-backdrop | — (B-3 dropped by the triage; B-7 kept, uncropped); CSS gradients | deferred |
+| 25 | display-title-backdrop | the title's saloon front and the room behind the hand, built from B-4 / B-6 props (§7): `back_bar`, `barrel`, `piano`, `poker_table`, `fireplace`, `chair`, `stool`, `stool_grey`, `plant`, `chips`, `chips_pile`, `painting` | wired |
 | 26 | display-splash-screen | — (B-7 kept); on the web the PWA splash is generated from the manifest colours | deferred |
-| 27 | display-saloon-doors | — (B-12 kept); CSS doors (`styles/base.css` `.doors`) | deferred |
-| 28 | display-lamp-lighting | — (B-8 dropped; B-6 kept) | deferred |
-| 29 | display-signage | — (B-8 dropped; B-11 kept); CSS sign (`.sign`) | deferred |
+| 27 | display-saloon-doors | `doors_closed` / `doors_ajar` / `doors_open` — the B-4 batwing pairs (93x79 art, drawn at exactly 2x) as three swing frames (`ui/Doors.tsx`) | wired |
+| 28 | display-lamp-lighting | `lamp` (B-4 oil lamp), `sconce` / `sconce_silver` (B-6 wall sconces) | wired |
+| 29 | display-signage | `sign_saloon` (B-4 red board), `sign_hanging` (B-4 hanging board), `sign_backdoor` (B-6); the in-game sign stays CSS (`.sign`) | wired |
 | 30 | display-scoreboard | — (B-8 dropped; B-4 kept); the CSS poster table | deferred |
 | 31 | display-tally-icons | — (B-11 kept) | deferred |
 | 32 | display-elimination-marker | — (no knockout mode exists) | deferred |
@@ -54,7 +54,7 @@ What this build actually wires, and how it got here. The 47 slots are the origin
 | 46 | cards-back | `cards/card_back.png` 96x128 + `@2x` + `@3x` (western reskin open) | wired |
 | 47 | cards-reskin-source | — (the `.pxo` is gone; only the 52 face PNGs in Jorel's pack remain, and they are not in the handoff on disk) | **nothing** |
 
-Wired: 1-8, 10, 11, 13-18, 22-24, 41, 43, 45, 46 (23). Deferred: 9, 25-40, 42 (18). Nothing: 12, 19, 20, 21, 44, 47 (6).
+Wired: 1-8, 10, 11, 13-18, 22-25, 27-29, 41, 43, 45, 46 (27). Deferred: 9, 26, 30-40, 42 (14). Nothing: 12, 19, 20, 21, 44, 47 (6).
 
 ## 2. The sound table (`src/audio/sfxTable.ts`)
 
@@ -158,9 +158,30 @@ So every sprite now ships the way the cards do: nearest-neighbour upscales made 
 | wanted | 61x71 | 122x142 | 183x213 |
 | checker | 32x32 | 64x64 | 96x96 |
 
-A new sprite needs its two upscales, three `import … ?url` lines in `manifest.ts`, three names in `names.ts`, and one `image-set()` in the rule that draws it.
+The saloon props (`styles/sprites.css`, one class per sprite), cut on 2026-10-06 from the B-4 and B-6 tileset sheets (768x768 each, kept in the Stockroom artifact, not in this repo) by their alpha bounding boxes:
+
+| sprite | sheet (x, y) | 1x | note |
+| --- | --- | --- | --- |
+| doors_closed / doors_ajar / doors_open | B-4 (290, 488) / (386, 488) / (482, 488) | 186x158 | 93x79 art at exactly 2x, like Dusty's portrait; the title's swing frames |
+| sign_saloon | B-4 (387, 19) | 90x56 | the red board |
+| sign_hanging | B-4 (578, 116) | 93x55 | the hanging board |
+| sign_backdoor | B-6 (529, 148) | 46x40 | |
+| back_bar | B-6 (0, 0) | 240x144 | the WHISKEY / BEER / RUM cabinet; the counter below it is not cut |
+| barrel | B-6 (720, 218) | 48x69 | the SALOON barrel |
+| lamp | B-4 (251, 692) | 31x60 | brass oil lamp |
+| chips / chips_pile | B-6 (729, 425) / B-4 (674, 673) | 31x40 / 94x48 | |
+| painting | B-6 (3, 384) | 86x94 | the desert, gilt frame |
+| sconce / sconce_silver | B-6 (484, 385) / (436, 384) | 38x46 / 38x47 | |
+| plant | B-6 (197, 690) | 40x78 | |
+| stool / stool_grey | B-4 (633, 606) / (728, 606) | 31x66 / 33x66 | |
+| piano | B-6 (576, 290) | 96x94 | |
+| poker_table | B-6 (340, 290) | 228x87 | |
+| fireplace | B-6 (393, 10) | 79x129 | |
+| chair | B-4 (387, 201) | 44x72 | |
+
+Each has its @2x and @3x (nearest-neighbour). A new sprite needs its two upscales, three `import … ?url` lines in `manifest.ts`, a name in `names.ts` (`SaloonSpriteBase` or `TableSpriteBase`), and one `image-set()` in the rule that draws it — for a prop, a `.sp-<name>` class in `styles/sprites.css`.
 
 ## 8. Sources not in this repo
 
-- The tileset sheets the sprites were cut from, the 52 individual card faces and the card-back source: a deferred slot that needs a new crop needs the original art pack.
+- The tileset sheets the sprites were cut from (B-4 and B-6, in the Stockroom artifact's `p/art/tilesets/`), the 52 individual card faces and the card-back source: a deferred slot that needs a new crop needs the original art pack.
 - The Ogg Vorbis masters (73 SFX + 5 loops): only the AAC twins of the wired files ship. Re-transcode from the masters with the recipe in §4.

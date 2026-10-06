@@ -7,6 +7,7 @@
 import { Controls } from "../Controls";
 import { Felt } from "../Felt";
 import { Hand } from "../Hand";
+import { Saloon } from "../Saloon";
 import { Sign } from "../Sign";
 import { StatusLine } from "../StatusLine";
 import { TopBar } from "../TopBar";
@@ -22,6 +23,7 @@ export function TableScreen({ onMenu }: { onMenu: () => void }) {
         <Controls />
       </aside>
       <div className="handwrap">
+        <Saloon />
         <Hand />
       </div>
     </section>

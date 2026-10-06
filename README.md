@@ -79,9 +79,9 @@ src/
                            HOOKS  useAudio (the music/bus state machine)   WEB WebAudio.ts (AudioContext, three buses)
   assets/                  PURE   names.ts (AssetName union)   WEB manifest.ts (explicit ?url import table) + cards/ sprites/ sfx/ music/
   platform/                WEB    webStorage, usePageVisibility, useDevice, useElementSize, useElementWidth
-  ui/                      WEB    Card Hand Pile Sign Felt Seat Bark TopBar StatusLine Controls Switch Overlay Doors CopyButton CrashScreen ErrorBoundary
+  ui/                      WEB    Card Hand Saloon Pile Sign Felt Seat Bark TopBar StatusLine Controls Switch Overlay Doors CopyButton CrashScreen ErrorBoundary
                                   screens/ TitleScreen TableScreen ResultsPoster SettingsSheet HowToSheet
-  styles/                  WEB    tokens base buttons table cards overlays motion
+  styles/                  WEB    tokens base buttons table cards sprites overlays motion
   dev/                     WEB    Spike (?dev=spike), DevHook (window.__tally in DEV builds)
   App.tsx  main.tsx        WEB    providers, ?seed= parsing, the one pointerdown -> audio.resume() listener
 ```

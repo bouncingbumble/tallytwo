@@ -47,15 +47,30 @@ export function TitleScreen({ seed, onSheet }: TitleScreenProps) {
     onSheet(sheet);
   };
 
-  // sideways: the name and the doors on the left, the three buttons on the right (base.css .title)
+  // Sideways: the name over a saloon front on the left (the sign, the batwing doors, a barrel
+  // with a lamp, chips, a stool, a plant), the painting and the three buttons on the right, all
+  // standing on a floorboard strip; wall sconces and a chip pile in the corners of a wide frame
+  // (base.css .title).
   return (
     <section className="screen title">
+      <i className="sp sp-sconce decor decor-tl" aria-hidden="true" />
+      <i className="sp sp-sconce_silver decor decor-tr" aria-hidden="true" />
+      <i className="sp sp-chips_pile decor decor-br" aria-hidden="true" />
       <div className="marquee">
         <h1 className="western">{COPY.title.name}</h1>
         <p className="sub">{COPY.title.sub}</p>
-        <Doors open={doorsOpen} />
+        <div className="scene" aria-hidden="true">
+          <i className="sp sp-sign_saloon at-sign" />
+          <Doors open={doorsOpen} />
+          <i className="sp sp-barrel at-barrel" />
+          <i className="sp sp-lamp at-lamp" />
+          <i className="sp sp-chips at-chips" />
+          <i className="sp sp-stool at-stool" />
+          <i className="sp sp-plant at-plant" />
+        </div>
       </div>
       <div className="menu">
+        <i className="sp sp-painting menu-art" aria-hidden="true" />
         {loaded && (
           <>
             <button type="button" className="btn primary tbtn" onClick={deal}>

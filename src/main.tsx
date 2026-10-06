@@ -4,6 +4,7 @@ import "./styles/base.css";
 import "./styles/buttons.css";
 import "./styles/table.css";
 import "./styles/cards.css";
+import "./styles/sprites.css";
 import "./styles/overlays.css";
 import "./styles/motion.css";
 import { StrictMode } from "react";

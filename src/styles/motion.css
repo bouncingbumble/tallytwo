@@ -33,6 +33,26 @@
     transform: translateY(2px);
   }
 }
+/* sprite frames (the title's batwing doors): a frame switches on or off at its delay, with no easing */
+@keyframes frame-off {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes frame-on {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes frame-mid {
+  0%,
+  99% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
 @keyframes deal {
   from {
     transform: translate(-40vw, -38vh) rotate(-40deg) scale(0.7);

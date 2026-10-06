@@ -352,9 +352,86 @@
   padding: 0 8px;
   min-width: 0;
 }
+/* The saloon behind the hand (ui/Saloon.tsx): a wall, a floor and a 900-px room of sprites,
+   clipped to the strip. The fan hides it at thirteen cards and uncovers it from both ends as
+   the hand is played down. Furniture stands on the floor line (bottom: 4px); the back bar, the
+   signs and the sconce hang from the top. */
+.saloon {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #2b1a0d 0%, #1e1209 76%, #120b06 76%, #0d0804 100%);
+  box-shadow: inset 0 0 0 2px #120a04;
+}
+.saloon .room {
+  position: absolute;
+  top: 0;
+  width: 900px;
+  height: 100%;
+}
+.saloon .room > .sp {
+  position: absolute;
+  bottom: 4px;
+}
+.saloon .r-plant {
+  left: 8px;
+}
+.saloon .r-stool-grey {
+  left: 56px;
+}
+.saloon .r-piano {
+  left: 92px;
+}
+.saloon .r-backdoor {
+  left: 194px;
+  top: 2px;
+  bottom: auto;
+}
+.saloon .r-chair {
+  left: 196px;
+}
+.saloon .r-barrel {
+  left: 246px;
+}
+.saloon .r-chips {
+  left: 282px;
+}
+.saloon .r-back-bar {
+  left: 300px;
+  top: 0;
+  bottom: auto;
+}
+.saloon .r-stool-1 {
+  left: 330px;
+}
+.saloon .r-stool-2 {
+  left: 480px;
+}
+.saloon .r-sconce {
+  left: 548px;
+  top: 4px;
+  bottom: auto;
+}
+.saloon .r-sign {
+  left: 622px;
+  top: 0;
+  bottom: auto;
+}
+.saloon .r-table {
+  left: 560px;
+}
+.saloon .r-fireplace {
+  left: 800px;
+  bottom: -4px;
+}
+.saloon .r-chair-2 {
+  left: 852px;
+}
 /* touch-action none: a finger sliding along the fan is a drag (ui/Hand.tsx), never a pan */
 .hand {
   position: relative;
+  z-index: 1;
   height: var(--hand-h);
   width: 100%;
   touch-action: none;

@@ -81,17 +81,36 @@ select {
   white-space: nowrap;
 }
 
-/* ---------- title (P:43-63), sideways: the marquee (name, doors) left, the buttons right ---------- */
+/* ---------- title (P:43-63), sideways ----------
+   A saloon front: the marquee (the name over the SALOON sign, the batwing doors and the props
+   around them) on the left, the painting and the buttons on the right, everything standing on a
+   floorboard strip along the bottom; sconces and a chip pile in the corners of a wide frame.
+   Every prop is a sprite placed by whole px (styles/sprites.css). */
 .title {
   flex-direction: row;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  gap: 36px;
-  padding: 16px 24px;
+  gap: 40px;
+  padding: 14px 24px 36px;
   text-align: center;
   background:
     radial-gradient(120% 70% at 50% 12%, rgba(232, 163, 61, 0.28), transparent 62%),
     linear-gradient(180deg, #2e1b0c 0%, #1a0f07 100%);
+}
+/* the floorboards: the wood tile, lit from the room */
+.title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  background-image: image-set(url("../assets/sprites/wood.png") 1x, url("../assets/sprites/wood@2x.png") 2x, url("../assets/sprites/wood@3x.png") 3x);
+  background-size: 96px 96px;
+  image-rendering: pixelated;
+  box-shadow:
+    inset 0 4px 8px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(232, 163, 61, 0.25);
 }
 .title .marquee {
   display: flex;
@@ -101,6 +120,7 @@ select {
 .title .menu {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 10px;
   width: min(260px, 36vw);
 }
@@ -115,50 +135,103 @@ select {
 .title .sub {
   color: var(--dust);
   font-size: 14px;
-  margin: 0 0 6px;
+  margin: 0 0 8px;
 }
-.doors {
-  width: min(240px, 34vw);
-  aspect-ratio: 3/2;
-  margin: 10px 0 0;
+/* the saloon front: 340 x 226, the props stand on the scene's bottom edge (the floor) */
+.title .scene {
   position: relative;
-  border-radius: 6px;
-  overflow: hidden;
-  background: linear-gradient(180deg, #120a04, #241408);
-  box-shadow:
-    inset 0 0 0 4px var(--oak),
-    0 10px 30px rgba(0, 0, 0, 0.5);
+  width: 340px;
+  height: 226px;
 }
-.doors::before,
-.doors::after {
-  content: "";
+.title .scene > .sp,
+.title .scene > .doors {
   position: absolute;
-  top: 8%;
-  bottom: 8%;
-  width: 46%;
-  background: repeating-linear-gradient(180deg, var(--oak-light) 0 10px, var(--oak) 10px 20px);
-  box-shadow: inset 0 0 0 3px #1a0f07;
-  transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.doors::before {
-  left: 3%;
-  transform-origin: left center;
+.title .at-sign {
+  left: 125px;
+  top: 0;
 }
-.doors::after {
-  right: 3%;
-  transform-origin: right center;
+.title .at-barrel {
+  left: 10px;
+  bottom: 0;
 }
-.doors.open::before {
-  transform: perspective(500px) rotateY(72deg);
+.title .at-lamp {
+  left: 18px;
+  bottom: 66px;
 }
-.doors.open::after {
-  transform: perspective(500px) rotateY(-72deg);
+.title .at-chips {
+  left: 46px;
+  bottom: 0;
+}
+.title .at-stool {
+  left: 266px;
+  bottom: 0;
+}
+.title .at-plant {
+  left: 300px;
+  bottom: 0;
+}
+/* the batwing doors at exactly 2x: three frames stacked, the glow behind them brightens as they swing */
+.doors {
+  left: 77px;
+  top: 68px;
+  width: 186px;
+  height: 158px;
 }
 .doors .glow {
   position: absolute;
-  inset: 0;
+  left: 14px;
+  right: 14px;
+  top: 16px;
+  bottom: 4px;
   background: radial-gradient(60% 60% at 50% 55%, rgba(232, 163, 61, 0.85), rgba(232, 163, 61, 0) 70%);
   opacity: 0.35;
+  transition: opacity 0.5s ease;
+}
+.doors.open .glow {
+  opacity: 0.95;
+}
+.doors .leaf {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+.doors .f-closed {
+  opacity: 1;
+}
+.doors.open .f-closed {
+  animation: frame-off 1ms step-end 200ms forwards;
+}
+.doors.open .f-ajar {
+  animation: frame-mid 220ms step-end 200ms forwards;
+}
+.doors.open .f-open {
+  animation: frame-on 1ms step-end 420ms forwards;
+}
+/* the painting hangs over the buttons */
+.title .menu-art {
+  margin: 0 auto 14px;
+}
+/* the corners of a wide frame: sconces on the wall, chips on the floor */
+.title .decor {
+  position: absolute;
+}
+.title .decor-tl {
+  left: 28px;
+  top: 22px;
+}
+.title .decor-tr {
+  right: 28px;
+  top: 22px;
+}
+.title .decor-br {
+  right: 26px;
+  bottom: 18px;
+}
+@media (max-width: 899px) {
+  .title .decor {
+    display: none;
+  }
 }
 .tbtn {
   display: block;

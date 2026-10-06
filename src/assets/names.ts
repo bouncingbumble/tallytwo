@@ -15,7 +15,36 @@ export type PortraitKey = "p_marshal" | "p_outlaw" | "p_gambler";
  * image-rendering: pixelated on CSS backgrounds, so like the cards they are drawn via
  * image-set() with no scaling at all.
  */
-export type SpriteBase = PortraitKey | "wood" | "felt" | "wanted" | "checker";
+/** The table and the poster. */
+export type TableSpriteBase = PortraitKey | "wood" | "felt" | "wanted" | "checker";
+/**
+ * The saloon props cut from the B-4 / B-6 tileset sheets (docs/ASSETS.md §7): the title's
+ * batwing doors (three swing frames, drawn at exactly 2x), its sign and furniture, and the bar
+ * behind the hand. Art pixel = CSS pixel, so each is placed by whole px in the CSS that draws it.
+ */
+export type SaloonSpriteBase =
+  | "doors_closed"
+  | "doors_ajar"
+  | "doors_open"
+  | "sign_saloon"
+  | "sign_hanging"
+  | "sign_backdoor"
+  | "back_bar"
+  | "barrel"
+  | "lamp"
+  | "chips"
+  | "chips_pile"
+  | "painting"
+  | "sconce"
+  | "sconce_silver"
+  | "plant"
+  | "stool"
+  | "stool_grey"
+  | "piano"
+  | "poker_table"
+  | "fireplace"
+  | "chair";
+export type SpriteBase = TableSpriteBase | SaloonSpriteBase;
 export type SpriteAssetName = SpriteBase | `${SpriteBase}_2x` | `${SpriteBase}_3x`;
 
 export type SfxAssetName =

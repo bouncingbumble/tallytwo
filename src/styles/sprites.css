@@ -1,0 +1,133 @@
+/* The saloon props (docs/ASSETS.md §7), one class per sprite: its size in CSS px — an art
+   pixel each, the doors at exactly 2x — and its image-set over the 1x/2x/3x files, written
+   here in the rule (not a custom property) so the bundler adds the -webkit-image-set()
+   fallback. Where each one stands is in base.css (the title) and table.css (behind the hand). */
+.sp {
+  display: block;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.sp-doors {
+  width: 186px;
+  height: 158px;
+  background-size: 186px 158px;
+}
+.sp-doors.f-closed {
+  background-image: image-set(url("../assets/sprites/doors_closed.png") 1x, url("../assets/sprites/doors_closed@2x.png") 2x, url("../assets/sprites/doors_closed@3x.png") 3x);
+}
+.sp-doors.f-ajar {
+  background-image: image-set(url("../assets/sprites/doors_ajar.png") 1x, url("../assets/sprites/doors_ajar@2x.png") 2x, url("../assets/sprites/doors_ajar@3x.png") 3x);
+}
+.sp-doors.f-open {
+  background-image: image-set(url("../assets/sprites/doors_open.png") 1x, url("../assets/sprites/doors_open@2x.png") 2x, url("../assets/sprites/doors_open@3x.png") 3x);
+}
+.sp-sign_saloon {
+  width: 90px;
+  height: 56px;
+  background-size: 90px 56px;
+  background-image: image-set(url("../assets/sprites/sign_saloon.png") 1x, url("../assets/sprites/sign_saloon@2x.png") 2x, url("../assets/sprites/sign_saloon@3x.png") 3x);
+}
+.sp-sign_hanging {
+  width: 93px;
+  height: 55px;
+  background-size: 93px 55px;
+  background-image: image-set(url("../assets/sprites/sign_hanging.png") 1x, url("../assets/sprites/sign_hanging@2x.png") 2x, url("../assets/sprites/sign_hanging@3x.png") 3x);
+}
+.sp-sign_backdoor {
+  width: 46px;
+  height: 40px;
+  background-size: 46px 40px;
+  background-image: image-set(url("../assets/sprites/sign_backdoor.png") 1x, url("../assets/sprites/sign_backdoor@2x.png") 2x, url("../assets/sprites/sign_backdoor@3x.png") 3x);
+}
+.sp-back_bar {
+  width: 240px;
+  height: 144px;
+  background-size: 240px 144px;
+  background-image: image-set(url("../assets/sprites/back_bar.png") 1x, url("../assets/sprites/back_bar@2x.png") 2x, url("../assets/sprites/back_bar@3x.png") 3x);
+}
+.sp-barrel {
+  width: 48px;
+  height: 69px;
+  background-size: 48px 69px;
+  background-image: image-set(url("../assets/sprites/barrel.png") 1x, url("../assets/sprites/barrel@2x.png") 2x, url("../assets/sprites/barrel@3x.png") 3x);
+}
+.sp-lamp {
+  width: 31px;
+  height: 60px;
+  background-size: 31px 60px;
+  background-image: image-set(url("../assets/sprites/lamp.png") 1x, url("../assets/sprites/lamp@2x.png") 2x, url("../assets/sprites/lamp@3x.png") 3x);
+}
+.sp-chips {
+  width: 31px;
+  height: 40px;
+  background-size: 31px 40px;
+  background-image: image-set(url("../assets/sprites/chips.png") 1x, url("../assets/sprites/chips@2x.png") 2x, url("../assets/sprites/chips@3x.png") 3x);
+}
+.sp-chips_pile {
+  width: 94px;
+  height: 48px;
+  background-size: 94px 48px;
+  background-image: image-set(url("../assets/sprites/chips_pile.png") 1x, url("../assets/sprites/chips_pile@2x.png") 2x, url("../assets/sprites/chips_pile@3x.png") 3x);
+}
+.sp-painting {
+  width: 86px;
+  height: 94px;
+  background-size: 86px 94px;
+  background-image: image-set(url("../assets/sprites/painting.png") 1x, url("../assets/sprites/painting@2x.png") 2x, url("../assets/sprites/painting@3x.png") 3x);
+}
+.sp-sconce {
+  width: 38px;
+  height: 46px;
+  background-size: 38px 46px;
+  background-image: image-set(url("../assets/sprites/sconce.png") 1x, url("../assets/sprites/sconce@2x.png") 2x, url("../assets/sprites/sconce@3x.png") 3x);
+}
+.sp-sconce_silver {
+  width: 38px;
+  height: 47px;
+  background-size: 38px 47px;
+  background-image: image-set(url("../assets/sprites/sconce_silver.png") 1x, url("../assets/sprites/sconce_silver@2x.png") 2x, url("../assets/sprites/sconce_silver@3x.png") 3x);
+}
+.sp-plant {
+  width: 40px;
+  height: 78px;
+  background-size: 40px 78px;
+  background-image: image-set(url("../assets/sprites/plant.png") 1x, url("../assets/sprites/plant@2x.png") 2x, url("../assets/sprites/plant@3x.png") 3x);
+}
+.sp-stool {
+  width: 31px;
+  height: 66px;
+  background-size: 31px 66px;
+  background-image: image-set(url("../assets/sprites/stool.png") 1x, url("../assets/sprites/stool@2x.png") 2x, url("../assets/sprites/stool@3x.png") 3x);
+}
+.sp-stool_grey {
+  width: 33px;
+  height: 66px;
+  background-size: 33px 66px;
+  background-image: image-set(url("../assets/sprites/stool_grey.png") 1x, url("../assets/sprites/stool_grey@2x.png") 2x, url("../assets/sprites/stool_grey@3x.png") 3x);
+}
+.sp-piano {
+  width: 96px;
+  height: 94px;
+  background-size: 96px 94px;
+  background-image: image-set(url("../assets/sprites/piano.png") 1x, url("../assets/sprites/piano@2x.png") 2x, url("../assets/sprites/piano@3x.png") 3x);
+}
+.sp-poker_table {
+  width: 228px;
+  height: 87px;
+  background-size: 228px 87px;
+  background-image: image-set(url("../assets/sprites/poker_table.png") 1x, url("../assets/sprites/poker_table@2x.png") 2x, url("../assets/sprites/poker_table@3x.png") 3x);
+}
+.sp-fireplace {
+  width: 79px;
+  height: 129px;
+  background-size: 79px 129px;
+  background-image: image-set(url("../assets/sprites/fireplace.png") 1x, url("../assets/sprites/fireplace@2x.png") 2x, url("../assets/sprites/fireplace@3x.png") 3x);
+}
+.sp-chair {
+  width: 44px;
+  height: 72px;
+  background-size: 44px 72px;
+  background-image: image-set(url("../assets/sprites/chair.png") 1x, url("../assets/sprites/chair@2x.png") 2x, url("../assets/sprites/chair@3x.png") 3x);
+}
