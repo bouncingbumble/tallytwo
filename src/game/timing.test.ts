@@ -7,6 +7,9 @@ import {
   AUTO_PASS_MS,
   BARK_CHANCE,
   BARK_MS,
+  BASE_TIME_SCALE,
+  SPEED_MULTIPLIERS,
+  paced,
   DEAL_STAGGER_MS,
   DOORS_MS,
   FIRST_STEP_MS,
@@ -60,4 +63,17 @@ test("the constants are the prototype's numbers", () => {
   expect(SLAP_STAGGER_MS).toBe(40);
   expect(BARK_MS).toBe(2000);
   expect(BARK_CHANCE).toBe(0.55);
+});
+
+test("the table runs 8x slower than the prototype at 1x, and Game speed divides that down", () => {
+  expect(BASE_TIME_SCALE).toBe(8);
+  expect(SPEED_MULTIPLIERS).toEqual([1, 2, 3, 4]);
+  expect(paced(AUTO_PASS_MS, 1)).toBe(6800);
+  expect(paced(AUTO_PASS_MS, 2)).toBe(3400);
+  expect(paced(AUTO_PASS_MS, 4)).toBe(1700);
+  expect(paced(950, 3)).toBe(2533); // whole milliseconds
+  expect(paced(thinkMs("normal", 0), 1)).toBe(5200);
+  expect(paced(thinkMs("normal", 1), 4)).toBe(2500);
+  expect(paced(0, 1)).toBe(0);
+  for (const m of SPEED_MULTIPLIERS) expect(paced(1000, m)).toBe(Math.round(8000 / m));
 });

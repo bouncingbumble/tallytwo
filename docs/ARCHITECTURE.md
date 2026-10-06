@@ -103,7 +103,7 @@ Controls onPlay ──► act({type:"PLAY", player:0, cards: exact.cards})     <
 
 ### The turn loop (`src/game/useTurnLoop.ts`)
 
-One effect, one timer, keyed on the `game` object. Every branch returns `clearTimeout`:
+One effect, one timer, keyed on the `game` object. Every branch returns `clearTimeout`. Every wait below is `paced()` first — multiplied by `BASE_TIME_SCALE` (8: the prototype played too fast to follow) and divided by the Game speed setting (`opts.speedMultiplier`, 1x–4x) — and then capped under reduce motion:
 
 - `phase === "roundover"` → `SCORE_ROUND` after `ROUND_OVER_MS.human` (800) or `.ai` (900) — the turn stays on the winner.
 - human's turn and `opts.autoPass` and `lastPlay` and `legal.length === 0` → `PASS` after `AUTO_PASS_MS` (850). Tapping cards during the countdown does not restart it, because `legal` is memoised on `[game]`.
@@ -118,7 +118,8 @@ Every millisecond lives in `src/game/timing.ts`; nothing else in `src/` may hold
 
 | Constant | Value | Prototype |
 | --- | --- | --- |
-| `SPEED` | `{ fast: [280, 520], normal: [650, 1250], slow: [1100, 1900] }` ms, uniform | P:917 |
+| `BASE_TIME_SCALE` / `paced(ms, multiplier)` | every table wait is the prototype's ms × 8 ÷ the Game speed setting (`SpeedMultiplier` = 1 \| 2 \| 3 \| 4) | new |
+| `SPEED` | `{ fast: [280, 520], normal: [650, 1250], slow: [1100, 1900] }` ms, uniform (before pacing) | P:917 |
 | `thinkMs(speed, r)` | `lo + r * (hi - lo)`; `r` is `Math.random()` in the game, a fixed value in tests | P:918-921 |
 | `REDUCED_MOTION_MAX_MS` / `clampMotion` | `min(ms, 260)` when reduce motion is on | P:922 |
 | `AUTO_PASS_MS` | 850 | P:929 |

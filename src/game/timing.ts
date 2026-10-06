@@ -17,6 +17,18 @@ export const thinkMs = (speed: Speed, r: number): number => {
   return lo + r * (hi - lo);
 };
 
+/**
+ * The table's base pace: every wait between actions (AI think, auto-pass, round over) is the
+ * prototype's number times this. The prototype played far too fast to follow; 1x in Settings
+ * is this slow table, and the Game speed setting divides it back down.
+ */
+export const BASE_TIME_SCALE = 8;
+export type SpeedMultiplier = 1 | 2 | 3 | 4;
+export const SPEED_MULTIPLIERS: readonly SpeedMultiplier[] = [1, 2, 3, 4];
+
+/** A prototype wait at the table: × BASE_TIME_SCALE ÷ the Game speed setting, whole ms. */
+export const paced = (ms: number, multiplier: SpeedMultiplier): number => Math.round((ms * BASE_TIME_SCALE) / multiplier);
+
 /** With reduce motion on, no wait is longer than this. */
 export const REDUCED_MOTION_MAX_MS = 260;
 export const clampMotion = (ms: number, reduceMotion: boolean): number => (reduceMotion ? Math.min(ms, REDUCED_MOTION_MAX_MS) : ms);

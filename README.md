@@ -27,6 +27,8 @@ npm run dev          # vite --host: open the printed LAN URL on the phone
 | `npm run sim -- 300` | the legality-and-termination gate: 300 AI-only games through the real reducer, plus difficulty numbers |
 | `npm run check` | typecheck + lint + test + `sim 300` + `vite build` — the single gate |
 
+Pace: the table runs at `BASE_TIME_SCALE` (8×) times the prototype's waits — `src/game/timing.ts` — and Settings › Game speed (1x/2x/3x/4x) divides that down; Opponent pace (fast/normal/slow) sets the think-time range underneath.
+
 Dev URL switches: `?seed=N` deals a fixed seed (seat 0 holds the 3♦ for seeds 3, 9, 14, 17; seed 17 also holds A-2-3-4-5); `?dev=spike` opens the crispness diagnostics page (dpr, scale, checker probe, 13-card fan). In a dev build `window.__tally = { act, game }` lets you dispatch from the console (`__tally.act({ type: "PLAY", player: 0, cards: [51] })` on your lead shows the crash screen).
 
 ## Device checks

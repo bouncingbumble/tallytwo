@@ -18,7 +18,7 @@
 import { useEffect } from "react";
 import { useSettings } from "../settings/useSettings";
 import { HUMAN } from "./selectors";
-import { AUTO_PASS_MS, FIRST_STEP_MS, ROUND_OVER_MS, clampMotion, thinkMs } from "./timing";
+import { AUTO_PASS_MS, FIRST_STEP_MS, ROUND_OVER_MS, clampMotion, paced, thinkMs } from "./timing";
 import { useGame } from "./useGame";
 
 export function useTurnLoop(paused: boolean): void {
@@ -27,7 +27,8 @@ export function useTurnLoop(paused: boolean): void {
 
   useEffect(() => {
     if (!game || paused || crash) return; // no timers in a hidden tab, under the landscape overlay, or on the crash screen
-    const clamp = (ms: number) => clampMotion(ms, opts.reduceMotion);
+    // every wait is paced (× BASE_TIME_SCALE ÷ the Game speed setting), then capped under reduce motion
+    const clamp = (ms: number) => clampMotion(paced(ms, opts.speedMultiplier), opts.reduceMotion);
     if (game.phase === "roundover") {
       // The turn stays on the winner, which is how the two delays tell human and AI apart.
       const t = setTimeout(() => act({ type: "SCORE_ROUND" }), clamp(game.turn === HUMAN ? ROUND_OVER_MS.human : ROUND_OVER_MS.ai));
@@ -43,5 +44,5 @@ export function useTurnLoop(paused: boolean): void {
     const extra = game.history.length === 0 ? FIRST_STEP_MS : 0;
     const t = setTimeout(() => actAi(seat, opts.difficulty), clamp(thinkMs(opts.speed, Math.random()) + extra));
     return () => clearTimeout(t);
-  }, [game, legal, paused, crash, opts.autoPass, opts.speed, opts.difficulty, opts.reduceMotion, act, actAi]);
+  }, [game, legal, paused, crash, opts.autoPass, opts.speed, opts.speedMultiplier, opts.difficulty, opts.reduceMotion, act, actAi]);
 }

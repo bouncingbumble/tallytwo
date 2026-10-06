@@ -5,7 +5,7 @@
  */
 import { DEFAULT_RULES, type LaterRoundLead, type RuleConfig } from "../engine/rules";
 import type { Difficulty } from "../ai/choose";
-import type { Speed } from "../game/timing";
+import { SPEED_MULTIPLIERS, type Speed, type SpeedMultiplier } from "../game/timing";
 
 export type SortBy = "rank" | "suit";
 export type RoundsPerMatch = 0 | 5 | 10;
@@ -18,7 +18,10 @@ export interface Volume {
 
 export interface Opts {
   difficulty: Difficulty;
+  /** The AI's think-time range (fast / normal / slow). */
   speed: Speed;
+  /** Game speed: how many times faster than the base table (timing.ts BASE_TIME_SCALE) the waits run. */
+  speedMultiplier: SpeedMultiplier;
   /** "Saloon piano": the music bus on/off. */
   music: boolean;
   /** "Card sounds": the sfx bus on/off. */
@@ -42,6 +45,7 @@ export const DEFAULTS: Settings = {
   opts: {
     difficulty: "medium",
     speed: "normal",
+    speedMultiplier: 1,
     music: true,
     sfx: true,
     autoPass: true,
@@ -85,6 +89,7 @@ export function parseSettings(raw: string | null | undefined): Settings {
     opts: {
       difficulty: oneOf<Difficulty>(o.difficulty, ["easy", "medium", "hard"], D.opts.difficulty),
       speed: oneOf<Speed>(o.speed, ["fast", "normal", "slow"], D.opts.speed),
+      speedMultiplier: oneOf<SpeedMultiplier>(o.speedMultiplier, SPEED_MULTIPLIERS, D.opts.speedMultiplier),
       music: bool(o.music, D.opts.music),
       sfx: bool(o.sfx, D.opts.sfx),
       autoPass: bool(o.autoPass, D.opts.autoPass),

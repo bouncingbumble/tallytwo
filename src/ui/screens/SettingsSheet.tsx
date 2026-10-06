@@ -10,7 +10,7 @@ import type { LaterRoundLead } from "../../engine/rules";
 import { serializeLog } from "../../game/appReducer";
 import { COPY } from "../../game/copy";
 import { gameLog } from "../../game/selectors";
-import type { Speed } from "../../game/timing";
+import { SPEED_MULTIPLIERS, type Speed, type SpeedMultiplier } from "../../game/timing";
 import { useGame } from "../../game/useGame";
 import type { RoundsPerMatch, Volume } from "../../settings/settings";
 import { useSettings } from "../../settings/useSettings";
@@ -45,6 +45,7 @@ const SPEED: readonly Option<Speed>[] = [
   { value: "normal", label: t.normal },
   { value: "slow", label: t.slow },
 ];
+const GAME_SPEED: readonly Option<SpeedMultiplier>[] = SPEED_MULTIPLIERS.map((m) => ({ value: m, label: `${m}x` }));
 const ROUNDS: readonly Option<RoundsPerMatch>[] = [
   { value: 0, label: t.endless },
   { value: 5, label: "5" },
@@ -137,7 +138,8 @@ export function SettingsSheet({ onClose, onCopyLog }: SettingsSheetProps) {
 
         <h3>{t.tableFeel}</h3>
         <SelectRow id={id("difficulty")} label={t.difficulty} hint={t.difficultyHint} value={opts.difficulty} options={DIFFICULTY} onChange={(v) => setOpts({ difficulty: v })} />
-        <SelectRow id={id("speed")} label={t.speed} value={opts.speed} options={SPEED} onChange={(v) => setOpts({ speed: v })} />
+        <SelectRow id={id("gameSpeed")} label={t.gameSpeed} hint={t.gameSpeedHint} value={opts.speedMultiplier} options={GAME_SPEED} onChange={(v) => setOpts({ speedMultiplier: v })} />
+        <SelectRow id={id("speed")} label={t.speed} hint={t.speedHint} value={opts.speed} options={SPEED} onChange={(v) => setOpts({ speed: v })} />
         <SelectRow id={id("roundsPerMatch")} label={t.roundsPerMatch} value={opts.roundsPerMatch} options={ROUNDS} onChange={(v) => setOpts({ roundsPerMatch: v })} />
         <SwitchRow id={id("music")} label={t.music} hint={t.musicHint} on={opts.music} onChange={(v) => setOpts({ music: v })} />
         <SwitchRow id={id("sfx")} label={t.sfx} on={opts.sfx} onChange={(v) => setOpts({ sfx: v })} />

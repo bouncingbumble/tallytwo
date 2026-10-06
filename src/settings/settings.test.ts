@@ -32,7 +32,14 @@ test("a prototype blob with changed values keeps every one of them", () => {
   const opts = { difficulty: "hard", speed: "slow", music: false, sfx: false, autoPass: false, reduceMotion: true, sortBy: "suit" };
   const s = parseSettings(JSON.stringify({ rules, opts }));
   expect(s.rules).toEqual(rules);
-  expect(s.opts).toEqual({ ...opts, roundsPerMatch: 0, volume: { music: 1, sfx: 1, ambience: 1 } });
+  expect(s.opts).toEqual({ ...opts, speedMultiplier: 1, roundsPerMatch: 0, volume: { music: 1, sfx: 1, ambience: 1 } });
+});
+
+test("speedMultiplier: 1 by default, only 1-4 accepted, kept when valid", () => {
+  expect(DEFAULTS.opts.speedMultiplier).toBe(1);
+  expect(parseSettings(JSON.stringify({ opts: { speedMultiplier: 3 } })).opts.speedMultiplier).toBe(3);
+  expect(parseSettings(JSON.stringify({ opts: { speedMultiplier: 9 } })).opts.speedMultiplier).toBe(1);
+  expect(parseSettings(JSON.stringify({ opts: { speedMultiplier: "2" } })).opts.speedMultiplier).toBe(1);
 });
 
 test("a wrong-typed field falls back to its default; the fields around it survive", () => {
