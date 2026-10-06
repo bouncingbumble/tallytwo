@@ -260,6 +260,8 @@ describe("reducer", () => {
     expect(g5.leader).toBe(1);
     expect(g5.players.every((p) => !p.passed)).toBe(true);
     expect(g5.history).toHaveLength(5);
+    expect(g4.trickStart).toBe(0); // the first trick runs from the deal
+    expect(g5.trickStart).toBe(5); // the next one starts after the clearing pass
     expect(() => reduce(g5, { type: "PASS", player: 1 })).toThrow(/open lead/);
     expect(() => reduce(g5, { type: "SCORE_ROUND" })).toThrow(IllegalActionError);
   });

@@ -48,6 +48,8 @@ export interface GameState {
   /** The opening play of this round must include the 3♦. */
   forced3D: boolean;
   history: PlayRecord[];
+  /** Index into history where the current trick began (0 at the deal; history.length after a clear). */
+  trickStart: number;
   /** Running match totals, one per seat. */
   totals: number[];
 }

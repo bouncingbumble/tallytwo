@@ -1,6 +1,8 @@
 /**
- * The felt: the sign and the pile, with the 170-ms dip when cards land (P:942, P:965). The dip
- * is skipped under reduce motion and never fires on a deal or a pass.
+ * The felt: a 3x3 grid (styles/table.css) — the opponents' plays along the top under their
+ * seats, the sign in the middle, the human's play along the bottom (ui/Pile.tsx) — with the
+ * 170-ms dip when cards land (P:942, P:965). The dip is skipped under reduce motion and never
+ * fires on a deal or a pass.
  */
 import { useEffect, useState } from "react";
 import { NUDGE_MS } from "../game/timing";

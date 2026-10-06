@@ -146,7 +146,6 @@ export function SettingsSheet({ onClose, onCopyLog }: SettingsSheetProps) {
         <RangeRow id={id("volumeMusic")} label={`${t.volume} · ${t.volumeMusic}`} value={opts.volume.music} onChange={(v) => setVolume({ music: v })} />
         <RangeRow id={id("volumeSfx")} label={`${t.volume} · ${t.volumeSfx}`} value={opts.volume.sfx} onChange={(v) => setVolume({ sfx: v })} />
         <RangeRow id={id("volumeAmbience")} label={`${t.volume} · ${t.volumeAmbience}`} value={opts.volume.ambience} onChange={(v) => setVolume({ ambience: v })} />
-        <SwitchRow id={id("autoPass")} label={t.autoPass} on={opts.autoPass} onChange={(v) => setOpts({ autoPass: v })} />
         <SwitchRow id={id("reduceMotion")} label={t.reduceMotion} on={opts.reduceMotion} onChange={(v) => setOpts({ reduceMotion: v })} />
 
         {game === null ? (

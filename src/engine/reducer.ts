@@ -84,6 +84,7 @@ export function deal(
     passesInRow: 0,
     forced3D: useThreeD && rules.mustLeadWith3D,
     history: [],
+    trickStart: 0,
     totals: totals.slice(),
   };
 }
@@ -163,6 +164,7 @@ function pass(g: GameState, a: Extract<Action, { type: "PASS" }>): GameState {
       ...g,
       players: players.map((p) => ({ ...p, passed: false })),
       history,
+      trickStart: history.length,
       lastPlay: null,
       passesInRow: 0,
       turn: lastBy,

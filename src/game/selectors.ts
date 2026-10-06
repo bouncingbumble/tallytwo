@@ -102,6 +102,27 @@ export const barkLinesFor = (g: GameState, seat: number, kind: BarkKind): readon
   return p && p.kind === "ai" ? getPersonality(p.personality).barks[kind] : [];
 };
 
+/** One seat's most recent play in the current trick, by history index. */
+export interface TrickPlay {
+  seat: number;
+  cards: Card[];
+  /** Index into history: changes exactly when this seat plays again. */
+  at: number;
+}
+
+/**
+ * What is on the felt: every seat's latest play since the trick began (a seat that plays
+ * again replaces its earlier one), empty once the trick has cleared. Seat order.
+ */
+export function trickPlays(g: GameState): TrickPlay[] {
+  const bySeat = new Map<number, TrickPlay>();
+  for (let i = g.trickStart; i < g.history.length; i++) {
+    const r = g.history[i];
+    if (r.cards.length) bySeat.set(r.by, { seat: r.by, cards: r.cards, at: i });
+  }
+  return [...bySeat.values()].sort((a, b) => a.seat - b.seat);
+}
+
 /** This round's deltas, available from roundover on (the poster's "Round" column). */
 export const roundDeltas = (g: GameState | null): number[] | null => (g && g.phase !== "playing" ? roundScore(g.players.map((p) => p.hand.length)) : null);
 

@@ -26,7 +26,6 @@ export interface Opts {
   music: boolean;
   /** "Card sounds": the sfx bus on/off. */
   sfx: boolean;
-  autoPass: boolean;
   reduceMotion: boolean;
   sortBy: SortBy;
   /** 0 = Endless (the prototype's behaviour). */
@@ -48,7 +47,6 @@ export const DEFAULTS: Settings = {
     speedMultiplier: 1,
     music: true,
     sfx: true,
-    autoPass: true,
     reduceMotion: false,
     sortBy: "rank",
     roundsPerMatch: 0,
@@ -92,7 +90,6 @@ export function parseSettings(raw: string | null | undefined): Settings {
       speedMultiplier: oneOf<SpeedMultiplier>(o.speedMultiplier, SPEED_MULTIPLIERS, D.opts.speedMultiplier),
       music: bool(o.music, D.opts.music),
       sfx: bool(o.sfx, D.opts.sfx),
-      autoPass: bool(o.autoPass, D.opts.autoPass),
       reduceMotion: bool(o.reduceMotion, D.opts.reduceMotion),
       sortBy: oneOf<SortBy>(o.sortBy, ["rank", "suit"], D.opts.sortBy),
       roundsPerMatch: oneOf<RoundsPerMatch>(o.roundsPerMatch, [0, 5, 10], D.opts.roundsPerMatch),

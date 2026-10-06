@@ -29,7 +29,7 @@ test("the prototype's blob: its seven opts and five rules kept, roundsPerMatch a
 
 test("a prototype blob with changed values keeps every one of them", () => {
   const rules = { passLocksOut: true, straightWrap: true, flushSuitFirst: false, mustLeadWith3D: false, laterRoundLead: "loser" };
-  const opts = { difficulty: "hard", speed: "slow", music: false, sfx: false, autoPass: false, reduceMotion: true, sortBy: "suit" };
+  const opts = { difficulty: "hard", speed: "slow", music: false, sfx: false, reduceMotion: true, sortBy: "suit" }; // the prototype's autoPass is dropped: the player is never passed for
   const s = parseSettings(JSON.stringify({ rules, opts }));
   expect(s.rules).toEqual(rules);
   expect(s.opts).toEqual({ ...opts, speedMultiplier: 1, roundsPerMatch: 0, volume: { music: 1, sfx: 1, ambience: 1 } });

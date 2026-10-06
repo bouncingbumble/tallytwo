@@ -94,7 +94,6 @@ export const COPY = {
     volumeMusic: "Music",
     volumeSfx: "Cards",
     volumeAmbience: "Saloon murmur",
-    autoPass: "Pass for me when I have no legal play",
     reduceMotion: "Reduce motion",
     seedLine: (seed: number, round: number) => `Seed ${seed} · round ${round}`,
     copyLog: "Copy game log",

@@ -4,7 +4,6 @@
  */
 import { expect, test } from "vitest";
 import {
-  AUTO_PASS_MS,
   BARK_CHANCE,
   BARK_MS,
   BASE_TIME_SCALE,
@@ -54,7 +53,6 @@ test("clampMotion caps at 260 ms with reduce motion on and is the identity other
 
 test("the constants are the prototype's numbers", () => {
   expect(SPEED).toEqual({ fast: [280, 520], normal: [650, 1250], slow: [1100, 1900] });
-  expect(AUTO_PASS_MS).toBe(850);
   expect(ROUND_OVER_MS).toEqual({ ai: 900, human: 800 });
   expect(FIRST_STEP_MS).toBe(700);
   expect(DOORS_MS).toEqual({ normal: 620, reduced: 60 });
@@ -68,9 +66,9 @@ test("the constants are the prototype's numbers", () => {
 test("the table runs 8x slower than the prototype at 1x, and Game speed divides that down", () => {
   expect(BASE_TIME_SCALE).toBe(8);
   expect(SPEED_MULTIPLIERS).toEqual([1, 2, 3, 4]);
-  expect(paced(AUTO_PASS_MS, 1)).toBe(6800);
-  expect(paced(AUTO_PASS_MS, 2)).toBe(3400);
-  expect(paced(AUTO_PASS_MS, 4)).toBe(1700);
+  expect(paced(FIRST_STEP_MS, 1)).toBe(5600);
+  expect(paced(FIRST_STEP_MS, 2)).toBe(2800);
+  expect(paced(FIRST_STEP_MS, 4)).toBe(1400);
   expect(paced(950, 3)).toBe(2533); // whole milliseconds
   expect(paced(thinkMs("normal", 0), 1)).toBe(5200);
   expect(paced(thinkMs("normal", 1), 4)).toBe(2500);

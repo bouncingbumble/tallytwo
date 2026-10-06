@@ -92,7 +92,7 @@ export function GameProvider({ audio, children }: { audio: AudioPort; children: 
   );
 
   // `legal` on [game] ONLY: it is a dependency of the turn-loop effect, and memoising it on the
-  // selection would re-arm the auto-pass timer on every tap.
+  // selection would recompute the legal moves on every tap.
   const legal = useMemo(() => legalFor(game), [game]);
   const exact = useMemo(() => exactMove(legal, selection), [legal, selection]);
   const live = useMemo(() => liveCards(legal, selection), [legal, selection]);

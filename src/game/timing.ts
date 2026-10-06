@@ -18,7 +18,7 @@ export const thinkMs = (speed: Speed, r: number): number => {
 };
 
 /**
- * The table's base pace: every wait between actions (AI think, auto-pass, round over) is the
+ * The table's base pace: every wait between actions (AI think, first step, round over) is the
  * prototype's number times this. The prototype played far too fast to follow; 1x in Settings
  * is this slow table, and the Game speed setting divides it back down.
  */
@@ -33,8 +33,6 @@ export const paced = (ms: number, multiplier: SpeedMultiplier): number => Math.r
 export const REDUCED_MOTION_MAX_MS = 260;
 export const clampMotion = (ms: number, reduceMotion: boolean): number => (reduceMotion ? Math.min(ms, REDUCED_MOTION_MAX_MS) : ms);
 
-/** Pass for the human automatically after this long when nothing beats the table. */
-export const AUTO_PASS_MS = 850;
 /** From the last card hitting the felt to the poster. */
 export const ROUND_OVER_MS = { ai: 900, human: 800 } as const;
 /** Extra pause before the very first move of a round, on top of the think delay. */

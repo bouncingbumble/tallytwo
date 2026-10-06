@@ -169,11 +169,13 @@
   box-shadow:
     inset 0 0 0 5px #2b1a0c,
     inset 0 0 40px rgba(0, 0, 0, 0.45);
-  display: flex;
-  flex-direction: column;
+  /* a 3x3 grid: the opponents' plays under their seats, the sign, the human's play (ui/Pile.tsx) */
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto 1fr auto;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
+  gap: 4px 6px;
+  padding: 10px 8px 8px;
   overflow: hidden;
 }
 .felt::after {
@@ -185,6 +187,9 @@
 }
 .sign {
   position: relative;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: center;
   max-width: 88%;
   padding: 7px 16px;
   border-radius: 3px;
@@ -221,28 +226,49 @@
 }
 /* The pile: cards absolutely positioned at integer x (PILE_STEP apart, centred by ui/Pile.tsx),
    resting at rotate(0) — the slap tilts them on the way in only. */
-.pile {
+/* one slot per seat: cards absolutely positioned at integer x (ui/Pile.tsx), resting at rotate(0) */
+.play {
   position: relative;
   z-index: 1;
-  width: 100%;
-  height: calc(var(--ch-small) + 6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  min-width: 0;
+  height: calc(var(--ch-small) + 8px);
+  grid-row: 1;
 }
-.pile .cards {
+.play.seat-1 {
+  grid-column: 1;
+}
+.play.seat-2 {
+  grid-column: 2;
+}
+.play.seat-3 {
+  grid-column: 3;
+}
+.play.seat-0 {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+.play .cards {
   position: absolute;
   inset: 0;
 }
-.pile .card {
+.play .card {
   position: absolute;
   left: 0;
-  top: 3px;
+  top: 4px;
 }
-.pile .card.in {
+.play .card.in {
   animation: slap 0.28s cubic-bezier(0.2, 1.3, 0.4, 1) backwards;
 }
-.empty {
+/* the play to beat is lit; earlier plays in the trick recede */
+.play.latest .card {
+  box-shadow: 0 0 0 2px rgba(232, 163, 61, 0.9);
+}
+.play:not(.latest) .card {
+  opacity: 0.72;
+}
+.felt-empty {
+  grid-column: 1 / -1;
+  grid-row: 3;
   color: rgba(242, 232, 213, 0.5);
   font-size: 13px;
   text-align: center;

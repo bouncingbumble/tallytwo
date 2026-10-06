@@ -70,7 +70,7 @@ Controls onPlay ──► act({type:"PLAY", player:0, cards: exact.cards})     <
         ┌──────────────────────────┼──────────────────────────────┐
    context value changes      cueFor(before, a, next)        useTurnLoop effect re-runs
    Seats / Felt / Pile /      -> audio.play(...)             (game changed) -> ONE timer:
-   Hand / Status / TopBar     -> barks.show(...) (AI only)   AI think | auto-pass | roundover->SCORE_ROUND
+   Hand / Status / TopBar     -> barks.show(...) (AI only)   AI think | roundover->SCORE_ROUND (never the human)
    re-render from `game`                                              │
                                                                       ▼
                                     phase "scored", !matchOver -> <ResultsPoster/> -> "Next round": act(NEXT_ROUND{seed:newSeed(round+1)})
@@ -106,7 +106,7 @@ Controls onPlay ──► act({type:"PLAY", player:0, cards: exact.cards})     <
 One effect, one timer, keyed on the `game` object. Every branch returns `clearTimeout`. Every wait below is `paced()` first — multiplied by `BASE_TIME_SCALE` (8: the prototype played too fast to follow) and divided by the Game speed setting (`opts.speedMultiplier`, 1x–4x) — and then capped under reduce motion:
 
 - `phase === "roundover"` → `SCORE_ROUND` after `ROUND_OVER_MS.human` (800) or `.ai` (900) — the turn stays on the winner.
-- human's turn and `opts.autoPass` and `lastPlay` and `legal.length === 0` → `PASS` after `AUTO_PASS_MS` (850). Tapping cards during the countdown does not restart it, because `legal` is memoised on `[game]`.
+- human's turn → no timer. The player is never passed for them, even with no legal move: the status line says "Nothing here beats that — you'll have to pass." and the Pass button is the only way on.
 - AI's turn → `actAi(seat, opts.difficulty)` after `thinkMs(opts.speed, Math.random()) + (history.length === 0 ? FIRST_STEP_MS : 0)`, clamped to 260 ms under reduce motion. `chooseMove` runs **inside** the timeout, inside the provider, so StrictMode's mount/cleanup/mount never consumes the AI rng twice.
 - `paused` (hidden tab or the landscape overlay) → no timer at all; the effect re-runs when `paused` flips back.
 
@@ -122,7 +122,6 @@ Every millisecond lives in `src/game/timing.ts`; nothing else in `src/` may hold
 | `SPEED` | `{ fast: [280, 520], normal: [650, 1250], slow: [1100, 1900] }` ms, uniform (before pacing) | P:917 |
 | `thinkMs(speed, r)` | `lo + r * (hi - lo)`; `r` is `Math.random()` in the game, a fixed value in tests | P:918-921 |
 | `REDUCED_MOTION_MAX_MS` / `clampMotion` | `min(ms, 260)` when reduce motion is on | P:922 |
-| `AUTO_PASS_MS` | 850 | P:929 |
 | `ROUND_OVER_MS` | `{ ai: 900, human: 800 }` | P:943, P:966 |
 | `FIRST_STEP_MS` | 700 | P:1037 |
 | `DOORS_MS` | `{ normal: 620, reduced: 60 }` | P:1228 |
@@ -155,9 +154,9 @@ The thing a learner cannot debug by reading: **every value in an effect's depend
 Concretely:
 
 - `useBarks` returns `{ list, show }` with `show = useCallback(…, [])` — it only calls `setList` with a functional update and arms one `setTimeout` per bark — and `act` depends on `barks.show`, not `barks`. Otherwise every bark expiry would recreate `act` → `actAi` → the turn-loop effect mid-think.
-- `legal` is `useMemo` on `[game]` **only**. It never reads the selection, and it is a dependency of the turn-loop effect; memoising it on the selection would re-arm the auto-pass timer on every card tap.
+- `legal` is `useMemo` on `[game]` **only**: it never reads the selection, so a card tap never recomputes the legal moves.
 - The `audio` port is created once in `App.tsx` with `useMemo`; `storage` is a module constant.
-- `opts.*` read by the loop are primitives (`autoPass`, `speed`, `difficulty`, `reduceMotion`).
+- `opts.*` read by the loop are primitives (`speed`, `speedMultiplier`, `difficulty`, `reduceMotion`).
 - The AI rng is a `useRef`, reseeded on `NEW_MATCH`/`NEXT_ROUND` with `aiRngFor(seed)`; it never appears in a dependency array and never leaves the provider.
 
 `appReduce` is pure, so calling it once more inside `act()` to learn `next` is free. StrictMode double-invokes reducers in dev; because sounds and barks live in `act()`, nothing fires twice.
@@ -195,7 +194,7 @@ DOM/CSS sprites, no canvas. The card rule (`styles/cards.css`): `width: var(--cw
 - **Integer scale / rest pose**: only `transform: translate()` with integer CSS px at rest; `rotate(0)` at rest; animations may pass through fractional values but end on the integer pose; never `transform: scale()` on an ancestor. The prototype's resting `rotate(t*2.4deg)` and fractional `step`/`x0` (P:792-800) are the one thing not copied.
 - **Fan**: `fanLayout(13, availW)` (`render/fanLayout.ts`) with the hand strip at `padding: 0 8px` → step 22 / span 360 on every phone ≥ 376 CSS px; on the 375-px SE `availW = 359` → step 21, span 348 (still above the 20-px corner index). The step is capped at `FAN_STEP = 22` (`scale.ts` `fanStepArt(96)`), so a wider phone centres a 360-px fan rather than spreading it — the "fanFit" rule, measured: 348 px on the SE, 360 px at 393 and 430 px.
 - **Other sprites, drawn 1:1 from `image-set()`**: wood tile 96 CSS px, felt tile 32, portraits 64 (the sprites are 64x64; the prototype's 46 px is rejected), the WANTED face 61x71 at 2x on the poster, the checker 32 — each an `image-set(1x, @2x, @3x)` written in the rule that uses it (`base.css` body and `.checker-tile`; `table.css` `.table`, `.topbar`, `.felt`, `.face.p_marshal` / `.face.p_outlaw` / `.face.p_gambler` / `.face.wanted`). Not in custom properties: the bundler adds the `-webkit-image-set()` fallback for iOS ≤ 16 only inside a rule. Seat back chips are CSS rectangles. Nothing sets a texture from JavaScript: an inline `url()` would override the set with the 1x file.
-- **Pile cards** are absolutely positioned by `ui/Pile.tsx` at integer x (`PILE_STEP` = 40 apart, centred by whole pixels from the felt's measured width) and rest at `rotate(0)`; the prototype's alternating tilt happens on the way in only (`motion.css` `slap`). The hand's select lift is part of the inline transform (`translate(x, -14px)`), not an `!important` rule, so it cannot override the deal keyframes.
+- **The trick on the felt** (`ui/Pile.tsx`, `selectors.trickPlays`): the felt is a 3x3 grid — each opponent's latest play in the current trick sits under its seat, the sign in the middle, the human's play along the bottom. A seat that plays again replaces its earlier play; a clear empties the felt (`GameState.trickStart` marks where the trick began). The play to beat is outlined in amber, earlier ones recede. Cards are absolutely positioned at integer x (`PILE_STEP` = 40 apart, squeezed to a minimum of 12 in a narrow slot, centred by whole pixels from the slot's measured width) and rest at `rotate(0)`; the prototype's alternating tilt happens on the way in only (`motion.css` `slap`). The hand's select lift is part of the inline transform (`translate(x, -14px)`), not an `!important` rule, so it cannot override the deal keyframes.
 - **Pile**: `S_small = max(1, dpr − 1)` → `--cw-small = calc(96px * S_small / dpr)` = 48 CSS px on dpr 2, 64 on dpr 3 — both integer device scales. `--dpr` is set on `:root` by `platform/useDevice.ts`. The pile is the first thing that shrinks; the hand never does.
 - **`responsive.css`**: (a) `@media (max-height: 700px)` — portraits 32 px, sign one line, pile at `S_small`; that is the whole fallback list. (b) `@media (orientation: landscape) and (max-height: 500px)` — the browser cannot lock orientation and iPhone landscape heights (375-430 CSS px) cannot hold the column, so `ui/Overlay.tsx` covers the table with "Turn your phone to play" and `platform/useLandscapeShort.ts` feeds the same boolean into `paused`, so no AI move fires under the overlay and play resumes on rotate-back. No landscape layout, on purpose (`DECISIONS.md`).
 - **Layout**: the game root is a phone column, `max-width: 440px` (the largest iPhone), centred on desktop, `min-height: 100dvh`, safe-area padding on topbar and controls, `touch-action: manipulation; user-select: none`. `useDevice` measures the column, not the window. Rye is self-hosted (`@fontsource/rye`): no FOUT on a cold cache, and it works offline.
