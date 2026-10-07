@@ -19,8 +19,8 @@ npm run dev          # vite --host: open the printed LAN URL on the phone
 | Script | What it does |
 | --- | --- |
 | `npm run dev` | Vite dev server on the LAN (`--host`) so an iPhone on the same Wi-Fi can load it |
-| `npm run build` | `tsc -b && vite build` → `dist/`, including the service worker and webmanifest from vite-plugin-pwa |
-| `npm run preview` | serves `dist/` on the LAN — what you use for Add to Home Screen and offline checks |
+| `npm run build` | `tsc -b && vite build` → `dist/`, a plain static site (no service worker, no webmanifest) for a webview shell or any static host |
+| `npm run preview` | serves `dist/` on the LAN — what you use to check the built bundle on the phone |
 | `npm run typecheck` | `tsc -b --noEmit` (the app, with the DOM lib) **and** `tsc -p tsconfig.core.json --noEmit` (the pure files, without it) |
 | `npm run lint` | oxlint; `react/rules-of-hooks` is the one that matters |
 | `npm test` | Vitest, `environment: node`, every `src/**/*.test.{ts,tsx}`; no jsdom, no React Testing Library |
@@ -59,7 +59,7 @@ PURE and HOOKS copy into a React Native app unchanged; WEB is rewritten there (`
 
 ```
 index.html                 viewport, theme-color, apple-mobile-web-app-* tags, /icons/icon-192.png
-vite.config.ts             defineConfig from "vitest/config"; react() + VitePWA (installable, offline precache)
+vite.config.ts             defineConfig from "vitest/config"; react() only (no PWA: dist/ is a static site)
 tsconfig.app.json          the react-ts template as-is (TS ~6.0, es2023, erasableSyntaxOnly, verbatimModuleSyntax)
 tsconfig.core.json         the PURE check: lib ["ES2023"], types []; folder includes + a naming rule (use*, *.test, *.tsx excluded)
 scripts/                   sim.mjs (gate + difficulty numbers), register-resolver.mjs + ts-resolve.mjs
@@ -96,8 +96,8 @@ Each is a command that exits non-zero when the thing it protects breaks; `npm ru
 | `boundary.test.ts` | the HOOKS bucket stays portable; `ui/` stays rule-free | the hook set is derived from the tree (every `use*.ts` and `*.tsx` under `game/`, `settings/`, `audio/`) and checked for `window.`, `document.`, `localStorage`, `navigator.`, `react-dom`, `WebAudio`, `platform/`, `assets/manifest`; `ui/**` is checked for value imports of `engine/reducer` or `ai/*` |
 | `engine.test.ts`, `ai/sim.test.ts`, `ai/ai.test.ts` | the rules and the AI | the classification table, the full comparison matrix, properties over random hands, scoring, deal, the reducer's legality rules, replay determinism; 200 seeded games with 0 throws / 0 stalls |
 | `npm run sim -- N` | legality and termination at scale | every game runs through the real `reduce()`, which throws on any illegal action, so "0 illegal actions" is a proof |
-| `manifest.test.ts` + the explicit import table | every asset exists and every name is wired | a missing file is a Vite resolve error; a missing key is TS2741; every portrait key is in `PORTRAITS` |
-| `vite build` | it ships | `tsc -b` first, then the bundle, service worker and webmanifest |
+| `manifest.test.ts` + the explicit import table | every asset exists and every name is wired | a missing file is a Vite resolve error; a missing key is TS2741; every portrait key is in `PORTRAITS`; every image is one 3x file with no `@2x`/`@3x` twin |
+| `vite build` | it ships | `tsc -b` first, then the static bundle in `dist/` |
 
 ## Verification
 

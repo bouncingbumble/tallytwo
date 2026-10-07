@@ -7,15 +7,16 @@ html,
 body {
   height: 100%;
 }
-/* Every sprite is an image-set over 1x/2x/3x nearest-neighbour files: iOS Safari resamples
-   image-rendering: pixelated backgrounds, but draws the file matching its dpr 1:1. */
+/* Every sprite is one file at 3x its CSS size, scaled by the browser: smoothed here, pixelated
+   only inside an upscaled .game (sprites.css). iOS Safari resamples pixelated backgrounds —
+   moot now that nothing is drawn 1:1. */
 body {
   margin: 0;
   color: var(--bone);
   background-color: var(--oak-deep);
-  background-image: image-set(url("../assets/sprites/wood.png") 1x, url("../assets/sprites/wood@2x.png") 2x, url("../assets/sprites/wood@3x.png") 3x);
+  background-image: url("../assets/sprites/wood.png");
   background-size: 96px 96px;
-  image-rendering: pixelated;
+  image-rendering: auto;
   font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 15px;
   line-height: 1.45;
@@ -65,13 +66,6 @@ select {
   color: var(--dust);
   font-size: 12px;
 }
-/* the crispness probe tile (dev/Spike.tsx) */
-.checker-tile {
-  background-image: image-set(url("../assets/sprites/checker.png") 1x, url("../assets/sprites/checker@2x.png") 2x, url("../assets/sprites/checker@3x.png") 3x);
-  background-size: 32px 32px;
-  background-repeat: repeat;
-  image-rendering: pixelated;
-}
 .sr-only {
   position: absolute;
   width: 1px;
@@ -105,9 +99,9 @@ select {
   right: 0;
   bottom: 0;
   height: 28px;
-  background-image: image-set(url("../assets/sprites/wood.png") 1x, url("../assets/sprites/wood@2x.png") 2x, url("../assets/sprites/wood@3x.png") 3x);
+  background-image: url("../assets/sprites/wood.png");
   background-size: 96px 96px;
-  image-rendering: pixelated;
+  image-rendering: auto;
   box-shadow:
     inset 0 4px 8px rgba(0, 0, 0, 0.65),
     inset 0 1px 0 rgba(232, 163, 61, 0.25);

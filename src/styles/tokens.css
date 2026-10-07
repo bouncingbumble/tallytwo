@@ -1,5 +1,5 @@
-/* The prototype's palette (P:6-19) plus the card size. Cards are 96x128 CSS px, always:
-   on a dpr 2/3 phone the browser blits the @2x/@3x atlas one device pixel per atlas pixel. */
+/* The prototype's palette (P:6-19) plus the card size. Cards are 96x128 CSS px, always; the
+   atlas holds 3x those pixels and the browser scales it to the box (docs/ASSETS.md §7). */
 :root {
   --oak-deep: #241408;
   --oak: #3e2715;
@@ -17,15 +17,12 @@
 
   --cw: 96px;
   --ch: 128px;
-  /* set by platform/useDevice.ts; 1 until then */
-  --dpr: 1;
-  /* the trick's card size: three quarters of the hand's (render/scale.ts PLAY_CARD_W), drawn smoothed */
+  /* the trick's card size: three quarters of the hand's (render/scale.ts PLAY_CARD_W) */
   --cw-small: 72px;
   --ch-small: 96px;
 
-  /* Textures and portraits are image-set() declarations written in the rules that use them
-     (base.css, table.css), not here: the bundler adds the -webkit-image-set() fallback for
-     iOS <= 16 only inside a rule, never inside a custom property. */
+  /* Textures and portraits are url() declarations written in the rules that use them
+     (base.css, table.css, sprites.css), not here, so Vite resolves and hashes each file. */
 
   color-scheme: dark;
 }

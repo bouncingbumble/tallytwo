@@ -18,7 +18,7 @@
   padding: 2px max(6px, env(safe-area-inset-right)) 2px max(6px, env(safe-area-inset-left));
   background:
     linear-gradient(180deg, rgba(42, 26, 15, 0.92), rgba(28, 17, 8, 0.97)),
-    image-set(url("../assets/sprites/wood.png") 1x, url("../assets/sprites/wood@2x.png") 2x, url("../assets/sprites/wood@3x.png") 3x);
+    url("../assets/sprites/wood.png");
   background-size:
     auto,
     96px 96px;
@@ -33,12 +33,12 @@
   border-radius: 8px;
   background:
     radial-gradient(120% 90% at 50% 38%, rgba(90, 160, 110, 0.3) 0%, rgba(20, 60, 40, 0.1) 48%, rgba(4, 18, 12, 0.55) 100%),
-    image-set(url("../assets/sprites/felt.png") 1x, url("../assets/sprites/felt@2x.png") 2x, url("../assets/sprites/felt@3x.png") 3x);
+    url("../assets/sprites/felt.png");
   background-color: var(--felt);
   background-size:
     auto,
     32px 32px;
-  image-rendering: pixelated;
+  image-rendering: auto;
   box-shadow:
     inset 0 0 0 5px #2b1a0c,
     inset 0 0 40px rgba(0, 0, 0, 0.45);
@@ -99,18 +99,18 @@
   background-position: center;
   image-rendering: auto;
 }
-/* portraits by key (selectors.portraitFor): sprites at 1x/2x/3x, drawn 1:1 */
+/* portraits by key (selectors.portraitFor): one 3x file each, scaled to the box */
 .face.p_marshal {
-  background-image: image-set(url("../assets/sprites/p_marshal.png") 1x, url("../assets/sprites/p_marshal@2x.png") 2x, url("../assets/sprites/p_marshal@3x.png") 3x);
+  background-image: url("../assets/sprites/p_marshal.png");
 }
 .face.p_outlaw {
-  background-image: image-set(url("../assets/sprites/p_outlaw.png") 1x, url("../assets/sprites/p_outlaw@2x.png") 2x, url("../assets/sprites/p_outlaw@3x.png") 3x);
+  background-image: url("../assets/sprites/p_outlaw.png");
 }
 .face.p_gambler {
-  background-image: image-set(url("../assets/sprites/p_gambler.png") 1x, url("../assets/sprites/p_gambler@2x.png") 2x, url("../assets/sprites/p_gambler@3x.png") 3x);
+  background-image: url("../assets/sprites/p_gambler.png");
 }
 .face.wanted {
-  background-image: image-set(url("../assets/sprites/wanted.png") 1x, url("../assets/sprites/wanted@2x.png") 2x, url("../assets/sprites/wanted@3x.png") 3x);
+  background-image: url("../assets/sprites/wanted.png");
 }
 .opp .info {
   flex: 1 1 auto;

@@ -6,17 +6,17 @@
  * Audio names are identifier-shaped (sfx_DeckShuffle01) so each one is also a variable name
  * in the import table.
  */
-export type CardAssetName = "cards_atlas" | "cards_atlas_2x" | "cards_atlas_3x" | "card_back" | "card_back_2x" | "card_back_3x";
+export type CardAssetName = "cards_atlas" | "card_back";
 
 export type PortraitKey = "p_marshal" | "p_outlaw" | "p_gambler";
 
 /**
- * Every sprite ships at 1x, 2x and 3x (nearest-neighbour upscales): iOS Safari ignores
- * image-rendering: pixelated on CSS backgrounds, so like the cards they are drawn via
- * image-set() with no scaling at all.
+ * One file per sprite, at 3x the art's pixels (docs/ASSETS.md §7): the CSS draws it at the
+ * art size in CSS px and lets the browser scale, smoothed by default and pixelated only when
+ * the whole game is upscaled (styles/sprites.css `.game.upscaled`).
  */
 /** The table and the poster. */
-export type TableSpriteBase = PortraitKey | "wood" | "felt" | "wanted" | "checker";
+export type TableSpriteBase = PortraitKey | "wood" | "felt" | "wanted";
 /**
  * The saloon props cut from the B-4 / B-6 tileset sheets (docs/ASSETS.md §7): the title's
  * batwing doors (three swing frames, drawn at exactly 2x), its sign and furniture, and the bar
@@ -45,7 +45,7 @@ export type SaloonSpriteBase =
   | "fireplace"
   | "chair";
 export type SpriteBase = TableSpriteBase | SaloonSpriteBase;
-export type SpriteAssetName = SpriteBase | `${SpriteBase}_2x` | `${SpriteBase}_3x`;
+export type SpriteAssetName = SpriteBase;
 
 export type SfxAssetName =
   | "sfx_DeckShuffle01"
