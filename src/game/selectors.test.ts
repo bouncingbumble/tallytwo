@@ -311,8 +311,15 @@ test("tensionFor: on at 3 cards in any hand, off at 4, held through roundover, o
   expect(tensionFor(withCount(2, 4))).toBe(false);
   expect(tensionFor(withCount(2, 3))).toBe(true);
   expect(tensionFor(withCount(0, 1))).toBe(true);
-  expect(tensionFor(withCount(2, 3, { phase: "roundover" }))).toBe(true); // the results track follows directly
   expect(tensionFor(withCount(2, 3, { phase: "scored" }))).toBe(false);
+  // roundover: the winner (g.turn) holds nothing; the flag counts the cards they just played, so it
+  // is exactly what it was at the winning play and the round's end is one switch, to results
+  const five = { type: "straight", key: 4, cards: [0, 4, 8, 12, 16] } as GameState["lastPlay"];
+  const three = { type: "triple", key: 2, cards: [0, 1, 2] } as GameState["lastPlay"];
+  const finish = (lastPlay: GameState["lastPlay"], extra: Partial<GameState> = {}): GameState => ({ ...withCount(0, 0), phase: "roundover", turn: 0, lastBy: 0, lastPlay, ...extra });
+  expect(tensionFor(finish(five))).toBe(false); // a five-card finish with every other seat at 13: no tension before, none now
+  expect(tensionFor(finish(three))).toBe(true);
+  expect(tensionFor(finish(five, { players: withCount(2, 3).players.map((p, i) => (i === 0 ? { ...p, hand: [] } : p)) }))).toBe(true); // another seat is low
 });
 
 /* ---- seats ---- */

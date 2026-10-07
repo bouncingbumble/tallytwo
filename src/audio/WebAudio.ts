@@ -300,6 +300,7 @@ export class WebAudio implements AudioPort {
     const track = this.main.wanted;
     if (track) this.ensure(track);
     if (this.ambience.wanted) this.ensure("ambience");
+    this.prefetch();
   }
 
   private landed(layer: MusicLayer): LatchCommand<MusicLayer>[] {
@@ -312,6 +313,18 @@ export class WebAudio implements AudioPort {
     const want: MainTrack | null = this.track === "table" && this.tensionOn && !this.dropped.has("tension") ? "tension" : this.track;
     this.apply(this.main.want(want));
     if (want) this.ensure(want);
+    this.prefetch();
+  }
+
+  /**
+   * A round needs both halves of the table/tension switch: decode the partner before it is
+   * wanted, so the first switch of a session is scheduled at the fade-out's end like every later
+   * one instead of leaving a gap while the file lands. ensure() is idempotent.
+   */
+  private prefetch(): void {
+    if (this.track !== "table") return;
+    this.ensure("table");
+    this.ensure("tension");
   }
 
   /** Stops first, so a start in the same batch is scheduled after the fade-out they begin. */
@@ -351,7 +364,11 @@ export class WebAudio implements AudioPort {
 
   /**
    * A loop that has sounded fades out over FADE.outMs and holds the next music start until it
-   * is silent; one still waiting to start is simply cancelled.
+   * is silent; one that has not started yet (or starts this very quantum) is simply cancelled.
+   * The level the fade starts from is computed from the schedule this file wrote — never read
+   * back from the AudioParam, whose `.value` after cancelScheduledValues is the last rendered
+   * value in Chrome and WebKit but the timeline's (now cancelled) value in Firefox, and the
+   * default 1.0 for a node that has never rendered.
    */
   private stopLoop(layer: MusicLayer): void {
     const ctx = this.ctx;
@@ -360,13 +377,14 @@ export class WebAudio implements AudioPort {
     this.loops.delete(layer);
     const now = ctx.currentTime;
     loop.gain.gain.cancelScheduledValues(now);
-    if (now < loop.startsAt) {
+    if (now <= loop.startsAt) {
       loop.gain.gain.setValueAtTime(0, now);
       loop.source.stop(now);
       return;
     }
     const end = now + FADE_OUT_S;
-    loop.gain.gain.setValueAtTime(loop.gain.gain.value, now);
+    const level = MUSIC[layer].gain * Math.min(1, (now - loop.startsAt) / FADE_IN_S); // where the fade-in has got to
+    loop.gain.gain.setValueAtTime(level, now);
     loop.gain.gain.linearRampToValueAtTime(0, end);
     loop.source.stop(end);
     if (layer !== "ambience") this.fadingUntil = Math.max(this.fadingUntil, end);

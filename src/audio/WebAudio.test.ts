@@ -23,6 +23,8 @@ import {
 interface FakeParam extends AudioParamLike {
   targets: number[];
   ramps: number[];
+  /** Every setValueAtTime value, in order. */
+  sets: number[];
 }
 interface FakeBuffer {
   duration: number;
@@ -54,7 +56,9 @@ function fakeParam(value: number): FakeParam {
     value,
     targets: [],
     ramps: [],
+    sets: [],
     setValueAtTime(v) {
+      p.sets.push(v);
       p.value = v;
     },
     linearRampToValueAtTime(v) {
@@ -363,8 +367,10 @@ test("stopping a loop fades it out over FADE.outMs and schedules its stop; the n
   await flush();
   const [loop] = sourcesOf(ctx, "music_ost_1");
   expect(loop.startAts).toEqual([0]); // nothing was fading: at once
+  ctx.currentTime = 5;
   audio.setMusic(null);
   expect(gainOf(loop).gain.ramps).toEqual([MUSIC.table.gain, 0]);
+  expect(gainOf(loop).gain.sets.at(-1)).toBe(MUSIC.table.gain); // the fade-out starts from the level the schedule reached, not from the param
   expect(loop.stops).toEqual([ctx.currentTime + OUT_S]);
   audio.setMusic("table");
   const again = sourcesOf(ctx, "music_ost_1");
@@ -372,6 +378,44 @@ test("stopping a loop fades it out over FADE.outMs and schedules its stop; the n
   expect(again[1].startAts).toEqual([ctx.currentTime + OUT_S]); // after the old one is silent, never over it
   expect(gainOf(again[1]).gain.ramps).toEqual([MUSIC.table.gain]);
   expect(again[1].stops).toEqual([]);
+});
+
+test("a loop stopped mid-fade-in fades out from where its fade-in had got to; one stopped in its starting quantum is cancelled", async () => {
+  const { ctx, audio } = setup();
+  await audio.init();
+  audio.setMusic("table");
+  await flush();
+  const [loop] = sourcesOf(ctx, "music_ost_1");
+  ctx.currentTime = FADE.inMs / 1000 / 2; // halfway up the 2-s fade-in
+  audio.setMusic(null);
+  expect(gainOf(loop).gain.sets.at(-1)).toBeCloseTo(MUSIC.table.gain / 2, 6);
+  expect(gainOf(loop).gain.ramps).toEqual([MUSIC.table.gain, 0]);
+  // same quantum: table and tension both decoded, nothing fading; the table is cancelled outright and tension starts at once
+  ctx.currentTime = 10;
+  audio.setMusic("table");
+  await flush();
+  audio.setTension(true);
+  await flush();
+  const tables = sourcesOf(ctx, "music_ost_1");
+  expect(tables[1].startAts).toEqual([10]);
+  expect(tables[1].stops).toEqual([10]);
+  expect(gainOf(tables[1]).gain.ramps).toEqual([MUSIC.table.gain]); // no fade-out ramp was added
+  expect(sourcesOf(ctx, "music_ost_3")[0].startAts).toEqual([10]);
+});
+
+test("wanting the table prefetches the tension loop, so the first switch of a session leaves no gap", async () => {
+  const { ctx, fetch, audio } = setup({ hold: [urlOf("music_ost_3")] });
+  await audio.init();
+  audio.setMusic("table");
+  await flush();
+  expect(fetch.calls.filter((u) => u === urlOf("music_ost_3"))).toHaveLength(1); // before any setTension(true)
+  fetch.land(urlOf("music_ost_3"));
+  await flush();
+  ctx.currentTime = 10;
+  audio.setTension(true);
+  await flush();
+  expect(sourcesOf(ctx, "music_ost_3")[0].startAts).toEqual([10 + OUT_S]); // scheduled, not waited for
+  expect(fetch.calls.filter((u) => u === urlOf("music_ost_3"))).toHaveLength(1);
 });
 
 test("a track switch is a fade-out then a fade-in, never a crossfade; a loop stopped before it sounded is cancelled", async () => {

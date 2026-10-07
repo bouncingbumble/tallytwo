@@ -147,11 +147,16 @@ export const musicFor = (g: GameState | null, sheet: Sheet): MusicTrack | null =
   sheet === "howto" ? "results" : g === null ? null : g.phase === "scored" ? "results" : "table";
 
 /**
- * Tension holds through "roundover" (a seat is at 0 cards then anyway), so a round's end goes
- * straight from the tension track to the results track — never tension -> table -> results.
+ * Through "roundover" the flag keeps the value it had at the winning play: the winner's hand is
+ * empty by then, so count the cards they just played instead. The round's end is then a single
+ * music switch, to the results track — never tension -> table -> results, nor table -> tension
+ * -> results after a five-card finish.
  */
-export const tensionFor = (g: GameState | null): boolean =>
-  !!g && (g.phase === "playing" || g.phase === "roundover") && Math.min(...g.players.map((p) => p.hand.length)) <= TENSION_THRESHOLD;
+export const tensionFor = (g: GameState | null): boolean => {
+  if (!g || (g.phase !== "playing" && g.phase !== "roundover")) return false;
+  const held = g.players.map((p, i) => (g.phase === "roundover" && i === g.turn ? (g.lastPlay?.cards.length ?? 0) : p.hand.length));
+  return Math.min(...held) <= TENSION_THRESHOLD;
+};
 
 /* ---- the copied game log: seed + history rebuilds any position, round 2+ included ---- */
 
