@@ -5,6 +5,7 @@ Big Two — the Hong Kong climbing card game — played four-handed in a saloon:
 - `docs/ARCHITECTURE.md` is the long version of this README.
 - `docs/ASSETS.md` is the asset truth: what is wired, in which format, and why.
 - `docs/PORTING.md` is what a React Native port copies unchanged and what it rewrites.
+- `docs/SHELL.md` is the host contract: the postMessage protocol for a WKWebView, an Android WebView or an iframe, and the embed recipes.
 
 ## Run it
 

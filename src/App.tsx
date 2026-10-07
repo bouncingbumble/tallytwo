@@ -1,10 +1,10 @@
 /**
- * The web shell. The two platform objects — WebAudio and webStorage — are created here and
+ * The web shell. The platform objects — WebAudio, webStorage or bridgeStorage, bridgeShell — are created here and
  * handed to the providers as props, so nothing in game/ or settings/ imports them (the original build plan
  * §3.2); query parsing (?seed=, ?dev=spike) lives here too, because URLSearchParams is a DOM
  * type. Screens is the one place that switches crash / title / table and owns the sheet state.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAudio } from "./audio/useAudio";
 import { WebAudio } from "./audio/WebAudio";
 import { DevHook } from "./dev/DevHook";
@@ -13,6 +13,9 @@ import { GameProvider } from "./game/GameProvider";
 import type { Sheet } from "./game/selectors";
 import { useGame } from "./game/useGame";
 import { useTurnLoop } from "./game/useTurnLoop";
+import { bridge, bridgeShell } from "./platform/bridge";
+import { bridgeStorage } from "./platform/bridgeStorage";
+import { useBridgeInsets, useBridgePause, useBridgeReady } from "./platform/useBridge";
 import { useDevice } from "./platform/useDevice";
 import { usePageVisibility } from "./platform/usePageVisibility";
 import { webStorage } from "./platform/webStorage";
@@ -37,7 +40,7 @@ function readQuery(): { seed: number | undefined; dev: string | null } {
 
 export function App() {
   const audio = useMemo(() => new WebAudio(), []);
-  const storage = webStorage;
+  const storage = bridge.host ? bridgeStorage : webStorage; // a shell owns durable storage (docs/SHELL.md)
   const query = useMemo(() => readQuery(), []);
   // Bumped by the error boundary's Saddle up: a new key remounts the store at INITIAL.
   const [epoch, setEpoch] = useState(0);
@@ -45,7 +48,7 @@ export function App() {
   return (
     <SettingsProvider storage={storage}>
       <ErrorBoundary onReset={() => setEpoch((n) => n + 1)}>
-        <GameProvider key={epoch} audio={audio}>
+        <GameProvider key={epoch} audio={audio} shell={bridgeShell}>
           <Screens seed={query.seed} />
           {import.meta.env.DEV && <DevHook />}
         </GameProvider>
@@ -59,8 +62,13 @@ function Screens({ seed }: { seed?: number }) {
   const { opts } = useSettings();
   const [sheet, setSheet] = useState<Sheet>("none");
   // The table is laid out for a phone held sideways (styles/table.css); there is no orientation
-  // gate yet, so only a hidden tab pauses the AI.
-  const paused = usePageVisibility();
+  // gate yet, so only a hidden tab — or the shell saying `pause` — pauses the AI.
+  const hidden = usePageVisibility();
+  const shellPaused = useBridgePause(); // both hooks always run: no `||` short-circuit between them
+  const paused = hidden || shellPaused;
+  const gameRef = useRef<HTMLDivElement>(null);
+  useBridgeInsets(gameRef);
+  useBridgeReady();
   useDevice();
   useTurnLoop(paused);
   useAudio({ sheet, paused });
@@ -83,7 +91,7 @@ function Screens({ seed }: { seed?: number }) {
 
   const closeSheet = () => setSheet("none");
   return (
-    <div className="game">
+    <div className="game" ref={gameRef}>
       {crash ? (
         <CrashScreen report={crash} onReset={() => act({ type: "QUIT" })} />
       ) : game === null ? (
