@@ -201,7 +201,7 @@ input[type="range"] {
   background-size: 96px 104px;
   background-repeat: no-repeat;
   background-position: center;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 .poster .face.wanted {
   width: 122px;

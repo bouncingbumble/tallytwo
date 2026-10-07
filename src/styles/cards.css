@@ -1,5 +1,6 @@
-/* Card faces are cells of cards_atlas.png (13 x 4 of 96x128). --col/--row come from
-   render/atlas.ts via ui/Card.tsx. Integer sizes and positions only: see render/fanLayout.ts. */
+/* Card faces are cells of cards_atlas.png (13 x 4 of 96x128 CSS px; the file holds 3x that).
+   --col/--row come from render/atlas.ts via ui/Card.tsx. Integer sizes and positions only: see
+   render/fanLayout.ts. Drawn smoothed; sprites.css `.game.upscaled .card` switches to pixelated. */
 .card {
   position: relative;
   width: var(--cw);
@@ -11,15 +12,11 @@
   border-radius: 3px;
   overflow: hidden;
   background-color: transparent;
-  background-image: image-set(
-    url("../assets/cards/cards_atlas.png") 1x,
-    url("../assets/cards/cards_atlas@2x.png") 2x,
-    url("../assets/cards/cards_atlas@3x.png") 3x
-  );
+  background-image: url("../assets/cards/cards_atlas.png");
   background-repeat: no-repeat;
   background-size: calc(var(--cw) * 13) calc(var(--ch) * 4);
   background-position: calc(var(--col, 0) * var(--cw) * -1) calc(var(--row, 0) * var(--ch) * -1);
-  image-rendering: pixelated;
+  image-rendering: auto;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -28,19 +25,14 @@
   cursor: default;
 }
 .card.facedown {
-  background-image: image-set(
-    url("../assets/cards/card_back.png") 1x,
-    url("../assets/cards/card_back@2x.png") 2x,
-    url("../assets/cards/card_back@3x.png") 3x
-  );
+  background-image: url("../assets/cards/card_back.png");
   background-size: var(--cw) var(--ch);
   background-position: 0 0;
 }
-/* the trick's cards: 72x96, a 0.75 downscale of the atlas, so smoothed rather than pixelated */
+/* the trick's cards: 72x96, three quarters of the hand's */
 .card.small {
   --cw: var(--cw-small);
   --ch: var(--ch-small);
-  image-rendering: auto;
 }
 .card:focus-visible {
   outline: 3px solid var(--amber);

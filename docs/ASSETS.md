@@ -2,7 +2,7 @@
 
 What this build actually wires, and how it got here. The 47 slots are the original asset plan's; where this build deviates from it, the row says so.
 
-**Counts.** 47 slots: **27 wired**, **14 deferred** (a kept candidate exists but the build uses the prototype's CSS or behaviour instead), **6 with nothing to wire**. 27 + 14 + 6 = 47. On disk under `src/assets/`: 6 card PNGs, 28 sprites at 1x/2x/3x (84 PNGs, §7 — the 7 table sprites plus 21 saloon props cut from the B-4 / B-6 sheets on 2026-10-06), 34 SFX (`.m4a`, 33 one-shots + the ambience loop), 3 music loops (`.m4a`).
+**Counts.** 47 slots: **27 wired**, **14 deferred** (a kept candidate exists but the build uses the prototype's CSS or behaviour instead), **6 with nothing to wire**. 27 + 14 + 6 = 47. On disk under `src/assets/`: 2 card PNGs, 27 sprite PNGs (one 3x file each, §7 — the 6 table sprites plus 21 saloon props cut from the B-4 / B-6 sheets on 2026-10-06), 34 SFX (`.m4a`, 33 one-shots + the ambience loop), 3 music loops (`.m4a`).
 
 ## 1. The 47 slots
 
@@ -31,7 +31,7 @@ What this build actually wires, and how it got here. The 47 slots are the origin
 | 23 | display-felt | `sprites/felt.png` 32x32 (B-4-derived, synthesised) | wired |
 | 24 | display-wanted-poster | `sprites/wanted.png` 61x71 (B-4) | wired |
 | 25 | display-title-backdrop | the title's saloon front and the room behind the hand, built from B-4 / B-6 props (§7): `back_bar`, `barrel`, `piano`, `poker_table`, `fireplace`, `chair`, `stool`, `stool_grey`, `plant`, `chips`, `chips_pile`, `painting` | wired |
-| 26 | display-splash-screen | — (B-7 kept); on the web the PWA splash is generated from the manifest colours | deferred |
+| 26 | display-splash-screen | — (B-7 kept); there is no PWA splash any more, a shell draws its own | deferred |
 | 27 | display-saloon-doors | `doors_closed` / `doors_ajar` / `doors_open` — the B-4 batwing pairs (93x79 art, drawn at exactly 2x) as three swing frames (`ui/Doors.tsx`) | wired |
 | 28 | display-lamp-lighting | `lamp` (B-4 oil lamp), `sconce` / `sconce_silver` (B-6 wall sconces) | wired |
 | 29 | display-signage | `sign_saloon` (B-4 red board), `sign_hanging` (B-4 hanging board), `sign_backdoor` (B-6); the in-game sign stays CSS (`.sign`) | wired |
@@ -50,8 +50,8 @@ What this build actually wires, and how it got here. The 47 slots are the origin
 | 42 | ui-menu-icon | "☰" text | deferred |
 | 43 | ui-app-icon | `public/icons/icon-192.png`, `icon-512.png` — composed from `sprites/wood.png` and `cards/card_back.png` (§5), not cut from B-11 | wired |
 | 44 | ui-font-rye | `@fontsource/rye` (npm, OFL) — not an asset from the pack | **nothing** (substitute) |
-| 45 | cards-faces | `cards/cards_atlas.png` 1248x512 + `@2x` + `@3x` | wired |
-| 46 | cards-back | `cards/card_back.png` 96x128 + `@2x` + `@3x` (western reskin open) | wired |
+| 45 | cards-faces | `cards/cards_atlas.png` 3744x1536 (the 1248x512 art at 3x, drawn at 96x128 a cell) | wired |
+| 46 | cards-back | `cards/card_back.png` 288x384 (96x128 art at 3x; western reskin open) | wired |
 | 47 | cards-reskin-source | — (the `.pxo` is gone; only the 52 face PNGs in Jorel's pack remain, and they are not in the handoff on disk) | **nothing** |
 
 Wired: 1-8, 10, 11, 13-18, 22-25, 27-29, 41, 43, 45, 46 (27). Deferred: 9, 26, 30-40, 42 (14). Nothing: 12, 19, 20, 21, 44, 47 (6).
@@ -80,13 +80,13 @@ Round-robin without an immediate repeat (`pool.ts` `pickVariant`), ±4 % true-pi
 
 ## 3. The pipeline
 
-1. **Sprites**: `src/assets/sprites/{wood,felt,p_marshal,p_outlaw,p_gambler,wanted,checker}.png`, each with its `@2x` and `@3x` nearest-neighbour upscale (§7). The wood, felt and WANTED sprites were decoded from the prototype's embedded asset pack; the three portraits were re-cut from the B-4/B-6 tileset sheets at native pixel size (the prototype's 64x64 copies were resampled and had the frames clipped); the tileset sheets they were cut from are source material only and are not in this repo (every `ui-*` 9-slice slot is deferred).
-2. **Cards**: `src/assets/cards/` (6 PNGs: atlas and back at @1x/@2x/@3x; the @2x/@3x are exact nearest-neighbour upscales).
+1. **Sprites**: `src/assets/sprites/<name>.png`, **one file per sprite** holding 3x the art's pixels (`wood.png` is 288x288 for a 96-px tile, `p_marshal.png` 288x312 for 96x104, the doors 558x474 for their 186x158 box; §7 has the table). The wood, felt and WANTED sprites were decoded from the prototype's embedded asset pack; the three portraits were re-cut from the B-4/B-6 tileset sheets at native pixel size (the prototype's 64x64 copies were resampled and had the frames clipped); the tileset sheets they were cut from are source material only and are not in this repo (every `ui-*` 9-slice slot is deferred). The 3x files are the nearest-neighbour upscales made on 2026-10-06 (Pillow `Image.NEAREST`); the 1x and 2x twins that used to sit beside them are gone.
+2. **Cards**: `src/assets/cards/` (2 PNGs: `cards_atlas.png` 3744x1536 and `card_back.png` 288x384, the 1248x512 / 96x128 art at 3x).
 3. **Audio**: the 34 SFX and 3 loops named in the tables above, as AAC `.m4a` (§4), in `src/assets/sfx/` and `src/assets/music/` (`ost_1.m4a`, `ost_3.m4a`, `ost_4.m4a`; the long Ogg names are dropped).
-4. **Names, then URLs.** `src/assets/names.ts` (PURE) declares `AssetName` as a closed union, identifier-shaped so each name is also a variable name (`sfx_DeckShuffle01`, `music_ost_1`, `cards_atlas_2x`), plus `PortraitKey`. `src/assets/manifest.ts` (WEB) is an **explicit import table**, one `import x from "./….m4a?url"` line per asset, and `export const MANIFEST = { … } satisfies Record<AssetName, string>`. A missing or misspelled **file** is a Vite resolve error (`npm run dev` and `npm run build` both stop); a missing or misspelled **key** is TS2741. A DEV-only guard throws on the first asset whose URL resolved to nothing, so a bad URL surfaces on `npm run dev`, not only under `npm test`. `import.meta.glob` cannot do this (an eager `?url` glob is typed `Record<string, string>`, which satisfies anything), which is why the table is written out.
+4. **Names, then URLs.** `src/assets/names.ts` (PURE) declares `AssetName` as a closed union, identifier-shaped so each name is also a variable name (`sfx_DeckShuffle01`, `music_ost_1`, `cards_atlas`), plus `PortraitKey`. `src/assets/manifest.ts` (WEB) is an **explicit import table**, one `import x from "./….m4a?url"` line per asset, and `export const MANIFEST = { … } satisfies Record<AssetName, string>`. A missing or misspelled **file** is a Vite resolve error (`npm run dev` and `npm run build` both stop); a missing or misspelled **key** is TS2741. A DEV-only guard throws on the first asset whose URL resolved to nothing, so a bad URL surfaces on `npm run dev`, not only under `npm test`. `import.meta.glob` cannot do this (an eager `?url` glob is typed `Record<string, string>`, which satisfies anything), which is why the table is written out.
 5. **Portraits**: `PORTRAITS: Record<PortraitKey, AssetName>`; `ai/getPersonality.ts` narrows `Personality.portrait` (a `string`) to `PortraitKey` at runtime and `manifest.test.ts` asserts every `PERSONALITIES[k].portrait` is a key of `PORTRAITS`, so a misspelled portrait key fails a test instead of drawing a blank seat.
-6. **CSS, not variables**: every texture and portrait is an `image-set()` written in the rule that uses it — `styles/base.css` (`body`, `.checker-tile`), `styles/table.css` (`.table`, `.topbar`, `.felt`, `.face.p_marshal`, `.face.p_outlaw`, `.face.p_gambler`, `.face.wanted`) — and the atlas and card back are `image-set()`s in `styles/cards.css`; Vite resolves and hashes the `url()`s. Not in custom properties, because the bundler emits the `-webkit-image-set()` fallback (iOS ≤ 16) only inside a rule. Nothing sets a texture from JavaScript (the prototype's `:root` trick is retired): an inline `url()` would override the set with the 1x file and bring the blur back on iOS. `MANIFEST` still lists every file (1x, `_2x`, `_3x`) so `manifest.test.ts` proves they exist.
-7. Vite emits hashed URLs; `.png`/`.m4a` are static assets by default. The PWA precache (`vite.config.ts`) includes them, with the per-file cap raised to 8 MB for the loops.
+6. **CSS, not variables**: every texture and portrait is a `url()` plus a `background-size` in CSS px (the art size, a third of the file) written in the rule that uses it — `styles/base.css` (`body`, `.title::after`), `styles/table.css` (`.table`, `.felt`, `.face.p_marshal`, `.face.p_outlaw`, `.face.p_gambler`, `.face.wanted`), `styles/sprites.css` (one `.sp-<name>` class per prop) — and the atlas and card back are `url()`s in `styles/cards.css`; Vite resolves and hashes them. Nothing sets a texture from JavaScript (the prototype's `:root` trick is retired). `MANIFEST` lists every file so `manifest.test.ts` proves it exists and is the 3x size the CSS assumes, with no `@2x`/`@3x` twin left behind.
+7. Vite emits hashed URLs; `.png`/`.m4a` are static assets by default. `dist/` is a plain static site (no service worker, no precache, no webmanifest): a webview shell or a static host serves it.
 
 ## 4. Audio format: AAC, not Ogg
 
@@ -123,9 +123,9 @@ afinfo m4a/music/ost_1.m4a | grep -E "valid frames|estimated duration"
 | `music/ost_4.m4a` | 4,547,128 | 2,112 | 103.109478 | 2,084,274 | 2,250,129 |
 | `sfx/SFX_CardsMovingLoop03.m4a` | 444,049 | 2,112 | 10.069138 | 166,087 | ~119 KB |
 
-The 2,112-frame priming (encoder delay) is recorded in the file and Web Audio's `decodeAudioData` trims it, so a decoded buffer starts on the first real sample and `loopEnd` can be the measured duration. Budget: the 34 SFX together are about 0.66 MB (0.5 MB without the ambience loop); the three loops are about 6.7 MB; everything is precached by the service worker.
+The 2,112-frame priming (encoder delay) is recorded in the file and Web Audio's `decodeAudioData` trims it, so a decoded buffer starts on the first real sample and `loopEnd` can be the measured duration. Budget: the 34 SFX together are about 0.66 MB (0.5 MB without the ambience loop); the three loops are about 6.7 MB, fetched on demand (there is no service worker).
 
-**Where AAC does not decode.** Playwright's Chromium (and any Chromium built without proprietary codecs) rejects every `.m4a` with `EncodingError: Unable to decode audio data`. The port's failure contract then does exactly what it says: one `console.warn` per file at `init()`, every event silent, the deal and the game unaffected (`e2e/play.mjs` plays full rounds that way). Real Chrome, Edge, Firefox and Safari all decode AAC-LC. If a codec-less browser ever matters, the Ogg masters (kept outside this repo) could be wired as a fallback chosen with `canPlayType`; it is not done because it would double the precache.
+**Where AAC does not decode.** Playwright's Chromium (and any Chromium built without proprietary codecs) rejects every `.m4a` with `EncodingError: Unable to decode audio data`. The port's failure contract then does exactly what it says: one `console.warn` per file at `init()`, every event silent, the deal and the game unaffected (`e2e/play.mjs` plays full rounds that way). Real Chrome, Edge, Firefox and Safari all decode AAC-LC. If a codec-less browser ever matters, the Ogg masters (kept outside this repo) could be wired as a fallback chosen with `canPlayType`; it is not done because it would double the audio on disk.
 
 ## 5. Loop lengths
 
@@ -142,27 +142,26 @@ The web port plays each with `source.loop = true; source.loopEnd = loopEnd`. The
 
 ## 6. App icons
 
-`public/icons/icon-512.png` and `icon-192.png` are composed, not drawn: a canvas tiled with `src/assets/sprites/wood.png` (96x96, nearest-neighbour), with `src/assets/cards/card_back.png` centred — at 512 the back is scaled x3 with nearest-neighbour to 288x384; at 192 the wood tiles at 1x (exactly 2x2 tiles) and the back is at 1x (96x128) — and a 2-px dark (`#120A04`) outline that follows the card's alpha mask. Both are axis-aligned (no rotation) so every art pixel stays crisp; 192 is not an integer factor of 512, so the two were composed separately rather than one being a downscale of the other. The script is a minimal PNG codec over numpy (Pillow was not installable offline); `sips -g pixelWidth -g pixelHeight` confirms 512x512 and 192x192. `index.html` uses the 192 as `apple-touch-icon` and favicon; the webmanifest lists both, the 512 also as `maskable`.
+`public/icons/icon-512.png` and `icon-192.png` are still composed, not drawn: a canvas tiled with the 96x96 wood art (nearest-neighbour), with the 96x128 card-back art centred — at 512 the back is scaled x3 with nearest-neighbour to 288x384; at 192 the wood tiles at 1x (exactly 2x2 tiles) and the back is at 1x (96x128) — and a 2-px dark (`#120A04`) outline that follows the card's alpha mask. Both are axis-aligned (no rotation) so every art pixel stays crisp; 192 is not an integer factor of 512, so the two were composed separately rather than one being a downscale of the other. The script is a minimal PNG codec over numpy (Pillow was not installable offline); `sips -g pixelWidth -g pixelHeight` confirms 512x512 and 192x192. They were made from the 1x files, which no longer ship: to recompose, downscale the 3x `wood.png` / `card_back.png` by 3 with nearest-neighbour first (exact, since they are nearest-neighbour upscales). `index.html` uses the 192 as `apple-touch-icon` and favicon; there is no webmanifest any more, so the 512 is there for a shell to pick up.
 
-## 7. Sprites at 1x/2x/3x: why
+## 7. One 3x file per sprite, drawn smoothed; pixelated only when the game is upscaled
 
-The plan drew the wood, felt, portraits and WANTED face at integer multiples and trusted `image-rendering: pixelated` to keep them crisp. Measured in the iOS Simulator (real Safari; native-resolution screenshots; pixel histograms with Pillow), that is not true: a 1-px black/white checker (`checker.png`, values 0 and 255 only) drawn as a `pixelated` background at `background-size: 32px` came out as greys — `{170, 85, 142, 113}` dominant, barely any 0 or 255 — at dpr 2 **and** dpr 3. Safari resamples pixelated CSS backgrounds. The cards never had the problem because their `image-set()` lets the browser pick the @2x/@3x atlas and draw it 1:1 with no scaling at all.
+The game is drawn at a factor k of its 956x440 frame: k < 1 on a phone, k > 1 on desktop Chrome. At k < 1 nearest-neighbour drops art pixels unevenly and at a fractional k > 1 it doubles some and not others, so no integer device scale is ever on offer and the pipeline stopped caring about one. Every sprite and the card atlas ship as **one PNG** holding 3x the art's pixels (the former `@3x` nearest-neighbour upscale, now under the plain name; the 1x and 2x twins are deleted). The CSS sets `background-size` to the art size in CSS px — `.sp-barrel { width: 48px; height: 69px; background-size: 48px 69px }` — and the browser scales the file down to it, smoothed (`image-rendering: auto`), so the result is a clean resample of 3x source rather than a blur of 1x. When the game is upscaled (k ≥ 1; stream A's scaler toggles `upscaled` on `.game`) one rule in `styles/sprites.css` flips the art to `image-rendering: pixelated`: `.game.upscaled .sp, .card, .face, .felt, .table, .title::after`.
 
-So every sprite now ships the way the cards do: nearest-neighbour upscales made offline (Pillow `Image.NEAREST`, `scripts` in the session; the files are committed) and referenced through `image-set(url(x) 1x, url(x@2x) 2x, url(x@3x) 3x)`. After the change the same checker histogram is exactly `{0: 28800, 255: 28800}` at dpr 3. The files:
+History, in one sentence: iOS Safari resamples `pixelated` backgrounds (measured with a checker tile in the Simulator, 2026-10-05) — moot now that nothing is drawn 1:1, and the checker probe and `?dev=spike` page are gone. The table sprites:
 
-| sprite | 1x | @2x | @3x |
+| sprite | art (CSS px) | file |
 | --- | --- | --- |
-| wood | 96x96 | 192x192 | 288x288 |
-| felt | 32x32 | 64x64 | 96x96 |
-| p_marshal / p_outlaw / p_gambler | 96x104 | 192x208 | 288x312 |
-| wanted | 61x71 | 122x142 | 183x213 |
-| checker | 32x32 | 64x64 | 96x96 |
+| wood | 96x96 | 288x288 |
+| felt | 32x32 | 96x96 |
+| p_marshal / p_outlaw / p_gambler | 96x104 | 288x312 |
+| wanted | 61x71 | 183x213 |
 
 The saloon props (`styles/sprites.css`, one class per sprite), cut on 2026-10-06 from the B-4 and B-6 tileset sheets (768x768 each, kept in the Stockroom artifact, not in this repo) by their alpha bounding boxes:
 
-| sprite | sheet (x, y) | 1x | note |
+| sprite | sheet (x, y) | CSS px | note |
 | --- | --- | --- | --- |
-| doors_closed / doors_ajar / doors_open | B-4 (290, 488) / (386, 488) / (482, 488) | 186x158 | 93x79 art at exactly 2x, like Dusty's portrait; the title's swing frames |
+| doors_closed / doors_ajar / doors_open | B-4 (290, 488) / (386, 488) / (482, 488) | 186x158 | 93x79 art at exactly 2x, like Dusty's portrait; the title's swing frames (the file is 558x474, 3x the box) |
 | sign_saloon | B-4 (387, 19) | 90x56 | the red board |
 | sign_hanging | B-4 (578, 116) | 93x55 | the hanging board |
 | sign_backdoor | B-6 (529, 148) | 46x40 | |
@@ -179,7 +178,7 @@ The saloon props (`styles/sprites.css`, one class per sprite), cut on 2026-10-06
 | fireplace | B-6 (393, 10) | 79x129 | |
 | chair | B-4 (387, 201) | 44x72 | |
 
-Each has its @2x and @3x (nearest-neighbour). A new sprite needs its two upscales, three `import … ?url` lines in `manifest.ts`, a name in `names.ts` (`SaloonSpriteBase` or `TableSpriteBase`), and one `image-set()` in the rule that draws it — for a prop, a `.sp-<name>` class in `styles/sprites.css`.
+Each file is 3x the CSS px column (nearest-neighbour). A new sprite needs one file at 3x its art, one `import … ?url` line in `manifest.ts`, a name in `names.ts` (`SaloonSpriteBase` or `TableSpriteBase`), a size row in `manifest.test.ts` if it is one the layout leans on, and one `url()` + `background-size` in the rule that draws it — for a prop, a `.sp-<name>` class in `styles/sprites.css`.
 
 ## 8. Sources not in this repo
 
