@@ -14,6 +14,10 @@
  * Cards are rendered in value order and only their x / z-index change on a reorder: a card
  * that is moved in the DOM restarts its CSS animation, and the fly-in must play exactly once
  * per deal.
+ *
+ * Pointer x arrives in physical CSS px and the fan is laid out in logical px (the `.game` root
+ * is scaled by k, platform/useFitScale.ts), so the press origin and every move divide by k;
+ * rest positions stay whole logical px.
  */
 import { type CSSProperties, type PointerEvent as ReactPointerEvent, useRef, useState } from "react";
 import type { Card as CardValue } from "../engine/cards";
@@ -22,10 +26,11 @@ import { DEAL_STAGGER_MS } from "../game/timing";
 import { useGame } from "../game/useGame";
 import { CARD_W, SELECT_LIFT, fanLayout } from "../render/fanLayout";
 import { useElementWidth } from "../platform/useElementWidth";
+import { useScale } from "../platform/useFitScale";
 import { Card } from "./Card";
 
 const NO_CARDS: readonly CardValue[] = [];
-/** A pointer that travels this far (CSS px) is dragging, not tapping. */
+/** A pointer that travels this far (logical px) is dragging, not tapping. */
 const DRAG_THRESHOLD = 6;
 /** The dragged card rides above the rest of the fan. */
 const DRAG_Z = 99;
@@ -50,7 +55,7 @@ interface Order {
 
 interface Drag {
   card: CardValue;
-  /** The hand's left edge in client px, so pointer x can be read in hand coordinates. */
+  /** The hand's left edge in logical px (client px over k), so pointer x can be read in hand coordinates. */
   origin: number;
   /** Where the pointer took hold, relative to the card's left edge. */
   grab: number;
@@ -63,6 +68,7 @@ interface Drag {
 export function Hand() {
   const { game, dealId, selection, live, toggleCard } = useGame();
   const [ref, availW] = useElementWidth<HTMLDivElement>();
+  const k = useScale();
   const raw = game ? game.players[HUMAN].hand : NO_CARDS;
 
   // The order, reset on a new deal (reset-on-change, the documented way to key state to a prop).
@@ -95,15 +101,15 @@ export function Hand() {
   const press = (card: CardValue, e: ReactPointerEvent<HTMLButtonElement>) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     dragged.current = false;
-    const origin = ref.current?.getBoundingClientRect().left ?? 0;
-    const px = e.clientX - origin;
+    const origin = (ref.current?.getBoundingClientRect().left ?? 0) / k;
+    const px = e.clientX / k - origin;
     const x = xs[resting.get(card) ?? 0] ?? 0;
     e.currentTarget.setPointerCapture(e.pointerId);
     setDrag({ card, origin, grab: px - x, startX: px, x: null });
   };
   const move = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (active === null) return;
-    const px = e.clientX - active.origin;
+    const px = e.clientX / k - active.origin;
     if (active.x === null && Math.abs(px - active.startX) < DRAG_THRESHOLD) return;
     dragged.current = true;
     setDrag({ ...active, x: Math.round(clamp(px - active.grab, 0, Math.max(0, availW - CARD_W))) });

@@ -5,9 +5,10 @@
    trick's four plays staggered in three rows beneath; the side column holds the round and
    tally, the sign, the status line and the buttons; the hand fans along the bottom, its cards
    overhanging the felt's edge by 6 px. Portraits are 96x104 sprites drawn at 82x88; the trick's
-   cards are 72x96. The vertical budget on a 375-px-tall phone, with the play rows fully
-   overlapped: 2 + (2 + 90 + 2 + 98 + 6) + 2 + 122 + 2 = 326 (render/scale.ts reportFor); the
-   three play rows overlap by 74 px there and by 41 in a 440-px frame. */
+   cards are 72x96. Every px here is a logical px of the 440-px-tall canvas (base.css .game): the
+   vertical budget is 2 + (2 + 90 + 2 + 98 + 6) + 2 + 122 + 2 = 326, and the three play rows
+   overlap by 41 px on it. The side padding is the safe-area inset where that is larger than
+   6 px: --inset-* when a native shell sets them on .game, else the browser's env(). */
 .table {
   --side-w: 124px;
   --hand-h: calc(var(--ch) - 6px);
@@ -15,7 +16,7 @@
   grid-template-columns: minmax(0, 1fr) var(--side-w);
   grid-template-rows: minmax(0, 1fr) var(--hand-h);
   gap: 2px 6px;
-  padding: 2px max(6px, env(safe-area-inset-right)) 2px max(6px, env(safe-area-inset-left));
+  padding: 2px max(6px, var(--inset-right, env(safe-area-inset-right))) 2px max(6px, var(--inset-left, env(safe-area-inset-left)));
   background:
     linear-gradient(180deg, rgba(42, 26, 15, 0.92), rgba(28, 17, 8, 0.97)),
     image-set(url("../assets/sprites/wood.png") 1x, url("../assets/sprites/wood@2x.png") 2x, url("../assets/sprites/wood@3x.png") 3x);
@@ -266,7 +267,7 @@
   gap: 6px;
   min-height: 0;
   min-width: 0;
-  padding: 2px 0 env(safe-area-inset-bottom, 0px);
+  padding: 2px 0 var(--inset-bottom, env(safe-area-inset-bottom, 0px));
   image-rendering: auto;
 }
 .topbar {
