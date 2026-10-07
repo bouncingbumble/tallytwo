@@ -7,6 +7,7 @@ import "./styles/cards.css";
 import "./styles/sprites.css";
 import "./styles/overlays.css";
 import "./styles/motion.css";
+import "./styles/shell.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";

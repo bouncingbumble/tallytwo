@@ -1,7 +1,7 @@
 /**
  * The store. One useReducer over appReduce, useState for the selection and the crash, a seeded
- * rng per deal for the AI, and the cosmetic layer (sounds, barks) inside act(). HOOKS bucket:
- * React + setTimeout only; the AudioPort arrives as a prop. The provider never renders a crash
+ * rng per deal for the AI, and the cosmetic layer (sounds, barks, shell events) inside act().
+ * HOOKS bucket: React + setTimeout only; the AudioPort and the ShellPort arrive as props. The provider never renders a crash
  * screen itself: App.tsx reads `crash` from useGame() and does that, so this always renders its
  * children.
  *
@@ -16,14 +16,17 @@ import type { AudioPort } from "../audio/port";
 import { type AppAction, type CrashReport, INITIAL, appReduce, tryReduce } from "./appReducer";
 import { cueFor } from "./cues";
 import { aiRngFor } from "./seeds";
-import { barkLinesFor, canPass as canPassFor, canToggle, exactMove, gameLog, legalFor, liveCards, signFor, statusFor } from "./selectors";
+import { barkLinesFor, canPass as canPassFor, canToggle, exactMove, gameLog, legalFor, liveCards, matchOver, matchWinner, signFor, statusFor } from "./selectors";
 import { BARK_CHANCE } from "./timing";
 import { useBarks } from "./useBarks";
-import { type GameApi, GameContext } from "./useGame";
+import { type GameApi, GameContext, type ShellPort } from "./useGame";
 
 const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
 
-export function GameProvider({ audio, children }: { audio: AudioPort; children: ReactNode }) {
+/** No shell (a plain browser tab, a test): the events go nowhere. A module constant, so act() keeps its identity. */
+const NO_SHELL: ShellPort = { haptic() {}, score() {}, matchOver() {} };
+
+export function GameProvider({ audio, shell = NO_SHELL, children }: { audio: AudioPort; shell?: ShellPort; children: ReactNode }) {
   const [state, dispatch] = useReducer(appReduce, INITIAL);
   const [selection, setSelection] = useState<Card[]>([]);
   const [crash, setCrash] = useState<CrashReport | null>(null);
@@ -56,13 +59,21 @@ export function GameProvider({ audio, children }: { audio: AudioPort; children: 
           const lines = barkLinesFor(before, cue.bark.seat, cue.bark.kind);
           if (lines.length) showBark(cue.bark.seat, lines[Math.floor(Math.random() * lines.length)]);
         }
+        // The shell's view of the same transition. `r.next !== state` above means each of these
+        // fires exactly once: a PLAY that reduced landed; SCORE_ROUND is roundover -> scored;
+        // matchOver() is false before that last SCORE_ROUND and true after it.
+        const after = r.next.game;
+        if (cue.dealRoll) shell.haptic("deal");
+        if (a.type === "PLAY") shell.haptic(after?.phase === "roundover" ? "win" : "slap");
+        if (a.type === "SCORE_ROUND" && after) shell.score(after.round, after.totals);
+        if (after && matchOver(after)) shell.matchOver(matchWinner(after), after.totals);
       } catch (e) {
         const g = before ?? r.next.game;
         if (!g) throw e; // unreachable: without a game before or after, cueFor touches nothing
         setCrash({ error: toError(e), action: a, ...gameLog(g) });
       }
     },
-    [state, audio, showBark],
+    [state, audio, shell, showBark],
   );
 
   const actAi = useCallback(

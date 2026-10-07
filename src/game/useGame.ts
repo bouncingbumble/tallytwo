@@ -17,6 +17,18 @@ export interface Bark {
   text: string;
 }
 
+/**
+ * What a shell (a native wrapper or an iframe parent) is told about the game. The web adapter
+ * is platform/bridge.ts `bridgeShell`; it arrives as a GameProvider prop like `audio`, so this
+ * file stays portable. Every method is fire-and-forget.
+ */
+export interface ShellPort {
+  /** "slap" for a play that landed, "win" when it emptied a hand, "deal" on a deal roll. */
+  haptic(kind: "slap" | "win" | "deal"): void;
+  score(round: number, totals: number[]): void;
+  matchOver(winner: number, totals: number[]): void;
+}
+
 export interface GameApi {
   game: GameState | null;
   /** Bumps on every deal; keys the deal animation and the Hand's card elements. */

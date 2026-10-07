@@ -1,0 +1,10 @@
+/* Webview hygiene: the page is a game surface, never a document. No rubber-banding or
+   pull-to-refresh at the edges (overscroll-behavior), no long-press callouts on sprites, and
+   the hosting view must not become scrollable by a stray overflow. Pinch-zoom is off through
+   the viewport meta in index.html (maximum-scale=1, user-scalable=no); double-tap zoom through
+   body's touch-action: manipulation in base.css. */
+html,
+body {
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
+}
