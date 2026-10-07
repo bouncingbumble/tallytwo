@@ -138,7 +138,7 @@ Sample-accurate loop points (`src/audio/sfxTable.ts` `MUSIC[*].loopEnd`), from t
 | ost_4 — Dusty Trails (results, how-to) | 103.109 s | 4,547,128 | 2 | 160 kb/s |
 | CardsMovingLoop03 (ambience) | 10.069 s | 444,049 | 1 | 128 kb/s |
 
-The web port plays each with `source.loop = true; source.loopEnd = loopEnd`. The React Native port cannot set a loop end on an expo-audio player, so there the three loop files are trimmed to these lengths offline (`docs/PORTING.md`).
+The web port plays each with `source.loop = true; source.loopEnd = loopEnd`. A player that cannot set a loop end would need the loop files trimmed to these lengths offline.
 
 ## 6. App icons
 

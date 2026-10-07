@@ -69,8 +69,8 @@ export function Pile() {
   if (!game) return null;
   const plays = trickPlays(game);
   const bySeat = new Map(plays.map((p) => [p.seat, p]));
-  // Row tops from the area's height: the bottom row flush with the bottom, the middle row
-  // halfway, every offset a whole CSS px.
+  // Row tops from the area's height (logical px, platform/useElementSize): the bottom row flush
+  // with the bottom, the middle row halfway, every offset a whole px.
   const slotH = PLAY_CARD_H + PLAY_SLACK_PT;
   const bottom = Math.max(0, height - slotH);
   const middle = Math.floor(bottom / 2);

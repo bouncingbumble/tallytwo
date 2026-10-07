@@ -1,62 +1,54 @@
-/** The iPhone matrix, held sideways, and the scale helpers. */
+/** The logical canvas, the scale that fits it to a viewport, and the fan constants. */
 import { describe, expect, test } from "vitest";
-import { DEVICES, FAN_STEP_MAX_ART, PLAY_CARD_H, PLAY_CARD_W, cardScale, fanSpanArt, fanStepArt, fixedWidthScale, landsOnWholeDevicePixels, reportFor, scaleMatrix } from "./scale";
-import { FAN_STEP_MAX, fanLayout } from "./fanLayout";
+import { CARD_ART_H, CARD_ART_W, LOGICAL_H, PLAY_CARD_H, PLAY_CARD_W, PLAY_SLACK_PT, fanSpanArt, fanStepArt, fitScale } from "./scale";
+import { CARD_H, CARD_W, fanLayout } from "./fanLayout";
 
-describe("scale matrix", () => {
-  test("every iPhone sideways: whole device pixels, a 13-card fan that fits, a readable corner index, a column that fits", () => {
-    expect(scaleMatrix()).toHaveLength(7);
-    for (const d of DEVICES) {
-      const r = reportFor(d);
-      expect(r.wholePixels, d.name).toBe(true);
-      expect(r.fits, d.name).toBe(true);
-      expect(r.legible, d.name).toBe(true);
-      expect(r.fitsHeight, `${d.name}: needs ${r.neededPt} of ${r.tallPt}`).toBe(true);
-      expect(r.cardPt).toBe(96);
-      expect(r.S).toBe(d.dpr);
-      expect(r.step).toBe(fanLayout(13, r.availPt).step); // the matrix and the layout agree
-      expect(r.step).toBeGreaterThanOrEqual(34);
+describe("fitScale", () => {
+  test("k is the viewport height over the 440-px canvas; the width follows", () => {
+    expect(LOGICAL_H).toBe(440);
+    const se = fitScale(667, 375); // iPhone SE sideways: everything shrinks
+    expect(se.k).toBeCloseTo(375 / 440, 10);
+    expect(se.logicalWidth).toBeCloseTo(667 / se.k, 10);
+    expect(se.logicalWidth).toBeCloseTo(782.6, 1);
+    const i15 = fitScale(852, 393);
+    expect(i15.logicalWidth).toBeCloseTo(953.9, 1);
+    const desktop = fitScale(1280, 800); // desktop Chrome: everything grows, the canvas gets narrower
+    expect(desktop.k).toBeCloseTo(800 / 440, 10);
+    expect(desktop.logicalWidth).toBeCloseTo(704, 0);
+  });
+  test("the scaled box is exactly the viewport, never letterboxed or capped", () => {
+    for (const [w, h] of [
+      [667, 375],
+      [852, 393],
+      [956, 440],
+      [1280, 800],
+      [1920, 1080],
+    ]) {
+      const { k, logicalWidth } = fitScale(w, h);
+      expect(LOGICAL_H * k).toBeCloseTo(h, 9);
+      expect(logicalWidth * k).toBeCloseTo(w, 9);
     }
+    expect(fitScale(956, 440)).toEqual({ k: 1, logicalWidth: 956 }); // the largest iPhone sideways is 1:1
+    expect(fitScale(0, 0).k).toBe(1); // a hidden window never divides by zero
   });
-  test("the worst cases by name", () => {
-    const se = reportFor(DEVICES[0]);
-    expect(se).toMatchObject({ widePt: 667, tallPt: 375, availPt: 509, step: 34, span: 504, neededPt: 326, playsPt: 147 });
-    const mini = reportFor(DEVICES[1]); // the same budget: the trick's cards are a fixed 72x96 on every dpr
-    expect(mini.tallPt).toBe(375);
-    expect(mini.neededPt).toBe(326);
-    expect(mini.step).toBe(39);
-    const i15 = reportFor(DEVICES[2]);
-    expect(i15.availPt).toBe(852 - 2 * 59 - 130 - 16);
-    expect(i15.step).toBe(41);
+  test("a 13-card fan fits every target with a readable corner index", () => {
+    // table.css: 6-px padding each side, the 124-px side column and its 6-px gap, 8 + 8 of hand gutter
+    const availW = (viewportW: number, viewportH: number) => fitScale(viewportW, viewportH).logicalWidth - 12 - 130 - 16;
+    expect(fanLayout(13, Math.floor(availW(667, 375))).step).toBe(44);
+    expect(fanLayout(13, Math.floor(availW(852, 393))).step).toBe(58);
+    expect(fanLayout(13, Math.floor(availW(1280, 800))).step).toBe(37);
   });
-  test("the three staggered play rows overlap: by 41 px in a 440-px frame, more on the short phones", () => {
+});
+
+describe("the card constants", () => {
+  test("the hand's cards are the art size, the plays three quarters of it", () => {
+    expect([CARD_ART_W, CARD_ART_H]).toEqual([CARD_W, CARD_H]);
     expect([PLAY_CARD_W, PLAY_CARD_H]).toEqual([72, 96]);
-    const frame = reportFor({ name: "desktop frame", widthPt: 440, heightPt: 956, dpr: 2, notchPt: 0 });
-    expect(frame).toMatchObject({ playsPt: 212, playRowOverlapPt: 98 - 57, step: 58 }); // rows at 0, 57, 114 of 98
-    const by = Object.fromEntries(DEVICES.map((d) => [d.name, reportFor(d).playRowOverlapPt]));
-    expect(by["iPhone SE (3rd gen)"]).toBe(98 - 24); // rows at 0, 24, 49 of 98
-    expect(by["iPhone 13 mini"]).toBe(98 - 24);
-    expect(by["iPhone 15"]).toBe(98 - 33);
-    expect(by["iPhone 16 Pro Max"]).toBe(98 - 57);
-    for (const d of DEVICES) expect(reportFor(d).playRowOverlapPt).toBeLessThan(PLAY_CARD_H); // never a full card
+    expect(PLAY_SLACK_PT).toBe(2);
   });
   test("the fan constants agree", () => {
     expect(fanStepArt(96)).toBe(22);
     expect(fanSpanArt(96)).toBe(360);
     expect(fanSpanArt(48)).toBe(180);
-    expect(FAN_STEP_MAX_ART).toBe(FAN_STEP_MAX);
-  });
-  test("card scales per dpr", () => {
-    expect(cardScale(2)).toMatchObject({ S: 2, pointW: 96, pointH: 128, deviceW: 192, deviceH: 256 });
-    expect(cardScale(3)).toMatchObject({ S: 3, pointW: 96, pointH: 128, deviceW: 288, deviceH: 384 });
-  });
-  test("fixedWidthScale and whole-pixel checks", () => {
-    expect(fixedWidthScale(375, 96, 2)).toBe(7);
-    expect(fixedWidthScale(100, 96, 1)).toBe(1);
-    expect(fixedWidthScale(50, 96, 1)).toBe(0);
-    expect(fixedWidthScale(360, 96, 3)).toBe(11);
-    expect(landsOnWholeDevicePixels(96, 3)).toBe(true);
-    expect(landsOnWholeDevicePixels(32.5, 2)).toBe(true);
-    expect(landsOnWholeDevicePixels(33.3, 3)).toBe(false);
   });
 });
