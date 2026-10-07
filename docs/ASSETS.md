@@ -20,11 +20,11 @@ What this build actually wires, and how it got here. The 47 slots are the origin
 | 10 | ambience-saloon | CardsMovingLoop03 at −14 dB on its own bus, `loopEnd` 10.069 s | wired |
 | 11 | music-table | ost_1 ("Saloon Stare Down") at 0.30 | wired |
 | 12 | music-title | — (ost_2 and ost_5 quarantined; the title is silent before the first gesture anyway) | **nothing** |
-| 13 | music-tension | ost_3 ("Ghost Town Blues"), layered over ost_1 with a 2-s crossfade when any seat is at ≤ 3 cards | wired |
+| 13 | music-tension | ost_3 ("Ghost Town Blues"), in place of ost_1 while any seat is at ≤ 3 cards — the table loop fades out (1.5 s), then ost_3 fades in (2 s), and back the same way; never the two at once | wired |
 | 14 | music-results | ost_4 ("Dusty Trails") | wired |
 | 15 | music-howto | ost_4 (ost_5 quarantined); playable because `init()` runs from the How to play button too and `setMusic` is latched | wired |
 | 16 | persona-marshal-idle | `sprites/p_marshal.png` 96x104 canvas, the 90x91 framed portrait from B-4 at 1x | wired |
-| 17 | persona-outlaw-idle | `sprites/p_outlaw.png` 96x104 canvas, the 43x52 framed portrait from B-6 at exactly 2x | wired |
+| 17 | persona-outlaw-idle | `sprites/p_outlaw.png` 96x104 canvas: a palette swap of Lucky Pearl's portrait (B-6, 77x88), mirrored — black hat and vest, teal bandana, a sunset sky, a dark weathered frame (HSL remaps by hue band; the script is in the session scratchpad). The pack has no third saloon face: its only other people are the B-9 sepia photo (24 px) and the B-8 WANTED faces. Replaced the blurry 2x 43x52 portrait (2026-10-07: "not a great character", and a Jack of Spades was "not a saloon character") | wired |
 | 18 | persona-gambler-idle | `sprites/p_gambler.png` 96x104 canvas, the 77x88 framed portrait from B-6 at 1x | wired |
 | 19-21 | persona-{marshal,outlaw,gambler}-states | — ; substitutes: active glow, red count at ≤ 3, dim at 0, "passed" badge, barks (all CSS/state) | **nothing** |
 | 22 | display-wood | `sprites/wood.png` 96x96 (A4-Walls 0,0,96,96) | wired |

@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "vitest";
 import { MANIFEST } from "../assets/manifest";
 import type { AssetName } from "../assets/names";
-import { CROSSFADE_MS, DEAL_ROLL, DUCK, JITTER, MUSIC, SFX, SFX_EVENTS, TENSION_THRESHOLD } from "./sfxTable";
+import { DEAL_ROLL, DUCK, FADE, JITTER, MUSIC, SFX, SFX_EVENTS, TENSION_THRESHOLD } from "./sfxTable";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 /** Under Vitest a ?url import is the root-relative dev URL ("/src/assets/...") or an /@fs/ absolute path. */
@@ -69,6 +69,6 @@ test("the numbers are the prototype's (P:364, P:368-373, P:386-390)", () => {
   expect(DUCK).toEqual({ to: 0.12, from: 0.3, attackS: 0.02, holdMs: 300, rearmMs: 280 });
   expect(DEAL_ROLL).toEqual({ first: 260, every: 110, ticks: 4 });
   expect(JITTER).toBe(0.04);
-  expect(CROSSFADE_MS).toBe(2000);
+  expect(FADE).toEqual({ outMs: 1500, inMs: 2000 }); // a switch: out, then in — never a crossfade
   expect(TENSION_THRESHOLD).toBe(3);
 });

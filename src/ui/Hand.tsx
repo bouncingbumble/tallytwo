@@ -3,9 +3,9 @@
  * deal so a fresh deal remounts the cards and replays the deal keyframes (table.css .deal).
  * Taps go to toggleCard(), which already ignores off-turn taps; dimming comes from `live`.
  *
- * Order: a fresh deal is sorted by rank (or by suit — opts.sortBy); from then on the player
- * drags cards wherever they like, any time, their turn or not. The order is UI state per deal,
- * never engine state, and only ever shrinks as cards are played. A press becomes a drag once
+ * Order: a fresh deal is sorted low to high, a rank's cards by suit (selectors.sortHand); from
+ * then on the player drags cards wherever they like, any time, their turn or not. The order is
+ * UI state per deal, never engine state, and only ever shrinks as cards are played. A press becomes a drag once
  * the pointer has moved DRAG_THRESHOLD px: the card follows the pointer and the others slide to
  * make room (the slot nearest the dragged card's left edge, so the fan reads the same way a
  * finger does), and the click the browser sends after the drag is swallowed so it does not
@@ -22,8 +22,6 @@ import { DEAL_STAGGER_MS } from "../game/timing";
 import { useGame } from "../game/useGame";
 import { CARD_W, SELECT_LIFT, fanLayout } from "../render/fanLayout";
 import { useElementWidth } from "../platform/useElementWidth";
-import { type SortBy } from "../settings/settings";
-import { useSettings } from "../settings/useSettings";
 import { Card } from "./Card";
 
 const NO_CARDS: readonly CardValue[] = [];
@@ -46,7 +44,6 @@ const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.m
 
 interface Order {
   dealId: number;
-  sortBy: SortBy;
   /** The player's order; cards that have been played are filtered out at render. */
   cards: CardValue[];
 }
@@ -65,17 +62,15 @@ interface Drag {
 
 export function Hand() {
   const { game, dealId, selection, live, toggleCard } = useGame();
-  const { opts } = useSettings();
   const [ref, availW] = useElementWidth<HTMLDivElement>();
   const raw = game ? game.players[HUMAN].hand : NO_CARDS;
 
-  // The order, reset on a new deal or a changed sort preference (reset-on-change, the
-  // documented way to key state to a prop).
-  const [order, setOrder] = useState<Order>(() => ({ dealId, sortBy: opts.sortBy, cards: sortHand(raw, opts.sortBy) }));
+  // The order, reset on a new deal (reset-on-change, the documented way to key state to a prop).
+  const [order, setOrder] = useState<Order>(() => ({ dealId, cards: sortHand(raw) }));
   let cards = order.cards;
-  if (order.dealId !== dealId || order.sortBy !== opts.sortBy) {
-    cards = sortHand(raw, opts.sortBy);
-    setOrder({ dealId, sortBy: opts.sortBy, cards });
+  if (order.dealId !== dealId) {
+    cards = sortHand(raw);
+    setOrder({ dealId, cards });
   }
   const inHand = new Set(raw);
   const hand = cards.filter((v) => inHand.has(v));

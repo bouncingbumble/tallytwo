@@ -30,8 +30,11 @@ export const TABLE_PAD_PT = 6;
 /** The vertical budget (table.css): the felt (padding 2 + badge + gap 2 + the play rows + padding 6), the hand strip, the row gap and the top and bottom padding. */
 /** The hand's row: the cards (128) overhang the felt's bottom padding by 6 px, and the select lift rises over the felt. */
 export const HAND_H_PT = CARD_ART_H - 6;
-/** An opponent's badge: the 104-px portrait plus 1 px of padding above and below. */
-export const BADGE_H_PT = 104 + 2;
+/** The trick's cards on the felt: three quarters of the hand's 96x128, a fixed CSS size on every device (smoothed, not an integer scale). */
+export const PLAY_CARD_W = 72;
+export const PLAY_CARD_H = 96;
+/** An opponent's badge: the portrait drawn at 85 % (88 px tall) plus 1 px of padding above and below. */
+export const BADGE_H_PT = 88 + 2;
 export const FELT_PAD_PT = 2 + 6;
 export const FELT_GAP_PT = 2;
 /** A play slot is the small card plus 2 px. */
@@ -74,12 +77,6 @@ export interface CardScale {
 /** The hand's card scale on a device: one art pixel per device pixel per dpr, i.e. 96 CSS px. */
 export function cardScale(dpr: number): CardScale {
   const S = Math.max(1, Math.round(dpr));
-  return { S, pointW: (CARD_ART_W * S) / dpr, pointH: (CARD_ART_H * S) / dpr, deviceW: CARD_ART_W * S, deviceH: CARD_ART_H * S };
-}
-
-/** The trick plays' card scale on a phone: one step smaller than the hand (48 CSS px on dpr 2, 64 on dpr 3), never below S = 1. */
-export function smallCardScale(dpr: number): CardScale {
-  const S = Math.max(1, Math.round(dpr) - 1);
   return { S, pointW: (CARD_ART_W * S) / dpr, pointH: (CARD_ART_H * S) / dpr, deviceW: CARD_ART_W * S, deviceH: CARD_ART_H * S };
 }
 
@@ -136,7 +133,7 @@ export function reportFor(device: DeviceSpec): DeviceReport {
   const availPt = widePt - 2 * Math.max(TABLE_PAD_PT, device.notchPt) - SIDE_W_PT - HAND_GUTTER_PT;
   const step = Math.min(FAN_STEP_MAX_ART, Math.floor((availPt - pointW) / 12));
   const span = pointW + 12 * step;
-  const slotPt = smallCardScale(device.dpr).pointH + PLAY_SLACK_PT;
+  const slotPt = PLAY_CARD_H + PLAY_SLACK_PT;
   const fixedPt = FELT_PAD_PT + BADGE_H_PT + FELT_GAP_PT + HAND_H_PT + TABLE_V_EXTRA_PT;
   const neededPt = fixedPt + slotPt;
   const playsPt = Math.max(slotPt, tallPt - fixedPt);

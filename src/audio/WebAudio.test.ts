@@ -1,12 +1,13 @@
 /**
  * WebAudio against a fake context (gain nodes record their automation, sources their start/stop
  * and loop settings) and a fake fetch that can fail or hold a file: the failure contract, the
- * one decode pass, the latched setMusic, the duck, the deal roll and the tension layer.
+ * one decode pass, the latched setMusic, the sequential fades, the duck, the deal roll and the
+ * tension switch.
  */
 import { afterEach, expect, test, vi } from "vitest";
 import { MANIFEST } from "../assets/manifest";
 import type { AssetName } from "../assets/names";
-import { CROSSFADE_MS, DEAL_ROLL, DUCK, JITTER, MUSIC, SFX, SFX_EVENTS } from "./sfxTable";
+import { DEAL_ROLL, DUCK, FADE, JITTER, MUSIC, SFX, SFX_EVENTS } from "./sfxTable";
 import {
   type AudioContextLike,
   type AudioParamLike,
@@ -35,6 +36,8 @@ interface FakeSource extends BufferSourceLike {
   buffer: FakeBuffer | null;
   into: unknown;
   starts: number;
+  /** The context times start() was scheduled for. */
+  startAts: number[];
   stops: number[];
 }
 interface FakeContext extends AudioContextLike {
@@ -96,12 +99,14 @@ function fakeContext(): FakeContext {
         playbackRate: fakeParam(1),
         into: null,
         starts: 0,
+        startAts: [],
         stops: [],
         connect(d) {
           s.into = d;
         },
-        start() {
+        start(when) {
           s.starts++;
+          s.startAts.push(when ?? 0);
         },
         stop(when) {
           s.stops.push(when ?? 0);
@@ -349,19 +354,48 @@ test("setMusic before init is remembered and decoded once there is a context", a
   expect(sourcesOf(ctx, "music_ost_4")).toHaveLength(1);
 });
 
-test("stopping a loop fades it out over the crossfade and schedules its stop", async () => {
+const OUT_S = FADE.outMs / 1000;
+
+test("stopping a loop fades it out over FADE.outMs and schedules its stop; the next loop waits for the fade-out", async () => {
   const { ctx, audio } = setup();
   await audio.init();
   audio.setMusic("table");
   await flush();
   const [loop] = sourcesOf(ctx, "music_ost_1");
+  expect(loop.startAts).toEqual([0]); // nothing was fading: at once
   audio.setMusic(null);
   expect(gainOf(loop).gain.ramps).toEqual([MUSIC.table.gain, 0]);
-  expect(loop.stops).toEqual([ctx.currentTime + CROSSFADE_MS / 1000]);
+  expect(loop.stops).toEqual([ctx.currentTime + OUT_S]);
   audio.setMusic("table");
   const again = sourcesOf(ctx, "music_ost_1");
   expect(again).toHaveLength(2);
+  expect(again[1].startAts).toEqual([ctx.currentTime + OUT_S]); // after the old one is silent, never over it
+  expect(gainOf(again[1]).gain.ramps).toEqual([MUSIC.table.gain]);
   expect(again[1].stops).toEqual([]);
+});
+
+test("a track switch is a fade-out then a fade-in, never a crossfade; a loop stopped before it sounded is cancelled", async () => {
+  const { ctx, fetch, audio } = setup({ hold: [urlOf("music_ost_4")] });
+  await audio.init();
+  audio.setMusic("table");
+  await flush();
+  const [table] = sourcesOf(ctx, "music_ost_1");
+  ctx.currentTime = 10;
+  audio.setMusic("results"); // the table fades out now; the results loop is still decoding
+  expect(table.stops).toEqual([10 + OUT_S]);
+  fetch.land(urlOf("music_ost_4"));
+  await flush();
+  const [results] = sourcesOf(ctx, "music_ost_4");
+  expect(results.startAts).toEqual([10 + OUT_S]); // scheduled for the moment the table is silent
+  expect(gainOf(results).gain.ramps).toEqual([MUSIC.results.gain]);
+  // a change of mind before it has sounded: cancelled outright, and the table comes straight back
+  ctx.currentTime = 10.5;
+  audio.setMusic("table");
+  expect(results.stops).toEqual([10.5]);
+  expect(gainOf(results).gain.ramps).toEqual([MUSIC.results.gain]); // no fade-out ramp
+  const again = sourcesOf(ctx, "music_ost_1");
+  expect(again).toHaveLength(2);
+  expect(again[1].startAts).toEqual([10 + OUT_S]); // still not before the first table's fade-out ends
 });
 
 test("the ambience loop starts after init on its own bus and keeps running", async () => {
@@ -381,31 +415,60 @@ test("the ambience loop starts after init on its own bus and keeps running", asy
 
 /* ---- tension ---- */
 
-test("the tension layer fades in over table, and out when off or when the track is not table", async () => {
+test("tension switches the table loop for the tension loop (fade out, then in) and back; it never plays over results", async () => {
   const { ctx, audio } = setup();
   await audio.init();
-  audio.setTension(true); // nothing wanted yet: no layer
+  audio.setTension(true); // nothing wanted yet: no music
   await flush();
   expect(sourcesOf(ctx, "music_ost_3")).toHaveLength(0);
+  expect(sourcesOf(ctx, "music_ost_1")).toHaveLength(0);
 
-  audio.setMusic("table");
+  audio.setMusic("table"); // with tension on, "table" plays as the tension loop
   await flush();
+  expect(sourcesOf(ctx, "music_ost_1")).toHaveLength(0);
   const [tension] = sourcesOf(ctx, "music_ost_3");
   expect(tension).toBeTruthy();
   expect(tension.loop).toBe(true);
+  expect(tension.startAts).toEqual([0]);
   expect(gainOf(tension).gain.ramps).toEqual([MUSIC.tension.gain]);
 
-  audio.setTension(false);
-  expect(gainOf(tension).gain.ramps).toEqual([MUSIC.tension.gain, 0]);
-  expect(tension.stops).toEqual([ctx.currentTime + CROSSFADE_MS / 1000]);
-
-  audio.setTension(true);
-  expect(sourcesOf(ctx, "music_ost_3")).toHaveLength(2);
-  audio.setMusic("results");
+  ctx.currentTime = 20;
+  audio.setTension(false); // the tension loop fades out; the table loop starts when it is silent
   await flush();
-  expect(sourcesOf(ctx, "music_ost_3")[1].stops).toHaveLength(1);
-  expect(sourcesOf(ctx, "music_ost_1")[0].stops).toHaveLength(1);
+  expect(gainOf(tension).gain.ramps).toEqual([MUSIC.tension.gain, 0]);
+  expect(tension.stops).toEqual([20 + OUT_S]);
+  const [table] = sourcesOf(ctx, "music_ost_1");
+  expect(table.startAts).toEqual([20 + OUT_S]);
+
+  ctx.currentTime = 40;
+  audio.setTension(true);
+  await flush();
+  expect(table.stops).toEqual([40 + OUT_S]);
+  expect(sourcesOf(ctx, "music_ost_3")[1].startAts).toEqual([40 + OUT_S]);
+
+  ctx.currentTime = 60;
+  audio.setMusic("results"); // tension stays on, but it only ever stands in for the table
+  await flush();
+  expect(sourcesOf(ctx, "music_ost_3")[1].stops).toEqual([60 + OUT_S]);
   expect(sourcesOf(ctx, "music_ost_4")).toHaveLength(1);
+  expect(sourcesOf(ctx, "music_ost_4")[0].startAts).toEqual([60 + OUT_S]);
+  expect(sourcesOf(ctx, "music_ost_3")).toHaveLength(2);
+});
+
+test("a tension file that will not decode hands the table back instead of leaving the low-card stretch silent", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  const { ctx, audio } = setup({ fail: [urlOf("music_ost_3")] });
+  await audio.init();
+  audio.setTension(true);
+  audio.setMusic("table");
+  await flush();
+  expect(sourcesOf(ctx, "music_ost_3")).toHaveLength(0);
+  expect(sourcesOf(ctx, "music_ost_1")).toHaveLength(1); // the table, not silence
+  expect(warn.mock.calls.map((c) => String(c[0])).filter((m) => m.includes("music_ost_3"))).toHaveLength(1);
+  audio.setTension(false);
+  audio.setTension(true);
+  await flush();
+  expect(sourcesOf(ctx, "music_ost_1")).toHaveLength(1); // still the same table loop: no switch, no re-fetch
 });
 
 /* ---- duck and deal roll ---- */

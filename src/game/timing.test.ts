@@ -12,7 +12,6 @@ import {
   DEAL_STAGGER_MS,
   DOORS_MS,
   FIRST_STEP_MS,
-  NUDGE_MS,
   REDUCED_MOTION_MAX_MS,
   ROUND_OVER_MS,
   SLAP_STAGGER_MS,
@@ -56,22 +55,21 @@ test("the constants are the prototype's numbers", () => {
   expect(ROUND_OVER_MS).toEqual({ ai: 900, human: 800 });
   expect(FIRST_STEP_MS).toBe(700);
   expect(DOORS_MS).toEqual({ normal: 620, reduced: 60 });
-  expect(NUDGE_MS).toBe(170);
   expect(DEAL_STAGGER_MS).toBe(32);
   expect(SLAP_STAGGER_MS).toBe(40);
   expect(BARK_MS).toBe(2000);
   expect(BARK_CHANCE).toBe(0.55);
 });
 
-test("the table runs 8x slower than the prototype at 1x, and Game speed divides that down", () => {
-  expect(BASE_TIME_SCALE).toBe(8);
+test("the table runs 4x slower than the prototype at 1x, and Game speed divides that down", () => {
+  expect(BASE_TIME_SCALE).toBe(4);
   expect(SPEED_MULTIPLIERS).toEqual([1, 2, 3, 4]);
-  expect(paced(FIRST_STEP_MS, 1)).toBe(5600);
-  expect(paced(FIRST_STEP_MS, 2)).toBe(2800);
-  expect(paced(FIRST_STEP_MS, 4)).toBe(1400);
-  expect(paced(950, 3)).toBe(2533); // whole milliseconds
-  expect(paced(thinkMs("normal", 0), 1)).toBe(5200);
-  expect(paced(thinkMs("normal", 1), 4)).toBe(2500);
+  expect(paced(FIRST_STEP_MS, 1)).toBe(2800);
+  expect(paced(FIRST_STEP_MS, 2)).toBe(1400);
+  expect(paced(FIRST_STEP_MS, 4)).toBe(700);
+  expect(paced(950, 3)).toBe(1267); // whole milliseconds
+  expect(paced(thinkMs("normal", 0), 1)).toBe(2600);
+  expect(paced(thinkMs("normal", 1), 4)).toBe(1250);
   expect(paced(0, 1)).toBe(0);
-  for (const m of SPEED_MULTIPLIERS) expect(paced(1000, m)).toBe(Math.round(8000 / m));
+  for (const m of SPEED_MULTIPLIERS) expect(paced(1000, m)).toBe(Math.round(4000 / m));
 });

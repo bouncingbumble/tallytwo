@@ -22,7 +22,7 @@ export const thinkMs = (speed: Speed, r: number): number => {
  * prototype's number times this. The prototype played far too fast to follow; 1x in Settings
  * is this slow table, and the Game speed setting divides it back down.
  */
-export const BASE_TIME_SCALE = 8;
+export const BASE_TIME_SCALE = 4;
 export type SpeedMultiplier = 1 | 2 | 3 | 4;
 export const SPEED_MULTIPLIERS: readonly SpeedMultiplier[] = [1, 2, 3, 4];
 
@@ -39,8 +39,6 @@ export const ROUND_OVER_MS = { ai: 900, human: 800 } as const;
 export const FIRST_STEP_MS = 700;
 /** The saloon doors swing before the table appears. */
 export const DOORS_MS = { normal: 620, reduced: 60 } as const;
-/** The felt dips when cards land. */
-export const NUDGE_MS = 170;
 /** Deal animation stagger per card. */
 export const DEAL_STAGGER_MS = 32;
 /** Pile slap stagger per card. */

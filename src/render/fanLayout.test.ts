@@ -37,7 +37,7 @@ describe("fanLayout", () => {
     }
   });
   test("constants", () => {
-    expect(PILE_STEP).toBe(40);
+    expect(PILE_STEP).toBe(30);
     expect(SELECT_LIFT).toBe(14);
     expect(FAN_STEP_MAX).toBe(64);
   });

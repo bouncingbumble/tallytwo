@@ -1,6 +1,6 @@
 /** The iPhone matrix, held sideways, and the scale helpers. */
 import { describe, expect, test } from "vitest";
-import { DEVICES, FAN_STEP_MAX_ART, cardScale, fanSpanArt, fanStepArt, fixedWidthScale, landsOnWholeDevicePixels, reportFor, scaleMatrix, smallCardScale } from "./scale";
+import { DEVICES, FAN_STEP_MAX_ART, PLAY_CARD_H, PLAY_CARD_W, cardScale, fanSpanArt, fanStepArt, fixedWidthScale, landsOnWholeDevicePixels, reportFor, scaleMatrix } from "./scale";
 import { FAN_STEP_MAX, fanLayout } from "./fanLayout";
 
 describe("scale matrix", () => {
@@ -20,24 +20,25 @@ describe("scale matrix", () => {
   });
   test("the worst cases by name", () => {
     const se = reportFor(DEVICES[0]);
-    expect(se).toMatchObject({ widePt: 667, tallPt: 375, availPt: 509, step: 34, span: 504, neededPt: 310, playsPt: 131 });
-    const mini = reportFor(DEVICES[1]); // dpr 3: 64x85.33 plays on a 375-px-tall screen
+    expect(se).toMatchObject({ widePt: 667, tallPt: 375, availPt: 509, step: 34, span: 504, neededPt: 326, playsPt: 147 });
+    const mini = reportFor(DEVICES[1]); // the same budget: the trick's cards are a fixed 72x96 on every dpr
     expect(mini.tallPt).toBe(375);
-    expect(mini.neededPt).toBeCloseTo(331.33, 1);
+    expect(mini.neededPt).toBe(326);
     expect(mini.step).toBe(39);
     const i15 = reportFor(DEVICES[2]);
     expect(i15.availPt).toBe(852 - 2 * 59 - 130 - 16);
     expect(i15.step).toBe(41);
   });
-  test("the three staggered play rows: apart in a 440-px frame at dpr 2, overlapping on the phones", () => {
+  test("the three staggered play rows overlap: by 41 px in a 440-px frame, more on the short phones", () => {
+    expect([PLAY_CARD_W, PLAY_CARD_H]).toEqual([72, 96]);
     const frame = reportFor({ name: "desktop frame", widthPt: 440, heightPt: 956, dpr: 2, notchPt: 0 });
-    expect(frame).toMatchObject({ playsPt: 196, playRowOverlapPt: 1, step: 58 }); // rows at 0, 65, 130 of 66
+    expect(frame).toMatchObject({ playsPt: 212, playRowOverlapPt: 98 - 57, step: 58 }); // rows at 0, 57, 114 of 98
     const by = Object.fromEntries(DEVICES.map((d) => [d.name, reportFor(d).playRowOverlapPt]));
-    expect(by["iPhone SE (3rd gen)"]).toBe(66 - 32); // rows at 0, 32, 65 of 66
-    expect(by["iPhone 13 mini"]).toBeCloseTo(87.33 - 21, 1);
-    expect(by["iPhone 15"]).toBeCloseTo(87.33 - 30, 1);
-    expect(by["iPhone 16 Pro Max"]).toBeCloseTo(87.33 - 54, 1);
-    for (const d of DEVICES) expect(reportFor(d).playRowOverlapPt).toBeLessThan(smallCardScale(d.dpr).pointH); // never a full card
+    expect(by["iPhone SE (3rd gen)"]).toBe(98 - 24); // rows at 0, 24, 49 of 98
+    expect(by["iPhone 13 mini"]).toBe(98 - 24);
+    expect(by["iPhone 15"]).toBe(98 - 33);
+    expect(by["iPhone 16 Pro Max"]).toBe(98 - 57);
+    for (const d of DEVICES) expect(reportFor(d).playRowOverlapPt).toBeLessThan(PLAY_CARD_H); // never a full card
   });
   test("the fan constants agree", () => {
     expect(fanStepArt(96)).toBe(22);
@@ -48,9 +49,6 @@ describe("scale matrix", () => {
   test("card scales per dpr", () => {
     expect(cardScale(2)).toMatchObject({ S: 2, pointW: 96, pointH: 128, deviceW: 192, deviceH: 256 });
     expect(cardScale(3)).toMatchObject({ S: 3, pointW: 96, pointH: 128, deviceW: 288, deviceH: 384 });
-    expect(smallCardScale(2).pointW).toBe(48);
-    expect(smallCardScale(3).pointW).toBe(64);
-    expect(smallCardScale(1).pointW).toBe(96);
   });
   test("fixedWidthScale and whole-pixel checks", () => {
     expect(fixedWidthScale(375, 96, 2)).toBe(7);

@@ -19,9 +19,9 @@
   --ch: 128px;
   /* set by platform/useDevice.ts; 1 until then */
   --dpr: 1;
-  /* the pile's card size: one scale step below the hand (48 px on dpr 2, 64 px on dpr 3) */
-  --cw-small: calc(var(--cw) * max(1, var(--dpr) - 1) / var(--dpr));
-  --ch-small: calc(var(--ch) * max(1, var(--dpr) - 1) / var(--dpr));
+  /* the trick's card size: three quarters of the hand's (render/scale.ts PLAY_CARD_W), drawn smoothed */
+  --cw-small: 72px;
+  --ch-small: 96px;
 
   /* Textures and portraits are image-set() declarations written in the rules that use them
      (base.css, table.css), not here: the bundler adds the -webkit-image-set() fallback for

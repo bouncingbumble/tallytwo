@@ -28,11 +28,6 @@
     opacity: 1;
   }
 }
-@keyframes nudge {
-  50% {
-    transform: translateY(2px);
-  }
-}
 /* sprite frames (the title's batwing doors): a frame switches on or off at its delay, with no easing */
 @keyframes frame-off {
   to {

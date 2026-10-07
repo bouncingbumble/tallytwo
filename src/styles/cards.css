@@ -36,9 +36,11 @@
   background-size: var(--cw) var(--ch);
   background-position: 0 0;
 }
+/* the trick's cards: 72x96, a 0.75 downscale of the atlas, so smoothed rather than pixelated */
 .card.small {
   --cw: var(--cw-small);
   --ch: var(--ch-small);
+  image-rendering: auto;
 }
 .card:focus-visible {
   outline: 3px solid var(--amber);

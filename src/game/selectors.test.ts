@@ -29,6 +29,7 @@ import {
   legalFor,
   liveCards,
   matchOver,
+  ROUNDS_PER_MATCH,
   matchWinner,
   musicFor,
   portraitFor,
@@ -219,10 +220,10 @@ test("hintFor returns one of the legal moves (rand = 0.5), null off turn", () =>
 });
 
 test("sortHand: by rank (value order) or by suit then rank", () => {
-  expect(sortHand([5, 0, 3, 8], "rank")).toEqual([0, 3, 5, 8]);
-  expect(sortHand([5, 0, 3, 8], "suit")).toEqual([0, 8, 5, 3]);
+  expect(sortHand([5, 0, 3, 8])).toEqual([0, 3, 5, 8]); // low to high, a rank's cards by suit
+  expect(sortHand([51, 1, 2, 0])).toEqual([0, 1, 2, 51]); // 3♦ 3♣ 3♥ … 2♠
   const hand = [5, 0, 3, 8];
-  sortHand(hand, "rank");
+  sortHand(hand);
   expect(hand).toEqual([5, 0, 3, 8]); // never mutates
 });
 
@@ -264,17 +265,15 @@ test("roundDeltas / roundWinner: null while playing, the scoring and the winner 
 
 /* ---- the match ---- */
 
-test("matchOver: roundsPerMatch 0 / 5 / 10 at round 5 scored -> false / true / false; roundover -> false", () => {
-  const scored: GameState = { ...humanLead(), round: 5, phase: "scored" };
-  expect(matchOver(scored, 0)).toBe(false);
-  expect(matchOver(scored, 5)).toBe(true);
-  expect(matchOver(scored, 10)).toBe(false);
-  const over: GameState = { ...scored, phase: "roundover" };
-  expect(matchOver(over, 0)).toBe(false);
-  expect(matchOver(over, 5)).toBe(false);
-  expect(matchOver(over, 10)).toBe(false);
-  expect(matchOver({ ...scored, round: 6 }, 5)).toBe(true);
-  expect(matchOver(null, 5)).toBe(false);
+test("matchOver: a match is exactly ROUNDS_PER_MATCH = 8 rounds — true once round 8 is scored, never before, not mid-round", () => {
+  expect(ROUNDS_PER_MATCH).toBe(8);
+  const scored: GameState = { ...humanLead(), round: 8, phase: "scored" };
+  expect(matchOver(scored)).toBe(true);
+  for (let r = 1; r < 8; r++) expect(matchOver({ ...scored, round: r }), `round ${r}`).toBe(false);
+  expect(matchOver({ ...scored, phase: "roundover" })).toBe(false);
+  expect(matchOver({ ...scored, phase: "playing" })).toBe(false);
+  expect(matchOver({ ...scored, round: 9 })).toBe(true); // never reached: NEW_MATCH follows the final poster
+  expect(matchOver(null)).toBe(false);
 });
 
 test("matchWinner: the clear leader; a tie goes to the last round's winner, else the lowest seat", () => {
@@ -300,7 +299,7 @@ test("musicFor: title -> null, table -> table, scored -> results, howto -> resul
   expect(musicFor({ ...g, phase: "scored" }, "none")).toBe("results");
 });
 
-test("tensionFor: on at 3 cards in any hand, off at 4, off outside play", () => {
+test("tensionFor: on at 3 cards in any hand, off at 4, held through roundover, off once scored", () => {
   const g = humanLead();
   const withCount = (seat: number, n: number, extra: Partial<GameState> = {}): GameState => ({
     ...g,
@@ -312,7 +311,8 @@ test("tensionFor: on at 3 cards in any hand, off at 4, off outside play", () => 
   expect(tensionFor(withCount(2, 4))).toBe(false);
   expect(tensionFor(withCount(2, 3))).toBe(true);
   expect(tensionFor(withCount(0, 1))).toBe(true);
-  expect(tensionFor(withCount(2, 3, { phase: "roundover" }))).toBe(false);
+  expect(tensionFor(withCount(2, 3, { phase: "roundover" }))).toBe(true); // the results track follows directly
+  expect(tensionFor(withCount(2, 3, { phase: "scored" }))).toBe(false);
 });
 
 /* ---- seats ---- */

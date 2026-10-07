@@ -27,12 +27,12 @@ function faceClass(seat: number, p: Player): string {
 
 export function ResultsPoster() {
   const { game, act } = useGame();
-  const { settings, opts } = useSettings();
+  const { settings } = useSettings();
   const deltas = roundDeltas(game);
   const roundWin = roundWinner(game);
   if (!game || game.phase !== "scored" || !deltas || roundWin === null) return null;
 
-  const final = matchOver(game, opts.roundsPerMatch);
+  const final = matchOver(game);
   const winner = final ? matchWinner(game) : roundWin;
   const title = final ? COPY.poster.finalTally : COPY.poster.wanted;
   const face = faceClass(winner, game.players[winner]);

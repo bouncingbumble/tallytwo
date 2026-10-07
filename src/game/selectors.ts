@@ -2,7 +2,7 @@
  * Every `if` about the rules of the game that a component would otherwise contain. Pure
  * functions over GameState (+ the selection, + a setting); the provider memoises them.
  */
-import { type Card, type Rng, THREE_OF_DIAMONDS, rank, suit } from "../engine/cards";
+import { type Card, type Rng, THREE_OF_DIAMONDS } from "../engine/cards";
 import { type Combo, classify, describe } from "../engine/combos";
 import { type Action, DEFAULT_SEATS, deal, reduce } from "../engine/reducer";
 import type { RuleConfig } from "../engine/rules";
@@ -82,9 +82,9 @@ export function signFor(g: GameState | null): Sign {
 /** What the empty felt says. */
 export const emptyFeltText = (g: GameState): string => (g.history.length ? COPY.sign.clearLeads(g.players[g.leader].name) : COPY.sign.cardsDown);
 
-export function sortHand(hand: readonly Card[], by: "rank" | "suit"): Card[] {
-  const h = hand.slice();
-  return by === "suit" ? h.sort((a, b) => suit(a) - suit(b) || rank(a) - rank(b)) : h.sort((a, b) => a - b);
+/** A fresh deal's order: low to high (3 up to 2), cards of a rank by suit (♦ ♣ ♥ ♠) — value order. */
+export function sortHand(hand: readonly Card[]): Card[] {
+  return hand.slice().sort((a, b) => a - b);
 }
 
 /** The Hint button: what the Marshal would play at Regular, else the cheapest legal move (P:1236-1243). */
@@ -129,8 +129,11 @@ export const roundDeltas = (g: GameState | null): number[] | null => (g && g.pha
 /** The seat that emptied its hand: the turn stays there after roundover. */
 export const roundWinner = (g: GameState | null): number | null => (g && g.phase !== "playing" ? g.turn : null);
 
-/** The engine has no match concept; a match ends after roundsPerMatch rounds (0 = Endless, never). */
-export const matchOver = (g: GameState | null, roundsPerMatch: number): boolean => !!g && g.phase === "scored" && roundsPerMatch > 0 && g.round >= roundsPerMatch;
+/** A match is exactly this many rounds — no setting (2026-10-07: "8 rounds per match no more, no less"). */
+export const ROUNDS_PER_MATCH = 8;
+
+/** The engine has no match concept; the match ends when round ROUNDS_PER_MATCH has been scored. */
+export const matchOver = (g: GameState | null): boolean => !!g && g.phase === "scored" && g.round >= ROUNDS_PER_MATCH;
 
 /** Highest tally; a tie goes to the seat that won the last round, else the lowest seat. */
 export function matchWinner(g: GameState): number {
@@ -143,8 +146,12 @@ export function matchWinner(g: GameState): number {
 export const musicFor = (g: GameState | null, sheet: Sheet): MusicTrack | null =>
   sheet === "howto" ? "results" : g === null ? null : g.phase === "scored" ? "results" : "table";
 
+/**
+ * Tension holds through "roundover" (a seat is at 0 cards then anyway), so a round's end goes
+ * straight from the tension track to the results track — never tension -> table -> results.
+ */
 export const tensionFor = (g: GameState | null): boolean =>
-  !!g && g.phase === "playing" && Math.min(...g.players.map((p) => p.hand.length)) <= TENSION_THRESHOLD;
+  !!g && (g.phase === "playing" || g.phase === "roundover") && Math.min(...g.players.map((p) => p.hand.length)) <= TENSION_THRESHOLD;
 
 /* ---- the copied game log: seed + history rebuilds any position, round 2+ included ---- */
 

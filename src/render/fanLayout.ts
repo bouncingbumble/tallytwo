@@ -11,8 +11,8 @@ export const CARD_H = 128;
  * strip needs (34 px on an iPhone SE, 41 on an iPhone 15).
  */
 export const FAN_STEP_MAX = 64;
-/** The trick plays' card step: floor(96 * 0.42). */
-export const PILE_STEP = 40;
+/** The trick plays' card step: floor(72 * 0.42) for the 72-px cards on the felt (render/scale.ts PLAY_CARD_W). */
+export const PILE_STEP = 30;
 /** A selected card lifts this many CSS px. */
 export const SELECT_LIFT = 14;
 

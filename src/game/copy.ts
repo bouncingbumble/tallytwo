@@ -5,7 +5,6 @@
 export const COPY = {
   title: {
     name: "Tally Two",
-    sub: "Saloon Edition · Big Two, four-handed",
     deal: "Deal me in",
     howto: "How to play",
     settings: "Settings",
@@ -83,12 +82,6 @@ export const COPY = {
     fast: "Fast",
     normal: "Normal",
     slow: "Slow",
-    roundsPerMatch: "Rounds per match",
-    endless: "Endless",
-    sortBy: "Fresh deals sorted by",
-    sortByHint: "Drag cards to rearrange your hand any time",
-    byRank: "Rank",
-    bySuit: "Suit",
     music: "Saloon piano",
     musicHint: "Looping table music",
     sfx: "Card sounds",

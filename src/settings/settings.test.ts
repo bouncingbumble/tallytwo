@@ -20,19 +20,18 @@ test("garbage -> DEFAULTS, never a throw", () => {
   expect(parseSettings("{}")).not.toBe(DEFAULTS); // a fresh object every time
 });
 
-test("the prototype's blob: its seven opts and five rules kept, roundsPerMatch and volume filled in from DEFAULTS", () => {
+test("the prototype's blob: its opts and five rules kept, volume filled in from DEFAULTS", () => {
   const s = parseSettings(PROTOTYPE_BLOB);
   expect(s).toEqual(DEFAULTS); // the prototype's defaults are ours
-  expect(s.opts.roundsPerMatch).toBe(0);
   expect(s.opts.volume).toEqual({ music: 1, sfx: 1, ambience: 1 });
 });
 
 test("a prototype blob with changed values keeps every one of them", () => {
   const rules = { passLocksOut: true, straightWrap: true, flushSuitFirst: false, mustLeadWith3D: false, laterRoundLead: "loser" };
-  const opts = { difficulty: "hard", speed: "slow", music: false, sfx: false, reduceMotion: true, sortBy: "suit" }; // the prototype's autoPass is dropped: the player is never passed for
+  const opts = { difficulty: "hard", speed: "slow", music: false, sfx: false, reduceMotion: true }; // the prototype's autoPass and sortBy are dropped: the player is never passed for, and a fresh deal is always in value order
   const s = parseSettings(JSON.stringify({ rules, opts }));
   expect(s.rules).toEqual(rules);
-  expect(s.opts).toEqual({ ...opts, speedMultiplier: 1, roundsPerMatch: 0, volume: { music: 1, sfx: 1, ambience: 1 } });
+  expect(s.opts).toEqual({ ...opts, speedMultiplier: 1, volume: { music: 1, sfx: 1, ambience: 1 } });
 });
 
 test("speedMultiplier: 1 by default, only 1-4 accepted, kept when valid", () => {
@@ -54,10 +53,10 @@ test("a wrong-typed field falls back to its default; the fields around it surviv
   expect(s.opts.sfx).toBe(false);
   expect(s.opts.speed).toBe("normal");
   expect(s.opts.difficulty).toBe("hard");
-  expect(s.opts.roundsPerMatch).toBe(0);
-  expect(s.opts.sortBy).toBe("rank");
+  expect("sortBy" in s.opts).toBe(false); // a saved sortBy from the old Sort button is ignored
+  expect("roundsPerMatch" in s.opts).toBe(false); // a saved roundsPerMatch is ignored too: a match is always 8 rounds
   expect(s.opts.volume).toEqual({ music: 1, sfx: 0.5, ambience: 1 }); // clamped to [0, 1]
-  expect(parseSettings(JSON.stringify({ opts: { roundsPerMatch: 10, volume: { ambience: -3 } } })).opts).toEqual({ ...DEFAULTS.opts, roundsPerMatch: 10, volume: { music: 1, sfx: 1, ambience: 0 } });
+  expect(parseSettings(JSON.stringify({ opts: { volume: { ambience: -3 } } })).opts).toEqual({ ...DEFAULTS.opts, volume: { music: 1, sfx: 1, ambience: 0 } });
   expect(parseSettings(JSON.stringify({ opts: { volume: "max" } })).opts.volume).toEqual(DEFAULTS.opts.volume);
 });
 
@@ -74,7 +73,7 @@ test("round-trip through memoryStorage: parseSettings(await get(KEY)) after set"
   const storage = memoryStorage();
   const s: Settings = {
     rules: { ...DEFAULT_RULES, laterRoundLead: "threeD", passLocksOut: true },
-    opts: { ...DEFAULTS.opts, speed: "fast", roundsPerMatch: 5, volume: { music: 0.5, sfx: 0.25, ambience: 0 } },
+    opts: { ...DEFAULTS.opts, speed: "fast", volume: { music: 0.5, sfx: 0.25, ambience: 0 } },
   };
   expect(await storage.get(KEY)).toBeNull();
   expect(parseSettings(await storage.get(KEY))).toEqual(DEFAULTS);

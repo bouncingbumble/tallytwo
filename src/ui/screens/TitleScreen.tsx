@@ -58,7 +58,6 @@ export function TitleScreen({ seed, onSheet }: TitleScreenProps) {
       <i className="sp sp-chips_pile decor decor-br" aria-hidden="true" />
       <div className="marquee">
         <h1 className="western">{COPY.title.name}</h1>
-        <p className="sub">{COPY.title.sub}</p>
         <div className="scene" aria-hidden="true">
           <i className="sp sp-sign_saloon at-sign" />
           <Doors open={doorsOpen} />

@@ -10,8 +10,13 @@
  * fetch or decode is dropped with one console.warn; play() of an empty pool is a no-op.
  *
  * Graph: sfx source -> per-event gain (SFX gain) -> sfx bus; loop source -> per-loop gain
- * (MUSIC gain, crossfaded) -> duck -> music bus (ambience: -> ambience bus); bus -> destination.
+ * (MUSIC gain, faded) -> duck -> music bus (ambience: -> ambience bus); bus -> destination.
  * The buses carry the user's volume x on/off and nothing else.
+ *
+ * One music loop at a time, and a switch is never a crossfade (FADE): the playing loop fades
+ * out, and the next one is scheduled to start — and fade in — on the Web Audio clock at the
+ * moment the fade-out ends. "tension" is a switch too: while setTension(true) it plays in
+ * place of "table", and the table comes back the same way.
  *
  * The constructor options exist so a test can inject fakes. The *Like interfaces are the
  * subset of the DOM types this file touches; a real AudioContext satisfies them as is.
@@ -21,7 +26,7 @@ import type { AssetName } from "../assets/names";
 import { createMusicLatch, type LatchCommand } from "./musicLatch";
 import { pickVariant } from "./pool";
 import type { AudioPort, Bus } from "./port";
-import { CROSSFADE_MS, DEAL_ROLL, DUCK, JITTER, MUSIC, type MusicLayer, type MusicTrack, SFX, SFX_EVENTS, type SfxEvent } from "./sfxTable";
+import { DEAL_ROLL, DUCK, FADE, JITTER, MUSIC, type MusicLayer, type MusicTrack, SFX, SFX_EVENTS, type SfxEvent } from "./sfxTable";
 
 export interface AudioParamLike {
   value: number;
@@ -76,9 +81,15 @@ export interface WebAudioOptions {
 interface Loop {
   source: BufferSourceLike;
   gain: GainNodeLike;
+  /** Context time the source is scheduled to start; before it, the loop has never sounded. */
+  startsAt: number;
 }
 
-const CROSSFADE_S = CROSSFADE_MS / 1000;
+/** The main music: one of these at a time. */
+type MainTrack = Exclude<MusicLayer, "ambience">;
+
+const FADE_OUT_S = FADE.outMs / 1000;
+const FADE_IN_S = FADE.inMs / 1000;
 /**
  * DUCK is written in the prototype's absolute terms (.30 -> .12, where .30 was the music
  * element's volume). Here each loop's own gain holds the .30, so the duck node carries the ratio.
@@ -105,11 +116,16 @@ export class WebAudio implements AudioPort {
 
   private readonly buffers = new Map<MusicLayer, AudioBufferLike>();
   private readonly decoding = new Set<MusicLayer>();
+  /** Loops whose file would not fetch or decode this session: never waited for again. */
+  private readonly dropped = new Set<MusicLayer>();
   private readonly loops = new Map<MusicLayer, Loop>();
-  private readonly main = createMusicLatch<MusicTrack>();
-  private readonly tension = createMusicLatch<"tension">();
+  private readonly main = createMusicLatch<MainTrack>();
   private readonly ambience = createMusicLatch<"ambience">();
+  /** What the game asked for; with tension on, "table" plays as "tension". */
+  private track: MusicTrack | null = null;
   private tensionOn = false;
+  /** Context time the last music fade-out ends: no music loop starts before it. */
+  private fadingUntil = 0;
   /** suspend() was asked for (hidden tab, landscape): play() must not wake the context until resume(). */
   private held = false;
 
@@ -149,14 +165,13 @@ export class WebAudio implements AudioPort {
   }
 
   setMusic(track: MusicTrack | null): void {
-    this.apply(this.main.want(track));
-    if (track) this.ensure(track);
-    this.settleTension();
+    this.track = track;
+    this.settleMain();
   }
 
   setTension(on: boolean): void {
     this.tensionOn = on;
-    this.settleTension();
+    this.settleMain();
   }
 
   setBus(bus: Bus, gain: number): void {
@@ -268,10 +283,14 @@ export class WebAudio implements AudioPort {
     this.decoding.add(layer);
     void this.load(ctx, MUSIC[layer].file)
       .then((buffer) => {
-        if (!buffer) return; // dropped: the latch never hears of it, the layer stays silent this session
+        if (!buffer) {
+          // dropped: the latch never hears of it; a dropped tension track hands the table back
+          this.dropped.add(layer);
+          this.settleMain();
+          return;
+        }
         this.buffers.set(layer, buffer);
         this.apply(this.landed(layer));
-        this.settleTension(); // the table loop may just have started: the tension layer waits for it
       })
       .catch((e: unknown) => console.warn(`audio: ${layer} could not start (${String(e)})`));
   }
@@ -280,40 +299,40 @@ export class WebAudio implements AudioPort {
   private kick(): void {
     const track = this.main.wanted;
     if (track) this.ensure(track);
-    if (this.tension.wanted) this.ensure("tension");
     if (this.ambience.wanted) this.ensure("ambience");
   }
 
   private landed(layer: MusicLayer): LatchCommand<MusicLayer>[] {
-    if (layer === "tension") return this.tension.decoded("tension");
     if (layer === "ambience") return this.ambience.decoded("ambience");
     return this.main.decoded(layer);
   }
 
-  /**
-   * The tension layer runs only over a PLAYING "table" loop (not merely a wanted one, which may
-   * still be decoding); a track switch or setTension(false) fades it out.
-   */
-  private settleTension(): void {
-    const want = this.tensionOn && this.main.playing === "table";
-    this.apply(this.tension.want(want ? "tension" : null));
-    if (want) this.ensure("tension");
+  /** The one main loop wanted now: the game's track, or "tension" standing in for "table" (unless its file was dropped). */
+  private settleMain(): void {
+    const want: MainTrack | null = this.track === "table" && this.tensionOn && !this.dropped.has("tension") ? "tension" : this.track;
+    this.apply(this.main.want(want));
+    if (want) this.ensure(want);
   }
 
+  /** Stops first, so a start in the same batch is scheduled after the fade-out they begin. */
   private apply(cmds: readonly LatchCommand<MusicLayer>[]): void {
-    for (const c of cmds) {
-      if (c.op === "start") this.startLoop(c.track);
-      else this.stopLoop(c.track);
-    }
+    for (const c of cmds) if (c.op === "stop") this.stopLoop(c.track);
+    for (const c of cmds) if (c.op === "start") this.startLoop(c.track);
   }
 
-  /** A fresh source + gain per start, so an instance still fading out never shares a node with the next. */
+  /**
+   * A fresh source + gain per start, so an instance still fading out never shares a node with
+   * the next. A music loop starts when the current fade-out ends (now, if nothing is fading)
+   * and fades in from there; the ambience loop starts now.
+   */
   private startLoop(layer: MusicLayer): void {
     const ctx = this.ctx;
     const buffer = this.buffers.get(layer);
     const into = layer === "ambience" ? this.buses?.ambience : this.duckNode;
     if (!ctx || !buffer || !into) return;
     const spec = MUSIC[layer];
+    const now = ctx.currentTime;
+    const at = layer === "ambience" ? now : Math.max(now, this.fadingUntil);
     const gain = ctx.createGain();
     gain.connect(into);
     const source = ctx.createBufferSource();
@@ -322,25 +341,35 @@ export class WebAudio implements AudioPort {
     source.loopStart = 0;
     source.loopEnd = Math.min(buffer.duration, spec.loopEnd);
     source.connect(gain);
-    this.ramp(ctx, gain, 0, spec.gain);
-    source.start();
-    this.loops.set(layer, { source, gain });
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.setValueAtTime(0, at);
+    gain.gain.linearRampToValueAtTime(spec.gain, at + FADE_IN_S);
+    source.start(at);
+    this.loops.set(layer, { source, gain, startsAt: at });
   }
 
+  /**
+   * A loop that has sounded fades out over FADE.outMs and holds the next music start until it
+   * is silent; one still waiting to start is simply cancelled.
+   */
   private stopLoop(layer: MusicLayer): void {
     const ctx = this.ctx;
     const loop = this.loops.get(layer);
     if (!ctx || !loop) return;
     this.loops.delete(layer);
-    this.ramp(ctx, loop.gain, loop.gain.gain.value, 0);
-    loop.source.stop(ctx.currentTime + CROSSFADE_S);
-  }
-
-  private ramp(ctx: AudioContextLike, node: GainNodeLike, from: number, to: number): void {
     const now = ctx.currentTime;
-    node.gain.cancelScheduledValues(now);
-    node.gain.setValueAtTime(from, now);
-    node.gain.linearRampToValueAtTime(to, now + CROSSFADE_S);
+    loop.gain.gain.cancelScheduledValues(now);
+    if (now < loop.startsAt) {
+      loop.gain.gain.setValueAtTime(0, now);
+      loop.source.stop(now);
+      return;
+    }
+    const end = now + FADE_OUT_S;
+    loop.gain.gain.setValueAtTime(loop.gain.gain.value, now);
+    loop.gain.gain.linearRampToValueAtTime(0, end);
+    loop.source.stop(end);
+    if (layer !== "ambience") this.fadingUntil = Math.max(this.fadingUntil, end);
   }
 
   /** DEV probe: the music bus, the duck envelope in the prototype's terms (.30 at rest, .12 under a slap), what plays. */

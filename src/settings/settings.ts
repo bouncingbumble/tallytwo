@@ -7,8 +7,6 @@ import { DEFAULT_RULES, type LaterRoundLead, type RuleConfig } from "../engine/r
 import type { Difficulty } from "../ai/choose";
 import { SPEED_MULTIPLIERS, type Speed, type SpeedMultiplier } from "../game/timing";
 
-export type SortBy = "rank" | "suit";
-export type RoundsPerMatch = 0 | 5 | 10;
 
 export interface Volume {
   music: number;
@@ -27,9 +25,6 @@ export interface Opts {
   /** "Card sounds": the sfx bus on/off. */
   sfx: boolean;
   reduceMotion: boolean;
-  sortBy: SortBy;
-  /** 0 = Endless (the prototype's behaviour). */
-  roundsPerMatch: RoundsPerMatch;
   /** 0-1 multipliers over the sfxTable gains. */
   volume: Volume;
 }
@@ -48,8 +43,6 @@ export const DEFAULTS: Settings = {
     music: true,
     sfx: true,
     reduceMotion: false,
-    sortBy: "rank",
-    roundsPerMatch: 0,
     volume: { music: 1, sfx: 1, ambience: 1 },
   },
 };
@@ -91,8 +84,6 @@ export function parseSettings(raw: string | null | undefined): Settings {
       music: bool(o.music, D.opts.music),
       sfx: bool(o.sfx, D.opts.sfx),
       reduceMotion: bool(o.reduceMotion, D.opts.reduceMotion),
-      sortBy: oneOf<SortBy>(o.sortBy, ["rank", "suit"], D.opts.sortBy),
-      roundsPerMatch: oneOf<RoundsPerMatch>(o.roundsPerMatch, [0, 5, 10], D.opts.roundsPerMatch),
       volume: {
         music: unit(vol.music, D.opts.volume.music),
         sfx: unit(vol.sfx, D.opts.volume.sfx),

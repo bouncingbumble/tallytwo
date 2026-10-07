@@ -4,9 +4,10 @@
    The felt holds the three opponents (portrait + name + count) along its top edge with the
    trick's four plays staggered in three rows beneath; the side column holds the round and
    tally, the sign, the status line and the buttons; the hand fans along the bottom, its cards
-   overhanging the felt's edge by 6 px. Portraits are 96x104 sprites drawn 1:1. The vertical
-   budget on a 375-px-tall phone, with the play rows fully overlapped: 2 + (2 + 106 + 2 + play
-   + 6) + 2 + 122 + 2, i.e. 310 at dpr 2 and 331 at dpr 3 (render/scale.ts reportFor). */
+   overhanging the felt's edge by 6 px. Portraits are 96x104 sprites drawn at 82x88; the trick's
+   cards are 72x96. The vertical budget on a 375-px-tall phone, with the play rows fully
+   overlapped: 2 + (2 + 90 + 2 + 98 + 6) + 2 + 122 + 2 = 326 (render/scale.ts reportFor); the
+   three play rows overlap by 74 px there and by 41 in a 440-px frame. */
 .table {
   --side-w: 124px;
   --hand-h: calc(var(--ch) - 6px);
@@ -55,9 +56,6 @@
   pointer-events: none;
   box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.35);
 }
-.felt.nudge {
-  animation: nudge 0.16s ease;
-}
 
 /* an opponent's badge: portrait left, name and count right */
 .opp {
@@ -91,15 +89,15 @@
 .opp.out {
   opacity: 0.55;
 }
-/* the portraits are 96x104 sprites (the framed art at its native pixel size, Dusty's at exactly 2x), drawn 1:1 */
+/* the portraits are 96x104 sprites drawn at 85 % (82x88), smoothed: a fractional scale, by request */
 .opp .face {
-  width: 96px;
-  height: 104px;
+  width: 82px;
+  height: 88px;
   flex: 0 0 auto;
-  background-size: 96px 104px;
+  background-size: 82px 88px;
   background-repeat: no-repeat;
   background-position: center;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 /* portraits by key (selectors.portraitFor): sprites at 1x/2x/3x, drawn 1:1 */
 .face.p_marshal {
@@ -141,8 +139,8 @@
   display: inline-flex;
 }
 .opp .backs i {
-  width: 9px;
-  height: 12px;
+  width: 8px;
+  height: 10px;
   border-radius: 1px;
   margin-left: -4px;
   background: repeating-linear-gradient(45deg, #7a2b24 0 2px, #5e1f1a 2px 4px);

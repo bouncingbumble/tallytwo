@@ -9,29 +9,20 @@
  * they separate where the felt is tall and overlap where it is short, the latest play — the one
  * to beat — highlighted and on top, the others dimmed.
  *
- * Cards are one scale step below the hand (render/scale.ts smallCardScale), at integer x,
- * placed in the slot by whole pixels, resting at rotate(0): the prototype's tilt and 40-ms
+ * Cards are three quarters of the hand's size (render/scale.ts PLAY_CARD_W, 72x96), at integer
+ * x, placed in the slot by whole pixels, resting at rotate(0): the prototype's tilt and 40-ms
  * stagger (P:878-885) happen on the way in only (styles/motion.css `slap`). A seat's card group
  * is keyed by its play, so a new play slaps in and an older one stays still.
  */
 import type { CSSProperties } from "react";
-import type { GameState } from "../engine/state";
 import { HUMAN, type TrickPlay, emptyFeltText, trickPlays } from "../game/selectors";
 import { SLAP_STAGGER_MS } from "../game/timing";
 import { useGame } from "../game/useGame";
-import { useDevice } from "../platform/useDevice";
 import { useElementSize } from "../platform/useElementSize";
 import { useElementWidth } from "../platform/useElementWidth";
 import { PILE_STEP } from "../render/fanLayout";
-import { PLAY_SLACK_PT, smallCardScale } from "../render/scale";
+import { PLAY_CARD_H, PLAY_CARD_W, PLAY_SLACK_PT } from "../render/scale";
 import { Card } from "./Card";
-
-/** The history length as of the last play: changes exactly when cards land on the felt. */
-export function lastPlayAt(g: GameState): number {
-  let k = g.history.length;
-  while (k > 0 && g.history[k - 1].cards.length === 0) k--;
-  return k;
-}
 
 /** Top row, middle row (left and right), bottom row. */
 const SEATS = [2, 1, 3, HUMAN];
@@ -43,9 +34,8 @@ type Align = "start" | "center" | "end";
 const ALIGN: Record<number, Align> = { 1: "start", 2: "center", 3: "end", [HUMAN]: "center" };
 
 export function TrickSlot({ seat, play, latest, dealId, top }: { seat: number; play: TrickPlay | undefined; latest: boolean; dealId: number; top?: number }) {
-  const { dpr } = useDevice();
   const [ref, availW] = useElementWidth<HTMLDivElement>();
-  const cardW = smallCardScale(dpr).pointW;
+  const cardW = PLAY_CARD_W;
   const n = play?.cards.length ?? 0;
   const step = n > 1 ? Math.max(MIN_STEP, Math.min(PILE_STEP, Math.floor((availW - cardW) / (n - 1)))) : 0;
   const span = n ? cardW + (n - 1) * step : 0;
@@ -75,14 +65,13 @@ export function TrickSlot({ seat, play, latest, dealId, top }: { seat: number; p
 /** The trick's four plays in their three rows, and what the empty felt says. */
 export function Pile() {
   const { game, dealId } = useGame();
-  const { dpr } = useDevice();
   const [ref, { height }] = useElementSize<HTMLDivElement>();
   if (!game) return null;
   const plays = trickPlays(game);
   const bySeat = new Map(plays.map((p) => [p.seat, p]));
   // Row tops from the area's height: the bottom row flush with the bottom, the middle row
-  // halfway, every offset a whole CSS px (the slot height is a whole number of device px).
-  const slotH = smallCardScale(dpr).pointH + PLAY_SLACK_PT;
+  // halfway, every offset a whole CSS px.
+  const slotH = PLAY_CARD_H + PLAY_SLACK_PT;
   const bottom = Math.max(0, height - slotH);
   const middle = Math.floor(bottom / 2);
   const tops: Record<number, number> = { 2: 0, 1: middle, 3: middle, [HUMAN]: bottom };
