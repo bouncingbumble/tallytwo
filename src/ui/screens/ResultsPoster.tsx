@@ -17,7 +17,7 @@ const signed = (n: number): string => (n > 0 ? `+${n}` : String(n));
 
 /**
  * The 61x71 WANTED sketch for the human, the 64x64 portrait for an AI seat (P:1000) — as a
- * class each (styles/table.css): an image-set over the 1x/2x/3x files, drawn 1:1.
+ * class each (styles/table.css): one 3x file drawn at the art size in CSS px (docs/ASSETS.md §7).
  */
 function faceClass(seat: number, p: Player): string {
   if (seat === HUMAN) return "face wanted";

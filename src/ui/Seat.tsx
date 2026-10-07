@@ -21,7 +21,7 @@ export function Seat({ seat }: { seat: number }) {
   const key = portraitFor(p);
   return (
     <div className={cls}>
-      {/* the portrait is a CSS class per key (styles/table.css): an image-set over the 1x/2x/3x files, drawn 1:1 */}
+      {/* the portrait is a CSS class per key (styles/table.css): one 3x file drawn at the art size in CSS px (docs/ASSETS.md §7) */}
       <div className={"face" + (key ? " " + key : "")} />
       <div className="info">
         <div className="nm">{p.name}</div>

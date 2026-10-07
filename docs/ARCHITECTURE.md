@@ -27,7 +27,7 @@ Three buckets are all you need to hold in your head, and they are the three thin
 | Bucket | What goes there | The rule you feel | Enforced by |
 | --- | --- | --- | --- |
 | **PURE** | `engine/`, `ai/`, `render/*.ts`, `game/*.ts` (not the `.tsx`/`use*` files), `settings/{settings,storage}.ts`, `audio/{sfxTable,pool,musicLatch,port}.ts`, `assets/names.ts` | "If it needs `window`, `setTimeout`, `console`, `URLSearchParams` or `import.meta`, it does not go here." | `tsconfig.core.json` — those names are "Cannot find name". Inside the seven pure-bearing folders, every `.ts` file that is not `use*.ts`, not `*.test.ts` and not one of the two named WEB files (`audio/WebAudio.ts`, `assets/manifest.ts`) is PURE and is type-checked without the DOM lib. A new pure file is checked the moment it exists; a new hook is excluded by its `use` prefix. |
-| **HOOKS** | `game/{GameProvider,useTurnLoop,useBarks,useGame}`, `settings/{SettingsProvider,useSettings}`, `audio/useAudio.ts` | "React + `setTimeout` only. Platform objects (`audio`, `storage`) **arrive as props**, never as imports. This copies to RN." | `boundary.test.ts` (a regex over these files) |
+| **HOOKS** | `game/{GameProvider,useTurnLoop,useBarks,useGame}`, `settings/{SettingsProvider,useSettings}`, `audio/useAudio.ts` | "React + `setTimeout` only. Platform objects (`audio`, `storage`, `shell`) **arrive as props**, never as imports." | `boundary.test.ts` (a regex over these files) |
 | **WEB** | `ui/**`, `styles/*`, `platform/*`, `audio/WebAudio.ts`, `assets/manifest.ts`, `App.tsx`, `main.tsx`, `dev/*` | "Anything goes, but no game rules: an `if` about the rules of the game belongs in `selectors.ts`." | `boundary.test.ts` (one rule: `ui/**` never imports `engine/reducer` or `ai/*` directly; types allowed) |
 
 The finer eight-layer view. A file may import only from its own layer or a lower one:
@@ -108,7 +108,7 @@ One effect, one timer, keyed on the `game` object. Every branch returns `clearTi
 - `phase === "roundover"` → `SCORE_ROUND` after `ROUND_OVER_MS.human` (800) or `.ai` (900) — the turn stays on the winner.
 - human's turn → no timer. The player is never passed for them, even with no legal move: the status line says "Nothing here beats that — you'll have to pass." and the Pass button is the only way on.
 - AI's turn → `actAi(seat, opts.difficulty)` after `thinkMs(opts.speed, Math.random()) + (history.length === 0 ? FIRST_STEP_MS : 0)`, clamped to 260 ms under reduce motion. `chooseMove` runs **inside** the timeout, inside the provider, so StrictMode's mount/cleanup/mount never consumes the AI rng twice.
-- `paused` (a hidden tab) → no timer at all; the effect re-runs when `paused` flips back.
+- `paused` (a hidden tab, or a shell's `pause` — §11) → no timer at all; the effect re-runs when `paused` flips back.
 
 `chooseMove` is synchronous, worst case under a millisecond, so there is no worker. A crash inside `actAi` leaves `game` unchanged, so no timer is re-armed and the crash screen is the only thing that happens.
 
@@ -154,7 +154,7 @@ Concretely:
 
 - `useBarks` returns `{ list, show }` with `show = useCallback(…, [])` — it only calls `setList` with a functional update and arms one `setTimeout` per bark — and `act` depends on `barks.show`, not `barks`. Otherwise every bark expiry would recreate `act` → `actAi` → the turn-loop effect mid-think.
 - `legal` is `useMemo` on `[game]` **only**: it never reads the selection, so a card tap never recomputes the legal moves.
-- The `audio` port is created once in `App.tsx` with `useMemo`; `storage` is a module constant.
+- The `audio` port is created once in `App.tsx` with `useMemo`; `storage` and `shell` are module constants (`bridge.host` is fixed at module load, so the storage pick never changes).
 - `opts.*` read by the loop are primitives (`speed`, `speedMultiplier`, `difficulty`, `reduceMotion`).
 - The AI rng is a `useRef`, reseeded on `NEW_MATCH`/`NEXT_ROUND` with `aiRngFor(seed)`; it never appears in a dependency array and never leaves the provider.
 
@@ -212,7 +212,7 @@ The game is designed once, on a fixed logical canvas, and scaled to whatever is 
 - It is applied as `transform: scale(k)` with `transform-origin: 0 0` on `.game`, whose logical width and height are set explicitly (`--logical-w`, `height: 440px`), so the scaled box is exactly the viewport. Not CSS `zoom` (viewport units misbehave under it) and no rem tricks: every number in the CSS and the layout code stays a plain px.
 - `useFitScale` is a `useSyncExternalStore` over `resize` and `visualViewport` `resize`; it hands `{ k, logicalWidth }` to `App.tsx`, which writes `--k` and `--logical-w` on `.game` and toggles `.upscaled` (k ≥ 1: the sprites may draw pixelated; downscaled pixel art is smoothed) and `.wide` (≥ 900 logical px: the title's corner decor). `ScaleContext` carries k down.
 - **Every DOM measurement becomes logical px**: `useElementSize` / `useElementWidth` divide `getBoundingClientRect` by k and floor; the hand's drag (`ui/Hand.tsx`) divides pointer x by k at the press origin and on every move. The fan, the trick rows and the saloon room lay out from those numbers and never see k. Rest transforms stay whole logical px.
-- The safe-area insets enter through `table.css` as `var(--inset-*, env(safe-area-inset-*))`: a native shell sets `--inset-left/right/bottom` on `.game`; a plain browser falls back to `env()`.
+- The safe-area insets enter through `table.css` as `var(--inset-*, env(safe-area-inset-*))`: a native shell sets `--inset-left/right/bottom` on `.game` (§11; divided by k, since they are consumed inside the scaled box); a plain browser falls back to `env()`, which is read inside the box too — so on a phone (k < 1) the Dynamic Island inset renders at inset × k physical px, a few px short, until measured on hardware.
 
 What `e2e/play.mjs` asserts (2026-10-07; WebKit at iPhone SE 667x375 @2 and iPhone 15 852x393 @3, mobile contexts, and Chromium at a 1280x800 @2 desktop window; `?seed=3`, two rounds each):
 

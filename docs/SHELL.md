@@ -43,7 +43,7 @@ Every message, both ways, is
 | `pause` | `{}` (optional) | no AI timer fires and the audio context suspends until `resume`. Send it on `applicationWillResignActive` / `onPause`; the hidden-tab pause still works on its own. |
 | `resume` | `{}` (optional) | the AI loop and the audio resume. |
 | `settings` | `{ id, json }` | the reply to `settings:get` (`json`: the stored string, or `null` when nothing is stored yet) and to `settings:set` (echo the json). `id` must be the request's. |
-| `insets` | `{ top, right, bottom, left }` | CSS px. Set as `--inset-top/right/bottom/left` on the `.game` element; the layout reads `var(--inset-left, env(safe-area-inset-left))`, so a web view that cannot see the safe area still clears the notch and the home indicator. Resend on rotation. Negative values clamp to 0. |
+| `insets` | `{ top, right, bottom, left }` | CSS px of the web view. Set as `--inset-top/right/bottom/left` on the `.game` element as `calc(<px> / var(--k))` — `.game` is the logical canvas scaled by k (`docs/ARCHITECTURE.md` §10), so the layout, which reads `var(--inset-left, env(safe-area-inset-left))` inside that box, clears the notch and the home indicator by the physical amount. Resend on rotation. Negative values clamp to 0. |
 
 Anything else is dropped silently.
 
@@ -105,7 +105,7 @@ func sendInsets() {
 // viewSafeAreaInsetsDidChange() -> sendInsets();  sceneWillResignActive -> send("pause");  sceneDidBecomeActive -> send("resume")
 ```
 
-`JSONSerialization` turns a Swift `nil` into JSON `null`, which is what the app expects for "nothing stored". Keep the web content served over https (or bundled and loaded with `loadFileURL(_:allowingReadAccessTo:)`); the service worker is not needed inside the app.
+`JSONSerialization` turns a Swift `nil` into JSON `null`, which is what the app expects for "nothing stored". Keep the web content served over https (or bundled and loaded with `loadFileURL(_:allowingReadAccessTo:)`); `dist/` is a plain static site with no service worker, so the shell owns offline if it wants it.
 
 ### Android WebView
 

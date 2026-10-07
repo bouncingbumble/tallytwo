@@ -50,7 +50,7 @@ Every file belongs to one of three buckets, and the bucket is the whole import r
 | Bucket | Files | The rule | Enforced by |
 | --- | --- | --- | --- |
 | **PURE** | `src/engine/`, `src/ai/`, `src/render/*.ts`, `src/game/*.ts` (not `use*.ts`), `src/settings/{settings,storage}.ts`, `src/audio/{sfxTable,pool,musicLatch,port}.ts`, `src/assets/names.ts` | needs no `window`, `setTimeout`, `console`, `URLSearchParams` or `import.meta` | `tsconfig.core.json` (no DOM lib, `types: []`): those names are "Cannot find name" |
-| **HOOKS** | `src/game/{GameProvider,useTurnLoop,useBarks,useGame}`, `src/settings/{SettingsProvider,useSettings}`, `src/audio/useAudio.ts` | React + `setTimeout` only; platform objects (`audio`, `storage`) arrive as props, never as imports | `src/game/boundary.test.ts` |
+| **HOOKS** | `src/game/{GameProvider,useTurnLoop,useBarks,useGame}`, `src/settings/{SettingsProvider,useSettings}`, `src/audio/useAudio.ts` | React + `setTimeout` only; platform objects (`audio`, `storage`, `shell`) arrive as props, never as imports | `src/game/boundary.test.ts` |
 | **WEB** | `src/ui/**`, `src/styles/*`, `src/platform/*`, `src/audio/WebAudio.ts`, `src/assets/manifest.ts`, `src/App.tsx`, `src/main.tsx`, `src/dev/*` | anything goes, but no game rules: an `if` about the rules of the game belongs in `src/game/selectors.ts` | `boundary.test.ts` (`ui/**` never imports `engine/reducer` or `ai/*` as values) |
 
 PURE and HOOKS have no platform in them; WEB is the browser. A native shell is a webview around the same build.
@@ -64,7 +64,7 @@ scripts/                   sim.mjs (gate + difficulty numbers), register-resolve
                            (Node module hook so plain Node resolves extensionless .ts imports; always run them via npm run)
 e2e/play.mjs               the scripted device gates (Playwright)
 public/icons/              icon-192.png, icon-512.png (wood tile + card back, nearest-neighbour; see docs/ASSETS.md)
-docs/                      ARCHITECTURE.md  ASSETS.md
+docs/                      ARCHITECTURE.md  ASSETS.md  SHELL.md
 src/
   engine/                  PURE   cards rules scoring combos compare state reducer
   ai/                      PURE   moves partition evaluate personalities choose + getPersonality aiTurn index
@@ -76,12 +76,13 @@ src/
   audio/                   PURE   sfxTable (event -> files/gain/ducks, music loops), pool (round-robin), musicLatch, port (AudioPort)
                            HOOKS  useAudio (the music/bus state machine)   WEB WebAudio.ts (AudioContext, three buses)
   assets/                  PURE   names.ts (AssetName union)   WEB manifest.ts (explicit ?url import table) + cards/ sprites/ sfx/ music/
-  platform/                WEB    webStorage, usePageVisibility, useFitScale (k + ScaleContext), useElementSize, useElementWidth
+  platform/                WEB    webStorage, usePageVisibility, useFitScale (k + ScaleContext), useElementSize, useElementWidth,
+                                  bridgeProtocol (envelope, PURE in spirit), bridge (host detection + delivery), bridgeStorage, useBridge (pause/insets/ready)
   ui/                      WEB    Card Hand Saloon Pile Sign Felt Seat Bark TopBar StatusLine Controls Switch Overlay Doors CopyButton CrashScreen ErrorBoundary
                                   screens/ TitleScreen TableScreen ResultsPoster SettingsSheet HowToSheet
-  styles/                  WEB    tokens base buttons table cards sprites overlays motion
+  styles/                  WEB    tokens base buttons table cards sprites overlays motion shell
   dev/                     WEB    DevHook (window.__tally in DEV builds)
-  App.tsx  main.tsx        WEB    providers, ?seed= parsing, the one pointerdown -> audio.resume() listener
+  App.tsx  main.tsx        WEB    providers, the storage pick (host ? bridgeStorage : webStorage), ?seed= parsing, the one pointerdown -> audio.resume() listener
 ```
 
 ## The gates
