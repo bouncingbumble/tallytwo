@@ -11,9 +11,11 @@ import "./styles/shell.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { AssetsPage } from "./ui/screens/AssetsPage";
+
+// The one non-game path: /assets lists every asset (ui/screens/AssetsPage.tsx).
+const isAssetsPage = location.pathname.replace(/\/+$/, "") === "/assets";
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+  <StrictMode>{isAssetsPage ? <AssetsPage /> : <App />}</StrictMode>,
 );
