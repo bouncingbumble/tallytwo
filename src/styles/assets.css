@@ -24,7 +24,7 @@
 }
 .ap-table {
   width: 100%;
-  max-width: 960px;
+  max-width: 1200px;
   border-collapse: collapse;
 }
 .ap-table th {
@@ -60,4 +60,53 @@
 .ap-font {
   font-size: 22px;
   color: var(--amber);
+}
+.ap-notes {
+  width: 320px;
+}
+.ap-notes textarea {
+  width: 100%;
+  min-height: 44px;
+  resize: vertical;
+  font: inherit;
+  font-size: 13px;
+  color: var(--bone);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--oak-light);
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+.ap-notes textarea:focus {
+  outline: none;
+  border-color: var(--amber);
+}
+.ap-foot {
+  margin-top: 28px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.ap-submit {
+  font: inherit;
+  font-weight: 600;
+  padding: 10px 22px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--amber);
+  cursor: pointer;
+}
+.ap-submit:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.ap-status {
+  margin: 0;
+}
+.ap-ok {
+  color: var(--sage);
+}
+.ap-error {
+  color: var(--red);
 }
