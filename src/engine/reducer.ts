@@ -38,8 +38,8 @@ export interface Seat {
 /** Seat 0 is the human and has no personality; the three AI seats are the saloon regulars. */
 export const DEFAULT_SEATS: readonly Seat[] = [
   { name: "You", kind: "human" },
-  { name: "Marshal Cobb", kind: "ai", personality: "marshal" },
   { name: "Dusty Vane", kind: "ai", personality: "outlaw" },
+  { name: "Marshal Cobb", kind: "ai", personality: "marshal" },
   { name: "Lucky Pearl", kind: "ai", personality: "gambler" },
 ];
 

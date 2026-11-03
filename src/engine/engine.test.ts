@@ -200,7 +200,9 @@ describe("deal", () => {
     expect(g.totals).toEqual([0, 0, 0, 0]);
     expect(g.players[0].kind).toBe("human");
     expect(g.players[0].personality).toBeUndefined();
-    expect(g.players[1].personality).toBe("marshal");
+    expect(g.players[1].personality).toBe("outlaw");
+    expect(g.players[2].personality).toBe("marshal"); // Marshal Cobb sits in the middle of the three
+    expect(g.players[3].personality).toBe("gambler");
   });
   test("the 3♦ rule and later rounds follow the rules", () => {
     expect(deal(1, withRules({ mustLeadWith3D: false })).forced3D).toBe(false);

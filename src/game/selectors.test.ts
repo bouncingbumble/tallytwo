@@ -327,11 +327,11 @@ test("tensionFor: on at 3 cards in any hand, off at 4, held through roundover, o
 test("portraitFor / barkLinesFor: the AI seats have a face and lines, the human has neither", () => {
   const g = humanLead();
   expect(portraitFor(g.players[0])).toBeNull();
-  expect(portraitFor(g.players[1])).toBe("p_marshal");
-  expect(portraitFor(g.players[2])).toBe("p_outlaw");
+  expect(portraitFor(g.players[1])).toBe("p_outlaw");
+  expect(portraitFor(g.players[2])).toBe("p_marshal");
   expect(portraitFor(g.players[3])).toBe("p_gambler");
-  expect(barkLinesFor(g, 1, "win")).toEqual(["Justice served."]);
-  expect(barkLinesFor(g, 2, "pass")).toEqual(["Tch.", "Fine."]);
+  expect(barkLinesFor(g, 1, "pass")).toEqual(["Tch.", "Fine."]);
+  expect(barkLinesFor(g, 2, "win")).toEqual(["Justice served."]);
   expect(barkLinesFor(g, 3, "play")).toEqual(PERSONALITIES.gambler.barks.play);
   expect(barkLinesFor(g, 0, "play")).toEqual([]);
   expect(barkLinesFor(g, 0, "win")).toEqual([]);
