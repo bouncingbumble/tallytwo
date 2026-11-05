@@ -103,11 +103,11 @@ Controls onPlay ──► act({type:"PLAY", player:0, cards: exact.cards})     <
 
 ### The turn loop (`src/game/useTurnLoop.ts`)
 
-One effect, one timer, keyed on the `game` object. Every branch returns `clearTimeout`. Every wait below is `paced()` first — multiplied by `BASE_TIME_SCALE` (4: the prototype played too fast to follow) and divided by the Game speed setting (`opts.speedMultiplier`, 1x–4x) — and then capped under reduce motion:
+One effect, one timer, keyed on the `game` object. Every branch returns `clearTimeout`. Every wait below is `paced(ms, opts.gameSpeed)` — the prototype's ms times the Game speed tier's scale (`timing.ts` `SPEED`: slow ×4, normal ×2, fast ×1.5/0.7).:
 
 - `phase === "roundover"` → `SCORE_ROUND` after `ROUND_OVER_MS.human` (800) or `.ai` (900) — the turn stays on the winner.
 - human's turn → no timer. The player is never passed for them, even with no legal move: the status line says "Nothing here beats that — you'll have to pass." and the Pass button is the only way on.
-- AI's turn → `actAi(seat, opts.difficulty)` after `thinkMs(opts.speed, Math.random()) + (history.length === 0 ? FIRST_STEP_MS : 0)`, clamped to 260 ms under reduce motion. `chooseMove` runs **inside** the timeout, inside the provider, so StrictMode's mount/cleanup/mount never consumes the AI rng twice.
+- AI's turn → `actAi(seat, opts.difficulty)` after `thinkMs(opts.gameSpeed, Math.random()) + (history.length === 0 ? FIRST_STEP_MS : 0)`, paced. `chooseMove` runs **inside** the timeout, inside the provider, so StrictMode's mount/cleanup/mount never consumes the AI rng twice.
 - `paused` (a hidden tab, or a shell's `pause` — §11) → no timer at all; the effect re-runs when `paused` flips back.
 
 `chooseMove` is synchronous, worst case under a millisecond, so there is no worker. A crash inside `actAi` leaves `game` unchanged, so no timer is re-armed and the crash screen is the only thing that happens.
@@ -121,10 +121,9 @@ Every millisecond lives in `src/game/timing.ts`; nothing else in `src/` may hold
 | `BASE_TIME_SCALE` / `paced(ms, multiplier)` | every table wait is the prototype's ms × 4 ÷ the Game speed setting (`SpeedMultiplier` = 1 \| 2 \| 3 \| 4) | new |
 | `SPEED` | `{ fast: [280, 520], normal: [650, 1250], slow: [1100, 1900] }` ms, uniform (before pacing) | P:917 |
 | `thinkMs(speed, r)` | `lo + r * (hi - lo)`; `r` is `Math.random()` in the game, a fixed value in tests | P:918-921 |
-| `REDUCED_MOTION_MAX_MS` / `clampMotion` | `min(ms, 260)` when reduce motion is on | P:922 |
 | `ROUND_OVER_MS` | `{ ai: 900, human: 800 }` | P:943, P:966 |
 | `FIRST_STEP_MS` | 700 | P:1037 |
-| `DOORS_MS` | `{ normal: 620, reduced: 60 }` | P:1228 |
+| `DOORS_MS` | 620 | P:1228 |
 | `DEAL_STAGGER_MS` | 32 per card | P:775 |
 | `SLAP_STAGGER_MS` | 40 per card | P:883 |
 | `BARK_MS` / `BARK_CHANCE` | 2000 / 0.55 | P:894-899 |
@@ -155,7 +154,7 @@ Concretely:
 - `useBarks` returns `{ list, show }` with `show = useCallback(…, [])` — it only calls `setList` with a functional update and arms one `setTimeout` per bark — and `act` depends on `barks.show`, not `barks`. Otherwise every bark expiry would recreate `act` → `actAi` → the turn-loop effect mid-think.
 - `legal` is `useMemo` on `[game]` **only**: it never reads the selection, so a card tap never recomputes the legal moves.
 - The `audio` port is created once in `App.tsx` with `useMemo`; `storage` and `shell` are module constants (`bridge.host` is fixed at module load, so the storage pick never changes).
-- `opts.*` read by the loop are primitives (`speed`, `speedMultiplier`, `difficulty`, `reduceMotion`).
+- `opts.*` read by the loop are primitives (`gameSpeed`, `difficulty`).
 - The AI rng is a `useRef`, reseeded on `NEW_MATCH`/`NEXT_ROUND` with `aiRngFor(seed)`; it never appears in a dependency array and never leaves the provider.
 
 `appReduce` is pure, so calling it once more inside `act()` to learn `next` is free. StrictMode double-invokes reducers in dev; because sounds and barks live in `act()`, nothing fires twice.

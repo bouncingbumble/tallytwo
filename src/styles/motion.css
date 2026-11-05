@@ -64,7 +64,3 @@
     transition-duration: 0.01ms !important;
   }
 }
-body.nomotion * {
-  animation-duration: 0.01ms !important;
-  transition: none !important;
-}

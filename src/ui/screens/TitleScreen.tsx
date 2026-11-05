@@ -19,11 +19,9 @@ export interface TitleScreenProps {
   onSheet: (sheet: Sheet) => void;
 }
 
-const doorsMs = (reduceMotion: boolean): number => (reduceMotion ? DOORS_MS.reduced : DOORS_MS.normal);
-
 export function TitleScreen({ seed, onSheet }: TitleScreenProps) {
   const { act, audio } = useGame();
-  const { settings, opts, loaded } = useSettings();
+  const { settings, loaded } = useSettings();
   const [doorsOpen, setDoorsOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
@@ -40,7 +38,7 @@ export function TitleScreen({ seed, onSheet }: TitleScreenProps) {
     timer.current = setTimeout(() => {
       timer.current = null;
       act({ type: "NEW_MATCH", seed: seed ?? newSeed(1), rules: settings.rules });
-    }, doorsMs(opts.reduceMotion));
+    }, DOORS_MS);
   };
   const openSheet = (sheet: Sheet) => {
     void audio.init();

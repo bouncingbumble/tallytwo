@@ -106,7 +106,7 @@ async function runDevice(browserType, dev, label) {
 
   // The table is deliberately slow at 1x (BASE_TIME_SCALE); run the gates at 4x, fast pace.
   await page.addInitScript(() => {
-    localStorage.setItem("tallytwo.settings", JSON.stringify({ opts: { speed: "fast", speedMultiplier: 4 } }));
+    localStorage.setItem("tallytwo.settings", JSON.stringify({ opts: { gameSpeed: "fast" } }));
   });
 
   await page.goto(`${base}/?seed=3`, { waitUntil: "networkidle" });

@@ -19,7 +19,6 @@ import { ScaleContext, fitClass, fitStyle, useFitScale } from "./platform/useFit
 import { usePageVisibility } from "./platform/usePageVisibility";
 import { webStorage } from "./platform/webStorage";
 import { SettingsProvider } from "./settings/SettingsProvider";
-import { useSettings } from "./settings/useSettings";
 import { CrashScreen } from "./ui/CrashScreen";
 import { ErrorBoundary } from "./ui/ErrorBoundary";
 import { HowToSheet } from "./ui/screens/HowToSheet";
@@ -57,7 +56,6 @@ export function App() {
 
 function Screens({ seed }: { seed?: number }) {
   const { game, crash, act, audio } = useGame();
-  const { opts } = useSettings();
   const [sheet, setSheet] = useState<Sheet>("none");
   // The table is laid out for a phone held sideways (styles/table.css); there is no orientation
   // gate, so only a hidden tab — or the shell saying `pause` — pauses the AI.
@@ -80,10 +78,6 @@ function Screens({ seed }: { seed?: number }) {
     document.addEventListener("pointerdown", resume);
     return () => document.removeEventListener("pointerdown", resume);
   }, [audio]);
-
-  useEffect(() => {
-    document.body.classList.toggle("nomotion", opts.reduceMotion);
-  }, [opts.reduceMotion]);
 
   const closeSheet = () => setSheet("none");
   return (
