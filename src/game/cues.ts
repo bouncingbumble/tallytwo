@@ -8,6 +8,8 @@ import type { AppAction } from "./appReducer";
 
 /** Seat 0. Not imported from selectors.ts, which imports this file's types. */
 const HUMAN = 0;
+/** The last round of a match (selectors.ROUNDS_PER_MATCH; asserted equal in cues.test.ts). */
+export const FINAL_ROUND = 8;
 
 export type BarkKind = "play" | "pass" | "win";
 
@@ -15,6 +17,8 @@ export interface Cue {
   sfx: SfxEvent[];
   /** A deal roll (shuffle + four ticks) rather than a single event. */
   dealRoll?: boolean;
+  /** The deal that just happened is the match's final round: announce it. */
+  finalRound?: boolean;
   bark?: { seat: number; kind: BarkKind };
 }
 
@@ -44,7 +48,7 @@ export function cueFor(before: GameState | null, action: AppAction, next: GameSt
     }
     case "NEW_MATCH":
     case "NEXT_ROUND":
-      return { sfx: [], dealRoll: true };
+      return next?.round === FINAL_ROUND ? { sfx: ["finalRound"], dealRoll: true, finalRound: true } : { sfx: [], dealRoll: true };
     case "SCORE_ROUND":
       return { sfx: ["tally"] };
     default:

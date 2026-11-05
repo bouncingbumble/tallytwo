@@ -76,13 +76,14 @@ test("tryReduce: a legal PLAY yields next, with the move in the history", () => 
   expect(r.next!.dealId).toBe(s.dealId);
 });
 
-test("toggleCard's guard: canToggle(null) false, off turn false, on turn true, after the round false", () => {
+test("toggleCard's guard: canToggle(null) false, on or off turn true (a play can be lined up early), after the round false", () => {
   expect(canToggle(null)).toBe(false);
   const s = humanLeadMatch();
   expect(canToggle(s.game)).toBe(true);
   const aiTurn = appReduce(s, { type: "PLAY", player: HUMAN, cards: [THREE_OF_DIAMONDS] });
   expect(aiTurn.game!.turn).not.toBe(HUMAN);
-  expect(canToggle(aiTurn.game)).toBe(false);
+  expect(canToggle(aiTurn.game)).toBe(true);
+  expect(legalFor(aiTurn.game)).toEqual([]); // ...but nothing is playable until the turn comes round
   expect(canToggle({ ...s.game!, phase: "roundover" })).toBe(false);
   expect(canToggle({ ...s.game!, phase: "scored" })).toBe(false);
   expect(canToggle(appReduce(s, { type: "QUIT" }).game)).toBe(false);

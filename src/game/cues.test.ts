@@ -9,8 +9,8 @@ import { type Action, deal, reduce } from "../engine/reducer";
 import { DEFAULT_RULES } from "../engine/rules";
 import type { GameState } from "../engine/state";
 import { legalMoves } from "../ai/moves";
-import { cueFor } from "./cues";
-import { HUMAN } from "./selectors";
+import { FINAL_ROUND, cueFor } from "./cues";
+import { HUMAN, ROUNDS_PER_MATCH } from "./selectors";
 
 const dealWhere = (pred: (g: GameState) => boolean, label: string): GameState => {
   for (let seed = 1; seed <= 200; seed++) {
@@ -181,4 +181,12 @@ test("a play that leaves a hand on one card -> lastCard; emptying it is roundWin
   const one = leaderHolds(aiLead(), [THREE_OF_DIAMONDS]);
   const [a1, n1] = play(one, [THREE_OF_DIAMONDS]);
   expect(cueFor(one, a1, n1).sfx).toEqual(["playSmall", "roundWin"]);
+});
+
+test("the deal of the match's final round is announced", () => {
+  expect(FINAL_ROUND).toBe(ROUNDS_PER_MATCH);
+  const g = humanLead();
+  const last = { ...g, round: ROUNDS_PER_MATCH };
+  expect(cueFor(g, { type: "NEXT_ROUND", seed: 2 }, last)).toEqual({ sfx: ["finalRound"], dealRoll: true, finalRound: true });
+  expect(cueFor(g, { type: "NEXT_ROUND", seed: 2 }, { ...g, round: ROUNDS_PER_MATCH - 1 })).toEqual({ sfx: [], dealRoll: true });
 });

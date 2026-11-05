@@ -169,25 +169,82 @@
   color: var(--dust);
   box-shadow: 0 0 0 1px #000;
 }
-/* a bark pops up over the badge (motion.css barkpop lifts it 10-16 px further) */
+/* The final-round banner: a wooden plaque dropped across the middle of the felt, over the
+   trick, for timing.FINAL_ROUND_MS. It never takes a tap. */
+.announce {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 8;
+  padding: 0 18px;
+}
+.announce-plate {
+  max-width: 100%;
+  text-align: center;
+  font-size: 26px;
+  line-height: 1.15;
+  color: var(--amber);
+  padding: 12px 22px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(62, 39, 21, 0.97), rgba(36, 21, 9, 0.97));
+  box-shadow:
+    inset 0 0 0 2px #120a04,
+    inset 0 0 0 4px rgba(232, 163, 61, 0.55),
+    0 6px 24px rgba(0, 0, 0, 0.65);
+  text-shadow: 0 2px 0 #120a04;
+  animation: announce 3.2s ease forwards;
+}
+
+/* the running tally under the count */
+.opp .tl {
+  font-size: 11px;
+  color: var(--dust);
+  white-space: nowrap;
+}
+.opp .tl b {
+  color: var(--bone);
+  font-size: 12px;
+}
+/* What a regular says is spoken on their own card: a speech bubble laid over the info column
+   (portrait 82 px + gap 6 px + padding 4 px from the left edge), its tail pointing back at the
+   portrait. It fades in and out in place (motion.css barkin) and never changes the card's size. */
 .bark {
   position: absolute;
-  left: 50%;
-  top: 4px;
-  transform: translate(-50%, 0);
+  left: 96px;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
   background: var(--bone);
   color: #241408;
-  font-size: 11px;
-  padding: 3px 7px;
-  border-radius: 4px;
-  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.2;
+  font-style: italic;
+  text-align: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
   opacity: 0;
   pointer-events: none;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 0 0 1px #120a04,
+    0 2px 6px rgba(0, 0, 0, 0.5);
   z-index: 5;
 }
+.bark::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: 50%;
+  margin-top: -6px;
+  border-style: solid;
+  border-width: 6px 7px 6px 0;
+  border-color: transparent var(--bone) transparent transparent;
+}
 .bark.show {
-  animation: barkpop 1.9s ease forwards;
+  animation: barkin 1.9s ease forwards;
 }
 
 /* The trick: four plays staggered in three rows so each spreads wider than a third of the felt.

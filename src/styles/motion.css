@@ -1,21 +1,39 @@
 /* Keyframes (P:128-132, 153-154) and the two ways to turn them off (P:215-216). Every
    animation ends on the integer rest pose; see render/fanLayout.ts. */
-@keyframes barkpop {
+@keyframes barkin {
   0% {
     opacity: 0;
-    transform: translate(-50%, 0) scale(0.9);
+    transform: translateY(-50%) scale(0.92);
   }
-  12% {
+  10% {
     opacity: 1;
-    transform: translate(-50%, -10px) scale(1);
+    transform: translateY(-50%) scale(1);
   }
-  80% {
+  85% {
     opacity: 1;
-    transform: translate(-50%, -10px);
+    transform: translateY(-50%);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -16px);
+    transform: translateY(-50%);
+  }
+}
+@keyframes announce {
+  0% {
+    opacity: 0;
+    transform: translateY(-24px) scale(1.08);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(0) scale(1);
   }
 }
 @keyframes slap {
@@ -62,5 +80,12 @@
   * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+  /* these fade OUT at the end of their keyframes: cut short they would never be seen, so they
+     simply appear and are removed by their timers (useBarks, the provider's announcement) */
+  .bark.show,
+  .announce-plate {
+    animation: none !important;
+    opacity: 1;
   }
 }

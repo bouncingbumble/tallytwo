@@ -65,3 +65,5 @@ export const BARK_MS = 2000;
 export const BARK_CHANCE = 0.55;
 /** Card select lift. */
 export const SELECT_MS = 160;
+/** How long the "Final round" banner stays over the felt at the start of the last round. */
+export const FINAL_ROUND_MS = 3200;

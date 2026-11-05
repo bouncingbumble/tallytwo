@@ -22,6 +22,8 @@ import {
   canToggle,
   emptyFeltText,
   exactMove,
+  finalRoundText,
+  isFinalRound,
   gameLog,
   hintFor,
   historyToActions,
@@ -36,9 +38,12 @@ import {
   replayLog,
   roundDeltas,
   roundWinner,
+  scoreRows,
   signFor,
   sortHand,
   statusFor,
+  suitSortRuns,
+  tallyLeaders,
   tensionFor,
 } from "./selectors";
 
@@ -85,10 +90,12 @@ const sameCards = (a: readonly number[], b: readonly number[]): boolean => a.len
 
 /* ---- turn guards ---- */
 
-test("humanTurn / canToggle: only the human's turn in a live round", () => {
+test("humanTurn: only the human's turn in a live round; canToggle: any live round, on turn or off", () => {
   expect(humanTurn(null)).toBe(false);
+  expect(humanTurn(aiLead())).toBe(false);
+  expect(humanTurn(humanLead())).toBe(true);
   expect(canToggle(null)).toBe(false);
-  expect(canToggle(aiLead())).toBe(false);
+  expect(canToggle(aiLead())).toBe(true); // cards can be lined up while the regulars think
   expect(canToggle(humanLead())).toBe(true);
   expect(canToggle({ ...humanLead(), phase: "roundover" })).toBe(false);
   expect(canToggle({ ...humanLead(), phase: "scored" })).toBe(false);
@@ -227,6 +234,20 @@ test("hintFor returns one of the legal moves (rand = 0.5), null off turn", () =>
   expect(hintFor(humanFacing("3C 4C", "2S"), [], () => 0.5)).toBeNull();
 });
 
+test("suitSortRuns: adjacent cards of a rank always run low suit to high; the player's order is kept otherwise", () => {
+  // 3♠ 3♦ 9♣ 4♥ 4♣ 4♦ -> 3♦ 3♠ 9♣ 4♦ 4♣ 4♥
+  expect(suitSortRuns(cards("3S").concat(cards("3D"), cards("9C"), cards("4H"), cards("4C"), cards("4D")))).toEqual(
+    cards("3D").concat(cards("3S"), cards("9C"), cards("4D"), cards("4C"), cards("4H")),
+  );
+  // same-rank cards that are NOT adjacent stay where the player put them
+  const split = cards("5S").concat(cards("KD"), cards("5D"));
+  expect(suitSortRuns(split)).toEqual(split);
+  expect(suitSortRuns([])).toEqual([]);
+  const hand = cards("3S").concat(cards("3D"));
+  suitSortRuns(hand);
+  expect(hand).toEqual(cards("3S").concat(cards("3D"))); // never mutates
+});
+
 test("sortHand: by rank (value order) or by suit then rank", () => {
   expect(sortHand([5, 0, 3, 8])).toEqual([0, 3, 5, 8]); // low to high, a rank's cards by suit
   expect(sortHand([51, 1, 2, 0])).toEqual([0, 1, 2, 51]); // 3♦ 3♣ 3♥ … 2♠
@@ -312,6 +333,28 @@ test("musicFor: title -> null, table -> table, howto -> results; the poster by w
   const last = { ...g, phase: "scored" as const, round: ROUNDS_PER_MATCH };
   expect(musicFor({ ...last, totals: [9, -3, -3, -3], turn: 2 }, "none")).toBe("matchWon");
   expect(musicFor({ ...last, totals: [-9, 3, 3, 3], turn: HUMAN }, "none")).toBe("results");
+});
+
+test("isFinalRound / tallyLeaders / finalRoundText: the last deal's announcement names the tally leader", () => {
+  const g = humanLead();
+  expect(isFinalRound(null)).toBe(false);
+  expect(isFinalRound({ ...g, round: ROUNDS_PER_MATCH - 1 })).toBe(false);
+  expect(isFinalRound({ ...g, round: ROUNDS_PER_MATCH })).toBe(true);
+  expect(isFinalRound({ ...g, round: ROUNDS_PER_MATCH, phase: "scored" })).toBe(false);
+  expect(tallyLeaders({ ...g, totals: [1, 7, -4, -4] })).toEqual([1]);
+  expect(tallyLeaders({ ...g, totals: [7, 7, -7, -7] })).toEqual([0, 1]);
+  expect(finalRoundText({ ...g, totals: [1, 7, -4, -4] })).toBe("Final round, Dusty Vane is wanted");
+  expect(finalRoundText({ ...g, totals: [9, 7, -8, -8] })).toBe("Final round, you are wanted");
+  expect(finalRoundText({ ...g, totals: [2, 7, 7, -16] })).toBe("Final round, Dusty Vane and Marshal Cobb are wanted");
+  expect(finalRoundText({ ...g, totals: [0, 0, 0, 0] })).toBe("Final round, you, Dusty Vane, Marshal Cobb and Lucky Pearl are wanted");
+});
+
+test("scoreRows: the poster's rows, highest tally first, ties in seat order", () => {
+  const g = { ...humanLead(), phase: "scored" as const, totals: [-3, 8, 8, -13] };
+  const rows = scoreRows(g, [1, 2, 3, -6]);
+  expect(rows.map((r) => r.seat)).toEqual([1, 2, 0, 3]);
+  expect(rows[0]).toEqual({ seat: 1, name: "Dusty Vane", cards: 13, delta: 2, total: 8 });
+  expect(rows.map((r) => r.total)).toEqual([8, 8, -3, -13]);
 });
 
 test("tensionFor: on at 3 cards in any hand, off at 4, held through roundover, off once scored", () => {

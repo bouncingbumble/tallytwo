@@ -17,6 +17,12 @@ export interface Bark {
   text: string;
 }
 
+/** A banner over the felt: "Final round, Dusty Vane is wanted". */
+export interface Announcement {
+  id: number;
+  text: string;
+}
+
 /**
  * What a shell (a native wrapper or an iframe parent) is told about the game. The web adapter
  * is platform/bridge.ts `bridgeShell`; it arrives as a GameProvider prop like `audio`, so this
@@ -50,6 +56,8 @@ export interface GameApi {
   toggleCard(v: Card): void;
   setSelection(cards: Card[]): void;
   barks: Bark[];
+  /** The final-round banner while it is up, else null. */
+  announcement: Announcement | null;
   /** The injected port, re-exposed so useAudio never imports WebAudio. */
   audio: AudioPort;
   crash: CrashReport | null;

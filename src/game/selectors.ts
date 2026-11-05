@@ -2,7 +2,7 @@
  * Every `if` about the rules of the game that a component would otherwise contain. Pure
  * functions over GameState (+ the selection, + a setting); the provider memoises them.
  */
-import { type Card, type Rng, THREE_OF_DIAMONDS } from "../engine/cards";
+import { type Card, type Rng, THREE_OF_DIAMONDS, rank } from "../engine/cards";
 import { type Combo, classify, describe } from "../engine/combos";
 import { type Action, DEFAULT_SEATS, deal, reduce } from "../engine/reducer";
 import type { RuleConfig } from "../engine/rules";
@@ -33,8 +33,12 @@ export const HUMAN = 0;
 /** It is the human's turn in a live round. */
 export const humanTurn = (g: GameState | null): boolean => !!g && g.phase === "playing" && g.turn === HUMAN;
 
-/** Taps on hand cards do something only on the human's turn in a live round (P:818-819). */
-export const canToggle = (g: GameState | null): boolean => humanTurn(g);
+/**
+ * Taps on hand cards select any time the round is live, the human's turn or not, so a play can
+ * be lined up while the regulars think and made the moment the turn comes round. Play itself
+ * stays gated on the human's turn (exactMove over legalFor, which is [] off turn).
+ */
+export const canToggle = (g: GameState | null): boolean => !!g && g.phase === "playing";
 
 /** The human's legal moves, or [] when it is not their turn. Memoise on [game] only. */
 export const legalFor = (g: GameState | null): Combo[] =>
@@ -89,6 +93,26 @@ export const emptyFeltText = (g: GameState): string => (g.history.length ? COPY.
 /** A fresh deal's order: low to high (3 up to 2), cards of a rank by suit (♦ ♣ ♥ ♠) — value order. */
 export function sortHand(hand: readonly Card[]): Card[] {
   return hand.slice().sort((a, b) => a - b);
+}
+
+/**
+ * The player drags cards anywhere, but cards of the same rank sitting next to each other are
+ * always kept low suit to high (♦ ♣ ♥ ♠): each run of adjacent same-rank cards is re-sorted in
+ * place, and everything else keeps the player's order.
+ */
+export function suitSortRuns(hand: readonly Card[]): Card[] {
+  const out = hand.slice();
+  let i = 0;
+  while (i < out.length) {
+    let j = i + 1;
+    while (j < out.length && rank(out[j]) === rank(out[i])) j++;
+    if (j - i > 1) {
+      const run = out.slice(i, j).sort((a, b) => a - b);
+      out.splice(i, j - i, ...run);
+    }
+    i = j;
+  }
+  return out;
 }
 
 /** The Hint button: what the Marshal would play at Regular, else the cheapest legal move (P:1236-1243). */
@@ -157,6 +181,36 @@ export function musicFor(g: GameState | null, sheet: Sheet): MusicTrack | null {
   if (g.phase !== "scored") return "table";
   if (matchOver(g)) return matchWinner(g) === HUMAN ? "matchWon" : "results";
   return roundWinner(g) === HUMAN ? "roundWon" : "results";
+}
+
+/** The final round is being played: the match's last deal, until it is scored. */
+export const isFinalRound = (g: GameState | null): boolean => !!g && g.round === ROUNDS_PER_MATCH && g.phase !== "scored";
+
+/** Who leads the tally going into the final round: every seat on the highest total. */
+export function tallyLeaders(g: GameState): number[] {
+  const best = Math.max(...g.totals);
+  return g.totals.flatMap((t, i) => (t === best ? [i] : []));
+}
+
+/** "Final round, Dusty Vane is wanted" — or "you are wanted", or every name on a tied top tally. */
+export function finalRoundText(g: GameState): string {
+  const leaders = tallyLeaders(g);
+  const names = leaders.map((i) => (i === HUMAN ? COPY.finalRound.you : g.players[i].name));
+  return COPY.finalRound.text(names, leaders.length === 1 && leaders[0] === HUMAN);
+}
+
+/** The poster's rows, highest tally first; a tie keeps seat order. */
+export interface ScoreRow {
+  seat: number;
+  name: string;
+  cards: number;
+  delta: number;
+  total: number;
+}
+export function scoreRows(g: GameState, deltas: readonly number[]): ScoreRow[] {
+  return g.players
+    .map((p, i) => ({ seat: i, name: p.name, cards: p.hand.length, delta: deltas[i], total: g.totals[i] }))
+    .sort((a, b) => b.total - a.total || a.seat - b.seat);
 }
 
 /**

@@ -34,6 +34,13 @@ export const COPY = {
   },
   seat: {
     passed: "passed",
+    tally: "Tally",
+  },
+  finalRound: {
+    you: "you",
+    /** "Final round, Dusty Vane is wanted" / "Final round, you are wanted" / "…, A and B are wanted". */
+    text: (names: readonly string[], you: boolean) =>
+      `Final round, ${names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0]} ${names.length > 1 || you ? "are" : "is"} wanted`,
   },
   controls: {
     pass: "Pass",

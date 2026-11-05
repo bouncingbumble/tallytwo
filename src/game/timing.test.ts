@@ -10,6 +10,7 @@ import {
   DOORS_MS,
   FAST_SLOWDOWN,
   FAST_SPEED,
+  FINAL_ROUND_MS,
   FIRST_STEP_MS,
   GAME_SPEEDS,
   ROUND_OVER_MS,
@@ -48,6 +49,7 @@ test("the constants are the prototype's numbers", () => {
   expect(SLAP_STAGGER_MS).toBe(40);
   expect(BARK_MS).toBe(2000);
   expect(BARK_CHANCE).toBe(0.55);
+  expect(FINAL_ROUND_MS).toBeGreaterThan(0);
 });
 
 test("one Game speed setting: slow is the old 1x table, normal 2x, fast the old fastest table at 30% less speed", () => {

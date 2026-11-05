@@ -1,13 +1,14 @@
 /**
  * The end-of-round WANTED poster (P:995-1028) and, when matchOver() says the match is done, the
  * FINAL TALLY poster in the same frame (the original build plan §3.4): the match winner instead of the round
- * winner, "$N over M rounds" instead of the reward, rows sorted by tally, New match in place of
- * Next round. Shown over the table while game.phase === "scored"; renders nothing otherwise.
+ * winner, "$N over M rounds" instead of the reward, New match in place of Next round. Both sort
+ * the rows by tally, highest first (selectors.scoreRows). Shown over the table while
+ * game.phase === "scored"; renders nothing otherwise.
  */
 import type { Player } from "../../engine/state";
 import { COPY } from "../../game/copy";
 import { newSeed } from "../../game/seeds";
-import { HUMAN, matchOver, matchWinner, portraitFor, roundDeltas, roundWinner } from "../../game/selectors";
+import { HUMAN, matchOver, matchWinner, portraitFor, roundDeltas, roundWinner, scoreRows } from "../../game/selectors";
 import { useGame } from "../../game/useGame";
 import { useSettings } from "../../settings/useSettings";
 import { Overlay } from "../Overlay";
@@ -36,8 +37,7 @@ export function ResultsPoster() {
   const winner = final ? matchWinner(game) : roundWin;
   const title = final ? COPY.poster.finalTally : COPY.poster.wanted;
   const face = faceClass(winner, game.players[winner]);
-  const rows = game.players.map((p, i) => ({ seat: i, name: p.name, cards: p.hand.length, delta: deltas[i], total: game.totals[i] }));
-  if (final) rows.sort((a, b) => b.total - a.total);
+  const rows = scoreRows(game, deltas);
 
   return (
     <Overlay label={title}>

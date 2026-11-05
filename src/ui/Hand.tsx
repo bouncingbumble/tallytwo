@@ -1,11 +1,14 @@
 /**
  * The fanned hand: every card absolutely positioned at an integer x from fanLayout(), keyed by
  * deal so a fresh deal remounts the cards and replays the deal keyframes (table.css .deal).
- * Taps go to toggleCard(), which already ignores off-turn taps; dimming comes from `live`.
+ * Taps go to toggleCard(), which selects on the human's turn or off it (a play lined up while
+ * the regulars think); dimming comes from `live`.
  *
  * Order: a fresh deal is sorted low to high, a rank's cards by suit (selectors.sortHand); from
- * then on the player drags cards wherever they like, any time, their turn or not. The order is
- * UI state per deal, never engine state, and only ever shrinks as cards are played. A press becomes a drag once
+ * then on the player drags cards wherever they like, any time, their turn or not — and cards of
+ * the same rank that end up side by side are always put back low suit to high
+ * (selectors.suitSortRuns). The order is UI state per deal, never engine state, and only ever
+ * shrinks as cards are played. A press becomes a drag once
  * the pointer has moved DRAG_THRESHOLD px: the card follows the pointer and the others slide to
  * make room (the slot nearest the dragged card's left edge, so the fan reads the same way a
  * finger does), and the click the browser sends after the drag is swallowed so it does not
@@ -21,7 +24,7 @@
  */
 import { type CSSProperties, type PointerEvent as ReactPointerEvent, useRef, useState } from "react";
 import type { Card as CardValue } from "../engine/cards";
-import { HUMAN, sortHand } from "../game/selectors";
+import { HUMAN, sortHand, suitSortRuns } from "../game/selectors";
 import { DEAL_STAGGER_MS } from "../game/timing";
 import { useGame } from "../game/useGame";
 import { CARD_W, SELECT_LIFT, fanLayout } from "../render/fanLayout";
@@ -66,7 +69,7 @@ interface Drag {
 }
 
 export function Hand() {
-  const { game, dealId, selection, live, toggleCard } = useGame();
+  const { game, dealId, selection, live, toggleCard, audio } = useGame();
   const [ref, availW] = useElementWidth<HTMLDivElement>();
   const k = useScale();
   const raw = game ? game.players[HUMAN].hand : NO_CARDS;
@@ -115,7 +118,10 @@ export function Hand() {
     setDrag({ ...active, x: Math.round(clamp(px - active.grab, 0, Math.max(0, availW - CARD_W))) });
   };
   const release = () => {
-    if (active !== null && target !== null) setOrder({ ...order, cards: moveTo(hand, active.card, target) });
+    if (active !== null && target !== null) {
+      setOrder({ ...order, cards: suitSortRuns(moveTo(hand, active.card, target)) });
+      if (target !== resting.get(active.card)) audio.play("reorder");
+    }
     setDrag(null);
   };
   const tap = (card: CardValue) => {
