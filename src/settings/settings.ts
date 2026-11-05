@@ -1,9 +1,9 @@
 /**
- * The settings shape, written down once. Rules are read at NEW_MATCH only (they live inside
- * GameState after that); opts are read live. parseSettings() must accept the prototype's
+ * The settings shape, written down once. Rules live inside GameState and GameProvider pushes
+ * every change into the game in progress (appReducer SET_RULES); opts are read live. parseSettings() must accept the prototype's
  * exact localStorage blob (same KEY) and fill in the fields it never had.
  */
-import { DEFAULT_RULES, type LaterRoundLead, type RuleConfig } from "../engine/rules";
+import { DEFAULT_RULES, type RuleConfig } from "../engine/rules";
 import type { Difficulty } from "../ai/choose";
 import { SPEED_MULTIPLIERS, type Speed, type SpeedMultiplier } from "../game/timing";
 
@@ -71,11 +71,8 @@ export function parseSettings(raw: string | null | undefined): Settings {
   const D = DEFAULTS;
   return {
     rules: {
-      passLocksOut: bool(r.passLocksOut, D.rules.passLocksOut),
       straightWrap: bool(r.straightWrap, D.rules.straightWrap),
       flushSuitFirst: bool(r.flushSuitFirst, D.rules.flushSuitFirst),
-      mustLeadWith3D: bool(r.mustLeadWith3D, D.rules.mustLeadWith3D),
-      laterRoundLead: oneOf<LaterRoundLead>(r.laterRoundLead, ["winner", "loser", "threeD"], D.rules.laterRoundLead),
     },
     opts: {
       difficulty: oneOf<Difficulty>(o.difficulty, ["easy", "medium", "hard"], D.opts.difficulty),

@@ -5,7 +5,7 @@
  * Illegal PLAY and PASS actions THROW. The UI only ever dispatches moves that came from
  * legalMoves(), and the AI only returns such moves, so a throw is a bug, not a user error —
  * and it is reproducible: `replay(seed, rules, actions)` rebuilds any round-1 position from
- * the seed and the action list, and `deal(seed, rules, seats, round, lastLeader, totals)`
+ * the seed and the action list, and `deal(seed, rules, seats, round, totals)`
  * does the same for a later round. A bug report is a seed and a list of moves.
  *
  * Actions:
@@ -13,7 +13,7 @@
  *   PLAY        the seat on turn plays a legal combo
  *   PASS        the seat on turn passes (never legal on an open lead)
  *   SCORE_ROUND roundover -> scored: apply roundScore() to the totals
- *   NEXT_ROUND  deal the next round with the same rules and seats; who leads follows the rules
+ *   NEXT_ROUND  deal the next round with the same rules and seats; the 3♦ holder leads again
  */
 import { type Card, THREE_OF_DIAMONDS, makeDeck, mulberry32, shuffle } from "./cards";
 import { classify } from "./combos";
@@ -44,15 +44,14 @@ export const DEFAULT_SEATS: readonly Seat[] = [
 ];
 
 /**
- * Deal a round. Round 1 (and every round under laterRoundLead "threeD") is led by whoever
- * holds the 3♦; later rounds by `lastLeader`. Hands come out sorted ascending.
+ * Deal a round. Every round is led by whoever holds the 3♦, and that opening play must include
+ * it. Hands come out sorted ascending.
  */
 export function deal(
   seed: number,
   rules: RuleConfig,
   seats: readonly Seat[] = DEFAULT_SEATS,
   round = 1,
-  lastLeader = 0,
   totals: readonly number[] = [0, 0, 0, 0],
 ): GameState {
   const rng = mulberry32(seed);
@@ -69,8 +68,7 @@ export function deal(
     passed: false,
   }));
 
-  const useThreeD = round === 1 || rules.laterRoundLead === "threeD";
-  const lead = useThreeD ? players.findIndex((p) => p.hand.includes(THREE_OF_DIAMONDS)) : lastLeader;
+  const lead = players.findIndex((p) => p.hand.includes(THREE_OF_DIAMONDS));
   return {
     seed,
     round,
@@ -82,7 +80,7 @@ export function deal(
     lastPlay: null,
     lastBy: null,
     passesInRow: 0,
-    forced3D: useThreeD && rules.mustLeadWith3D,
+    forced3D: true,
     history: [],
     trickStart: 0,
     totals: totals.slice(),
@@ -101,17 +99,8 @@ export class IllegalActionError extends Error {
 const seatsOf = (g: GameState): Seat[] =>
   g.players.map((p) => ({ name: p.name, kind: p.kind, ...(p.personality !== undefined ? { personality: p.personality } : {}) }));
 
-/** The next seat to act after `from`. With passLocksOut, seats that passed this trick are skipped. */
-function nextSeat(g: GameState, from: number): number {
-  const n = g.players.length;
-  let t = from;
-  for (let i = 0; i < n; i++) {
-    t = (t + 1) % n;
-    if (g.rules.passLocksOut && g.lastPlay && g.players[t].passed) continue;
-    return t;
-  }
-  return from;
-}
+/** The next seat to act after `from`. A seat that passed may play again when the trick comes back round. */
+const nextSeat = (g: GameState, from: number): number => (from + 1) % g.players.length;
 
 function play(g: GameState, a: Extract<Action, { type: "PLAY" }>): GameState {
   if (g.phase !== "playing") throw new IllegalActionError(`phase is ${g.phase}`, a);
@@ -128,11 +117,7 @@ function play(g: GameState, a: Extract<Action, { type: "PLAY" }>): GameState {
 
   const gone = new Set(cards);
   const players = g.players.map((p, i) =>
-    i === a.player
-      ? { ...p, hand: p.hand.filter((c) => !gone.has(c)), passed: false }
-      : g.rules.passLocksOut
-        ? p
-        : { ...p, passed: false },
+    i === a.player ? { ...p, hand: p.hand.filter((c) => !gone.has(c)), passed: false } : { ...p, passed: false },
   );
   const emptied = players[a.player].hand.length === 0;
   const next: GameState = {
@@ -157,8 +142,8 @@ function pass(g: GameState, a: Extract<Action, { type: "PASS" }>): GameState {
   const players = g.players.map((p, i) => (i === a.player ? { ...p, passed: true } : p));
   const history = [...g.history, { by: a.player, cards: [] }];
   const lastBy = g.lastBy;
-  // The trick clears when nobody but the last player to play is still in it. Without
-  // passLocksOut every play resets the flags, so this is exactly "three passes in a row".
+  // The trick clears when nobody but the last player to play is still in it. Every play resets
+  // the flags, so this is exactly "three passes in a row".
   if (players.every((p, i) => i === lastBy || p.passed)) {
     return {
       ...g,
@@ -183,11 +168,7 @@ function scoreRound(g: GameState, a: Action): GameState {
 }
 
 function nextRound(g: GameState, seed: number): GameState {
-  const counts = g.players.map((p) => p.hand.length);
-  const winner = g.turn; // the turn stays on the seat that emptied its hand
-  const loser = counts.indexOf(Math.max(...counts));
-  const lastLeader = g.rules.laterRoundLead === "loser" ? loser : winner;
-  return deal(seed, g.rules, seatsOf(g), g.round + 1, lastLeader, g.totals);
+  return deal(seed, g.rules, seatsOf(g), g.round + 1, g.totals);
 }
 
 export function reduce(state: GameState, action: Action): GameState {

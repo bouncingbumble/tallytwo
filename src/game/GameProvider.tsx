@@ -8,7 +8,7 @@
  * Math.random is for cosmetics only (bark chance, which line). The AI draws from aiRng, which
  * is reseeded on every deal and consumed by nothing else, so a round replays from its seed.
  */
-import { type ReactNode, useCallback, useMemo, useReducer, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { Card, Rng } from "../engine/cards";
 import { aiTurn } from "../ai/aiTurn";
 import type { Difficulty } from "../ai/choose";
@@ -17,6 +17,7 @@ import { type AppAction, type CrashReport, INITIAL, appReduce, tryReduce } from 
 import { cueFor } from "./cues";
 import { aiRngFor } from "./seeds";
 import { barkLinesFor, canPass as canPassFor, canToggle, exactMove, gameLog, legalFor, liveCards, matchOver, matchWinner, signFor, statusFor } from "./selectors";
+import { useSettings } from "../settings/useSettings";
 import { BARK_CHANCE } from "./timing";
 import { useBarks } from "./useBarks";
 import { type GameApi, GameContext, type ShellPort } from "./useGame";
@@ -33,6 +34,15 @@ export function GameProvider({ audio, shell = NO_SHELL, children }: { audio: Aud
   const aiRng = useRef<Rng>(aiRngFor(0));
   const { list: barkList, show: showBark } = useBarks(); // show, never the whole object: a bark must not recreate act()
   const game = state.game;
+  const { rules } = useSettings();
+
+  // Rules apply to the game in progress the moment they change, not only to the next match.
+  // appReduce's SET_RULES is a no-op when the game already has these rules (or there is no game),
+  // so hydration and unrelated settings changes do not touch the game. Changing the rules never
+  // changes whose turn it is, so the turn loop's pending timer is only re-armed, never skipped.
+  useEffect(() => {
+    dispatch({ type: "SET_RULES", rules });
+  }, [rules]);
 
   const act = useCallback(
     (a: AppAction) => {

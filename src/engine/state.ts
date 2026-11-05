@@ -19,7 +19,7 @@ export interface Player {
   personality?: string;
   /** Sorted ascending. */
   hand: Card[];
-  /** Has passed since the last play (or, with passLocksOut, since the trick started). */
+  /** Has passed since the last play. */
   passed: boolean;
 }
 

@@ -1,12 +1,11 @@
 /**
  * The settings sheet (P:256-282), labels verbatim from copy.ts. One sheet serves the title and
  * the table; only the footer differs (the original build plan §5 M4): "Done" from the title; the seed line and
- * Copy game log / Quit game / Back to table in a game. Rules apply at the next NEW_MATCH (the
- * note says so); opts apply live. No playback here: useAudio follows the switches via settings.
+ * Copy game log / Quit game / Back to table in a game. Everything applies live, rules included:
+ * GameProvider pushes a rules change into the game in progress (appReducer SET_RULES). No playback here: useAudio follows the switches via settings.
  */
 import { type ReactNode, useId } from "react";
 import type { Difficulty } from "../../ai/choose";
-import type { LaterRoundLead } from "../../engine/rules";
 import { serializeLog } from "../../game/appReducer";
 import { COPY } from "../../game/copy";
 import { gameLog } from "../../game/selectors";
@@ -30,11 +29,6 @@ interface Option<T> {
 }
 
 const t = COPY.settings;
-const LEAD: readonly Option<LaterRoundLead>[] = [
-  { value: "winner", label: t.leadWinner },
-  { value: "loser", label: t.leadLoser },
-  { value: "threeD", label: t.leadThreeD },
-];
 const DIFFICULTY: readonly Option<Difficulty>[] = [
   { value: "easy", label: t.easy },
   { value: "medium", label: t.medium },
@@ -124,12 +118,8 @@ export function SettingsSheet({ onClose, onCopyLog }: SettingsSheetProps) {
         <h2 className="western">{t.title}</h2>
 
         <h3>{t.tableRules}</h3>
-        <SwitchRow id={id("passLocksOut")} label={t.passLocksOut} hint={t.passLocksOutHint} on={rules.passLocksOut} onChange={(v) => setRules({ passLocksOut: v })} />
         <SwitchRow id={id("straightWrap")} label={t.straightWrap} hint={t.straightWrapHint} on={rules.straightWrap} onChange={(v) => setRules({ straightWrap: v })} />
         <SwitchRow id={id("flushSuitFirst")} label={t.flushSuitFirst} hint={t.flushSuitFirstHint} on={rules.flushSuitFirst} onChange={(v) => setRules({ flushSuitFirst: v })} />
-        <SwitchRow id={id("mustLeadWith3D")} label={t.mustLeadWith3D} on={rules.mustLeadWith3D} onChange={(v) => setRules({ mustLeadWith3D: v })} />
-        <SelectRow id={id("laterRoundLead")} label={t.laterRoundLead} value={rules.laterRoundLead} options={LEAD} onChange={(v) => setRules({ laterRoundLead: v })} />
-        <p className="note">{t.rulesNote}</p>
 
         <h3>{t.tableFeel}</h3>
         <SelectRow id={id("difficulty")} label={t.difficulty} hint={t.difficultyHint} value={opts.difficulty} options={DIFFICULTY} onChange={(v) => setOpts({ difficulty: v })} />

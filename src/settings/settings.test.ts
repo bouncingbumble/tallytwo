@@ -20,7 +20,7 @@ test("garbage -> DEFAULTS, never a throw", () => {
   expect(parseSettings("{}")).not.toBe(DEFAULTS); // a fresh object every time
 });
 
-test("the prototype's blob: its opts and five rules kept, volume filled in from DEFAULTS", () => {
+test("the prototype's blob: its opts kept, the retired rules dropped, volume filled in from DEFAULTS", () => {
   const s = parseSettings(PROTOTYPE_BLOB);
   expect(s).toEqual(DEFAULTS); // the prototype's defaults are ours
   expect(s.opts.volume).toEqual({ music: 1, sfx: 1, ambience: 1 });
@@ -30,7 +30,7 @@ test("a prototype blob with changed values keeps every one of them", () => {
   const rules = { passLocksOut: true, straightWrap: true, flushSuitFirst: false, mustLeadWith3D: false, laterRoundLead: "loser" };
   const opts = { difficulty: "hard", speed: "slow", music: false, sfx: false, reduceMotion: true }; // the prototype's autoPass and sortBy are dropped: the player is never passed for, and a fresh deal is always in value order
   const s = parseSettings(JSON.stringify({ rules, opts }));
-  expect(s.rules).toEqual(rules);
+  expect(s.rules).toEqual({ straightWrap: true, flushSuitFirst: false }); // passLocksOut, mustLeadWith3D and laterRoundLead are no longer flags
   expect(s.opts).toEqual({ ...opts, speedMultiplier: 1, volume: { music: 1, sfx: 1, ambience: 1 } });
 });
 
@@ -72,7 +72,7 @@ test("unknown keys are dropped", () => {
 test("round-trip through memoryStorage: parseSettings(await get(KEY)) after set", async () => {
   const storage = memoryStorage();
   const s: Settings = {
-    rules: { ...DEFAULT_RULES, laterRoundLead: "threeD", passLocksOut: true },
+    rules: { ...DEFAULT_RULES, flushSuitFirst: false, straightWrap: true },
     opts: { ...DEFAULTS.opts, speed: "fast", volume: { music: 0.5, sfx: 0.25, ambience: 0 } },
   };
   expect(await storage.get(KEY)).toBeNull();
@@ -100,8 +100,8 @@ test("settingsReduce: SET_OPTS merges a patch over the opts, SET_RULES over the 
   expect(s1.settings.rules).toBe(DEFAULTS.rules);
   const s2 = settingsReduce(s1, { type: "SET_OPTS", patch: { volume: { ...s1.settings.opts.volume, music: 0.2 } } });
   expect(s2.settings.opts).toEqual({ ...DEFAULTS.opts, speed: "slow", music: false, volume: { music: 0.2, sfx: 1, ambience: 1 } });
-  const s3 = settingsReduce(s2, { type: "SET_RULES", patch: { laterRoundLead: "loser" } });
-  expect(s3.settings.rules).toEqual({ ...DEFAULT_RULES, laterRoundLead: "loser" });
+  const s3 = settingsReduce(s2, { type: "SET_RULES", patch: { straightWrap: true } });
+  expect(s3.settings.rules).toEqual({ ...DEFAULT_RULES, straightWrap: true });
   expect(s3.settings.opts).toBe(s2.settings.opts);
   expect(DEFAULTS.opts.speed).toBe("normal"); // never mutated
 });

@@ -185,7 +185,7 @@ export function gameLog(g: GameState): GameLog {
 /** Rebuild the logged position: deal the same round, replay the history. */
 export function replayLog(log: GameLog): GameState {
   const seats = log.final.players.map((p) => ({ name: p.name, kind: p.kind, ...(p.personality !== undefined ? { personality: p.personality } : {}) }));
-  let g = deal(log.seed, log.rules, seats.length ? seats : DEFAULT_SEATS, log.round, log.leader, log.totals);
+  let g = deal(log.seed, log.rules, seats.length ? seats : DEFAULT_SEATS, log.round, log.totals);
   for (const a of historyToActions(log.history)) g = reduce(g, a);
   if (log.final.phase === "scored" && g.phase === "roundover") g = reduce(g, { type: "SCORE_ROUND" });
   return g;

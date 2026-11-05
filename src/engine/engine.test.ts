@@ -204,16 +204,16 @@ describe("deal", () => {
     expect(g.players[2].personality).toBe("marshal"); // Marshal Cobb sits in the middle of the three
     expect(g.players[3].personality).toBe("gambler");
   });
-  test("the 3♦ rule and later rounds follow the rules", () => {
-    expect(deal(1, withRules({ mustLeadWith3D: false })).forced3D).toBe(false);
-    const r2 = deal(1, R, DEFAULT_SEATS, 2, 3, [5, -1, -2, -2]);
-    expect(r2.round).toBe(2);
-    expect(r2.turn).toBe(3);
-    expect(r2.forced3D).toBe(false);
-    expect(r2.totals).toEqual([5, -1, -2, -2]);
-    const r2d = deal(1, withRules({ laterRoundLead: "threeD" }), DEFAULT_SEATS, 2, 3, [0, 0, 0, 0]);
-    expect(r2d.players[r2d.turn].hand).toContain(0);
-    expect(r2d.forced3D).toBe(true);
+  test("every round is led by the 3♦ holder, and the opening play must include it", () => {
+    expect(deal(1, R).forced3D).toBe(true);
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const r2 = deal(seed, R, DEFAULT_SEATS, 2, [5, -1, -2, -2]);
+      expect(r2.round).toBe(2);
+      expect(r2.players[r2.turn].hand).toContain(0);
+      expect(r2.leader).toBe(r2.turn);
+      expect(r2.forced3D).toBe(true);
+      expect(r2.totals).toEqual([5, -1, -2, -2]);
+    }
   });
 });
 
@@ -268,36 +268,23 @@ describe("reducer", () => {
     expect(() => reduce(g5, { type: "SCORE_ROUND" })).toThrow(IllegalActionError);
   });
 
-  test("passLocksOut: a seat that passed is skipped until the trick clears", () => {
-    const rules = withRules({ passLocksOut: true });
+  test("a seat that passed plays again when the trick comes back round", () => {
     const s = (() => {
       for (let x = 1; x <= 300; x++) {
-        const d = deal(x, rules);
+        const d = deal(x, R);
         if (d.turn === 0 && Math.max(...d.players[0].hand) > Math.min(...d.players[2].hand)) return x;
       }
       throw new Error("no seed");
     })();
-    let g = deal(s, rules);
+    let g = deal(s, R);
     g = reduce(g, { type: "PLAY", player: 0, cards: [0] });
     g = reduce(g, { type: "PASS", player: 1 });
+    expect(g.players[1].passed).toBe(true);
     g = reduce(g, { type: "PLAY", player: 2, cards: [g.players[2].hand[0]] });
-    expect(g.players[1].passed).toBe(true); // a play does not clear the flags under lockout
-    expect(g.turn).toBe(3);
+    expect(g.players[1].passed).toBe(false); // every play resets the flags
     g = reduce(g, { type: "PASS", player: 3 });
-    expect(g.turn).toBe(0);
     g = reduce(g, { type: "PLAY", player: 0, cards: [Math.max(...g.players[0].hand)] });
-    expect(g.turn).toBe(2); // seat 1 is locked out, seat 2 is next
-    g = reduce(g, { type: "PASS", player: 2 });
-    expect(g.lastPlay).toBeNull(); // 1, 2 and 3 have all passed: the trick clears to seat 0
-    expect(g.turn).toBe(0);
-    expect(g.players.every((p) => !p.passed)).toBe(true);
-    // without lockout the flags reset on every play
-    const plain = reduce(reduce(reduce(deal(s, R), { type: "PLAY", player: 0, cards: [0] }), { type: "PASS", player: 1 }), {
-      type: "PLAY",
-      player: 2,
-      cards: [deal(s, R).players[2].hand[0]],
-    });
-    expect(plain.players[1].passed).toBe(false);
+    expect(g.turn).toBe(1); // seat 1 passed earlier and is back in
   });
 
   test("roundover, SCORE_ROUND and NEXT_ROUND", () => {
@@ -316,13 +303,10 @@ describe("reducer", () => {
     expect(next.round).toBe(2);
     expect(next.seed).toBe(99);
     expect(next.totals).toEqual(scored.totals);
-    expect(next.turn).toBe(winner);
-    expect(next.forced3D).toBe(false);
+    // the next round is led by whoever holds the 3♦, not by the last round's winner
+    expect(next.players[next.turn].hand).toContain(0);
+    expect(next.forced3D).toBe(true);
     expect(next.players.map((p) => p.name)).toEqual(["A", "B", "C", "D"]);
-    const counts = scored.players.map((p) => p.hand.length);
-    const loserRules = withRules({ laterRoundLead: "loser" });
-    const scoredL = { ...scored, rules: loserRules };
-    expect(reduce(scoredL, { type: "NEXT_ROUND", seed: 99 }).turn).toBe(counts.indexOf(Math.max(...counts)));
   });
 
   test("IllegalActionError carries the action", () => {

@@ -372,9 +372,9 @@ test("replayLog(gameLog(g)) rebuilds a round-1 position after several moves", ()
   expect(JSON.stringify(replayLog(gameLog(fresh)))).toBe(JSON.stringify(fresh));
 });
 
-for (const lead of ["winner", "loser", "threeD"] as const) {
-  test(`replayLog(gameLog(g)) rebuilds round-2 positions reached through SCORE_ROUND + NEXT_ROUND under laterRoundLead "${lead}"`, () => {
-    const rules: RuleConfig = { ...DEFAULT_RULES, laterRoundLead: lead };
+for (const straightWrap of [false, true]) {
+  test(`replayLog(gameLog(g)) rebuilds round-2 positions reached through SCORE_ROUND + NEXT_ROUND (straightWrap ${straightWrap})`, () => {
+    const rules: RuleConfig = { ...DEFAULT_RULES, straightWrap };
     const over = playOut(deal(21, rules), aiRngFor(21));
     const scored = reduce(over, { type: "SCORE_ROUND" });
     const r2 = reduce(scored, { type: "NEXT_ROUND", seed: 77 });
