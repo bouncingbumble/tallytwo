@@ -294,7 +294,7 @@ test("setBus before init sets the bus's birth level; after init it sets the node
   audio.setBus("sfx", 0.37);
   await audio.init();
   const buses = ctx.gains.filter((g) => g.into === ctx.destination);
-  expect(buses).toHaveLength(3);
+  expect(buses).toHaveLength(2);
   const sfx = buses.find((g) => g.gain.value === 0.37)!;
   expect(sfx).toBeTruthy();
   audio.setBus("sfx", 2);
@@ -442,19 +442,26 @@ test("a track switch is a fade-out then a fade-in, never a crossfade; a loop sto
   expect(again[1].startAts).toEqual([10 + OUT_S]); // still not before the first table's fade-out ends
 });
 
-test("the ambience loop starts after init on its own bus and keeps running", async () => {
+test("there is no ambience loop: init starts no music on its own, and the two buses are music and sfx", async () => {
   const { ctx, audio } = setup();
   await audio.init();
   await flush();
-  const [amb] = sourcesOf(ctx, "sfx_CardsMovingLoop03");
-  expect(amb).toBeTruthy();
-  expect(amb.loop).toBe(true);
-  expect(amb.loopEnd).toBe(MUSIC.ambience.loopEnd);
-  expect(gainOf(amb).gain.ramps).toEqual([MUSIC.ambience.gain]);
-  expect((gainOf(amb).into as FakeGain).into).toBe(ctx.destination);
-  audio.setMusic("results");
-  audio.setMusic(null);
-  expect(amb.stops).toEqual([]);
+  expect(ctx.sources.filter((s) => s.loop)).toHaveLength(0);
+  expect(ctx.gains.filter((g) => g.into === ctx.destination)).toHaveLength(2);
+});
+
+test("the human's round win and match win each have their own loop", async () => {
+  const { ctx, audio } = setup();
+  await audio.init();
+  audio.setMusic("roundWon");
+  await flush();
+  expect(sourcesOf(ctx, "music_ost_2")).toHaveLength(1);
+  expect(sourcesOf(ctx, "music_ost_2")[0].loopEnd).toBe(MUSIC.roundWon.loopEnd);
+  ctx.currentTime = 10;
+  audio.setMusic("matchWon");
+  await flush();
+  expect(sourcesOf(ctx, "music_ost_2")[0].stops).toEqual([10 + OUT_S]);
+  expect(sourcesOf(ctx, "music_ost_5")[0].startAts).toEqual([10 + OUT_S]);
 });
 
 /* ---- tension ---- */

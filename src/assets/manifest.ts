@@ -76,11 +76,34 @@ import sfx_CardGrabSlide13 from "./sfx/SFX_CardGrabSlide13.m4a?url";
 import sfx_CardsFalling01 from "./sfx/SFX_CardsFalling01.m4a?url";
 import sfx_CardsFalling05 from "./sfx/SFX_CardsFalling05.m4a?url";
 import sfx_CardsImpact01 from "./sfx/SFX_CardsImpact01.m4a?url";
-import sfx_CardsMovingLoop03 from "./sfx/SFX_CardsMovingLoop03.m4a?url";
+import sfx_CardsImpact02 from "./sfx/SFX_CardsImpact02.m4a?url";
+import sfx_CardsImpact04 from "./sfx/SFX_CardsImpact04.m4a?url";
+import sfx_CardsFalling03 from "./sfx/SFX_CardsFalling03.m4a?url";
+import sfx_CardsFalling04 from "./sfx/SFX_CardsFalling04.m4a?url";
+import sfx_CardGenericMove01 from "./sfx/SFX_CardGenericMove01.m4a?url";
+import sfx_CardGenericMove05 from "./sfx/SFX_CardGenericMove05.m4a?url";
+import sfx_CardGenericMove07 from "./sfx/SFX_CardGenericMove07.m4a?url";
+import sfx_CardGenericMovesLong01 from "./sfx/SFX_CardGenericMovesLong01.m4a?url";
+import sfx_CardGenericMovesLong03 from "./sfx/SFX_CardGenericMovesLong03.m4a?url";
+import sfx_CardGenericMovesLong11 from "./sfx/SFX_CardGenericMovesLong11.m4a?url";
+import sfx_CardGrabSlideLong01 from "./sfx/SFX_CardGrabSlideLong01.m4a?url";
+import sfx_CardGrabSlideLong03 from "./sfx/SFX_CardGrabSlideLong03.m4a?url";
+import sfx_CardGrabSlideLong04 from "./sfx/SFX_CardGrabSlideLong04.m4a?url";
+import sfx_CardGrabSlideLong05 from "./sfx/SFX_CardGrabSlideLong05.m4a?url";
+import sfx_DeckMoves01 from "./sfx/SFX_DeckMoves01.m4a?url";
+import sfx_DeckMoves02 from "./sfx/SFX_DeckMoves02.m4a?url";
+import sfx_DeckMoves03 from "./sfx/SFX_DeckMoves03.m4a?url";
+import sfx_BuyCards01 from "./sfx/SFX_BuyCards01.m4a?url";
+import sfx_BuyCards02 from "./sfx/SFX_BuyCards02.m4a?url";
+import sfx_BuyCards03 from "./sfx/SFX_BuyCards03.m4a?url";
+import sfx_BuyCards04 from "./sfx/SFX_BuyCards04.m4a?url";
+import sfx_BuyCards05 from "./sfx/SFX_BuyCards05.m4a?url";
 
 import music_ost_1 from "./music/ost_1.m4a?url";
+import music_ost_2 from "./music/ost_2.m4a?url";
 import music_ost_3 from "./music/ost_3.m4a?url";
 import music_ost_4 from "./music/ost_4.m4a?url";
+import music_ost_5 from "./music/ost_5.m4a?url";
 
 export const MANIFEST = {
   cards_atlas,
@@ -145,10 +168,33 @@ export const MANIFEST = {
   sfx_CardsFalling01,
   sfx_CardsFalling05,
   sfx_CardsImpact01,
-  sfx_CardsMovingLoop03,
+  sfx_CardsImpact02,
+  sfx_CardsImpact04,
+  sfx_CardsFalling03,
+  sfx_CardsFalling04,
+  sfx_CardGenericMove01,
+  sfx_CardGenericMove05,
+  sfx_CardGenericMove07,
+  sfx_CardGenericMovesLong01,
+  sfx_CardGenericMovesLong03,
+  sfx_CardGenericMovesLong11,
+  sfx_CardGrabSlideLong01,
+  sfx_CardGrabSlideLong03,
+  sfx_CardGrabSlideLong04,
+  sfx_CardGrabSlideLong05,
+  sfx_DeckMoves01,
+  sfx_DeckMoves02,
+  sfx_DeckMoves03,
+  sfx_BuyCards01,
+  sfx_BuyCards02,
+  sfx_BuyCards03,
+  sfx_BuyCards04,
+  sfx_BuyCards05,
   music_ost_1,
+  music_ost_2,
   music_ost_3,
   music_ost_4,
+  music_ost_5,
 } satisfies Record<AssetName, string>;
 
 export const PORTRAITS: Record<PortraitKey, AssetName> = { p_marshal: "p_marshal", p_outlaw: "p_outlaw", p_gambler: "p_gambler" };

@@ -123,11 +123,9 @@ export function SettingsSheet({ onClose, onCopyLog }: SettingsSheetProps) {
         <h3>{t.tableFeel}</h3>
         <SelectRow id={id("difficulty")} label={t.difficulty} hint={t.difficultyHint} value={opts.difficulty} options={DIFFICULTY} onChange={(v) => setOpts({ difficulty: v })} />
         <SelectRow id={id("gameSpeed")} label={t.gameSpeed} hint={t.gameSpeedHint} value={opts.gameSpeed} options={GAME_SPEED} onChange={(v) => setOpts({ gameSpeed: v })} />
-        <SwitchRow id={id("music")} label={t.music} hint={t.musicHint} on={opts.music} onChange={(v) => setOpts({ music: v })} />
         <SwitchRow id={id("sfx")} label={t.sfx} on={opts.sfx} onChange={(v) => setOpts({ sfx: v })} />
         <RangeRow id={id("volumeMusic")} label={`${t.volume} · ${t.volumeMusic}`} value={opts.volume.music} onChange={(v) => setVolume({ music: v })} />
         <RangeRow id={id("volumeSfx")} label={`${t.volume} · ${t.volumeSfx}`} value={opts.volume.sfx} onChange={(v) => setVolume({ sfx: v })} />
-        <RangeRow id={id("volumeAmbience")} label={`${t.volume} · ${t.volumeAmbience}`} value={opts.volume.ambience} onChange={(v) => setVolume({ ambience: v })} />
 
         {game === null ? (
           <div className="ovbtns">

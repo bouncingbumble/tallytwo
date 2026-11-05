@@ -81,9 +81,30 @@ export type SfxAssetName =
   | "sfx_CardsFalling01"
   | "sfx_CardsFalling05"
   | "sfx_CardsImpact01"
-  | "sfx_CardsMovingLoop03";
+  | "sfx_CardsImpact02"
+  | "sfx_CardsImpact04"
+  | "sfx_CardsFalling03"
+  | "sfx_CardsFalling04"
+  | "sfx_CardGenericMove01"
+  | "sfx_CardGenericMove05"
+  | "sfx_CardGenericMove07"
+  | "sfx_CardGenericMovesLong01"
+  | "sfx_CardGenericMovesLong03"
+  | "sfx_CardGenericMovesLong11"
+  | "sfx_CardGrabSlideLong01"
+  | "sfx_CardGrabSlideLong03"
+  | "sfx_CardGrabSlideLong04"
+  | "sfx_CardGrabSlideLong05"
+  | "sfx_DeckMoves01"
+  | "sfx_DeckMoves02"
+  | "sfx_DeckMoves03"
+  | "sfx_BuyCards01"
+  | "sfx_BuyCards02"
+  | "sfx_BuyCards03"
+  | "sfx_BuyCards04"
+  | "sfx_BuyCards05";
 
-export type MusicAssetName = "music_ost_1" | "music_ost_3" | "music_ost_4";
+export type MusicAssetName = "music_ost_1" | "music_ost_2" | "music_ost_3" | "music_ost_4" | "music_ost_5";
 
 export type AssetName = CardAssetName | SpriteAssetName | SfxAssetName | MusicAssetName;
 

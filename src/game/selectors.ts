@@ -142,9 +142,18 @@ export function matchWinner(g: GameState): number {
   return tied.length === 1 ? tied[0] : tied.includes(g.turn) ? g.turn : tied[0];
 }
 
-/** Which loop the table wants. The tension layer is tensionFor(), not a track. */
-export const musicFor = (g: GameState | null, sheet: Sheet): MusicTrack | null =>
-  sheet === "howto" ? "results" : g === null ? null : g.phase === "scored" ? "results" : "table";
+/**
+ * Which loop the table wants. The tension layer is tensionFor(), not a track. Over the poster:
+ * the match-won song when the human took the match, the round-won song when the human emptied
+ * their hand, and the results loop otherwise — an AI's round, a lost match, How to play.
+ */
+export function musicFor(g: GameState | null, sheet: Sheet): MusicTrack | null {
+  if (sheet === "howto") return "results";
+  if (g === null) return null;
+  if (g.phase !== "scored") return "table";
+  if (matchOver(g)) return matchWinner(g) === HUMAN ? "matchWon" : "results";
+  return roundWinner(g) === HUMAN ? "roundWon" : "results";
+}
 
 /**
  * Through "roundover" the flag keeps the value it had at the winning play: the winner's hand is

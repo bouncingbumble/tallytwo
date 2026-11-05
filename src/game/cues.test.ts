@@ -127,7 +127,8 @@ test("PASS that clears the trick -> trickClear, read from the engine's outcome",
   expect(g3.turn).toBe(3);
   const [a, n] = pass(g3);
   expect(n.lastPlay).toBeNull();
-  expect(cueFor(g3, a, n)).toEqual({ sfx: ["trickClear"], bark: { seat: 3, kind: "pass" } });
+  expect(n.turn).toBe(HUMAN); // the trick clears back to the human, who leads
+  expect(cueFor(g3, a, n)).toEqual({ sfx: ["trickClear", "yourTurn"], bark: { seat: 3, kind: "pass" } });
 });
 
 test("the human's PASS that clears the trick -> trickClear, no bark", () => {
@@ -149,10 +150,35 @@ test("NEW_MATCH / NEXT_ROUND -> dealRoll, no sfx, no bark", () => {
   expect(cueFor(g, { type: "NEXT_ROUND", seed: 2 }, g)).toEqual({ sfx: [], dealRoll: true });
 });
 
-test("QUIT / SCORE_ROUND / DEAL -> silence", () => {
+test("QUIT / DEAL -> silence; SCORE_ROUND -> the tally", () => {
   const g = humanLead();
   expect(cueFor(g, { type: "QUIT" }, null)).toEqual({ sfx: [] });
   expect(cueFor(null, { type: "QUIT" }, null)).toEqual({ sfx: [] });
-  expect(cueFor(g, { type: "SCORE_ROUND" }, g)).toEqual({ sfx: [] });
   expect(cueFor(g, { type: "DEAL", seed: 1 }, g)).toEqual({ sfx: [] });
+  expect(cueFor(g, { type: "SCORE_ROUND" }, g)).toEqual({ sfx: ["tally"] });
+});
+
+test("an AI move that hands the turn to the human -> yourTurn; the human's own moves never do", () => {
+  const g = seatLeads(3); // seat 3 leads, the human follows
+  const [a, n] = play(g, [THREE_OF_DIAMONDS]);
+  expect(n.turn).toBe(HUMAN);
+  expect(cueFor(g, a, n).sfx).toEqual(["playSmall", "yourTurn"]);
+  const g2 = seatLeads(2); // seat 2 leads, seat 3 passes into the human
+  const [, g2a] = play(g2, [THREE_OF_DIAMONDS]);
+  const [a2, n2] = pass(g2a);
+  expect(n2.turn).toBe(HUMAN);
+  expect(cueFor(g2a, a2, n2).sfx).toEqual(["pass", "yourTurn"]);
+  const h = humanLead();
+  const [ha, hn] = play(h, [THREE_OF_DIAMONDS]);
+  expect(cueFor(h, ha, hn).sfx).not.toContain("yourTurn");
+});
+
+test("a play that leaves a hand on one card -> lastCard; emptying it is roundWin instead", () => {
+  const g = leaderHolds(aiLead(), [THREE_OF_DIAMONDS, 51]);
+  const [a, n] = play(g, [THREE_OF_DIAMONDS]);
+  expect(n.players[g.turn].hand).toHaveLength(1);
+  expect(cueFor(g, a, n).sfx).toContain("lastCard");
+  const one = leaderHolds(aiLead(), [THREE_OF_DIAMONDS]);
+  const [a1, n1] = play(one, [THREE_OF_DIAMONDS]);
+  expect(cueFor(one, a1, n1).sfx).toEqual(["playSmall", "roundWin"]);
 });

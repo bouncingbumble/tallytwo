@@ -11,15 +11,12 @@ import { GAME_SPEEDS, type GameSpeed } from "../game/timing";
 export interface Volume {
   music: number;
   sfx: number;
-  ambience: number;
 }
 
 export interface Opts {
   difficulty: Difficulty;
   /** Game speed: one setting for the AI's think time and every wait at the table (timing.ts SPEED). */
   gameSpeed: GameSpeed;
-  /** "Saloon piano": the music bus on/off. */
-  music: boolean;
   /** "Card sounds": the sfx bus on/off. */
   sfx: boolean;
   /** 0-1 multipliers over the sfxTable gains. */
@@ -36,9 +33,8 @@ export const DEFAULTS: Settings = {
   opts: {
     difficulty: "medium",
     gameSpeed: "normal",
-    music: true,
     sfx: true,
-    volume: { music: 1, sfx: 1, ambience: 1 },
+    volume: { music: 1, sfx: 1 },
   },
 };
 
@@ -86,12 +82,11 @@ export function parseSettings(raw: string | null | undefined): Settings {
     opts: {
       difficulty: oneOf<Difficulty>(o.difficulty, ["easy", "medium", "hard"], D.opts.difficulty),
       gameSpeed: oneOf<GameSpeed>(o.gameSpeed, GAME_SPEEDS, legacySpeed(o) ?? D.opts.gameSpeed),
-      music: bool(o.music, D.opts.music),
       sfx: bool(o.sfx, D.opts.sfx),
       volume: {
-        music: unit(vol.music, D.opts.volume.music),
+        // the retired "Saloon piano" switch: a blob saved with it off keeps the music silent
+        music: o.music === false ? 0 : unit(vol.music, D.opts.volume.music),
         sfx: unit(vol.sfx, D.opts.volume.sfx),
-        ambience: unit(vol.ambience, D.opts.volume.ambience),
       },
     },
   };

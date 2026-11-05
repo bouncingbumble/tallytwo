@@ -1,8 +1,8 @@
 /**
  * AudioPort on the Web Audio API (WEB bucket). One AudioContext, created on the first init() —
- * the title buttons call it from a trusted click, which is the gesture iOS wants — three
- * GainNode buses (music, sfx, ambience) into the destination, every SFX decoded eagerly, the
- * four loops decoded the first time they are wanted and started through musicLatch, so a
+ * the title buttons call it from a trusted click, which is the gesture iOS wants — two
+ * GainNode buses (music, sfx) into the destination, every SFX decoded eagerly, the
+ * music loops decoded the first time they are wanted and started through musicLatch, so a
  * request that lands before its buffer exists still starts and a change of mind before then
  * still cancels. Every number is sfxTable's.
  *
@@ -10,7 +10,7 @@
  * fetch or decode is dropped with one console.warn; play() of an empty pool is a no-op.
  *
  * Graph: sfx source -> per-event gain (SFX gain) -> sfx bus; loop source -> per-loop gain
- * (MUSIC gain, faded) -> duck -> music bus (ambience: -> ambience bus); bus -> destination.
+ * (MUSIC gain, faded) -> duck -> music bus; bus -> destination.
  * The buses carry the user's volume x on/off and nothing else.
  *
  * One music loop at a time, and a switch is never a crossfade (FADE): the playing loop fades
@@ -86,7 +86,7 @@ interface Loop {
 }
 
 /** The main music: one of these at a time. */
-type MainTrack = Exclude<MusicLayer, "ambience">;
+type MainTrack = MusicLayer;
 
 const FADE_OUT_S = FADE.outMs / 1000;
 const FADE_IN_S = FADE.inMs / 1000;
@@ -107,7 +107,7 @@ export class WebAudio implements AudioPort {
   private buses: Record<Bus, GainNodeLike> | null = null;
   private duckNode: GainNodeLike | null = null;
   /** Remembered from before init() so the buses are born at the user's levels. */
-  private readonly busLevels: Record<Bus, number> = { music: 1, sfx: 1, ambience: 1 };
+  private readonly busLevels: Record<Bus, number> = { music: 1, sfx: 1 };
   private duckedAt = 0;
 
   private readonly pools = new Map<SfxEvent, AudioBufferLike[]>();
@@ -120,7 +120,6 @@ export class WebAudio implements AudioPort {
   private readonly dropped = new Set<MusicLayer>();
   private readonly loops = new Map<MusicLayer, Loop>();
   private readonly main = createMusicLatch<MainTrack>();
-  private readonly ambience = createMusicLatch<"ambience">();
   /** What the game asked for; with tension on, "table" plays as "tension". */
   private track: MusicTrack | null = null;
   private tensionOn = false;
@@ -225,7 +224,7 @@ export class WebAudio implements AudioPort {
       g.connect(ctx.destination);
       return g;
     };
-    this.buses = { music: bus(this.busLevels.music), sfx: bus(this.busLevels.sfx), ambience: bus(this.busLevels.ambience) };
+    this.buses = { music: bus(this.busLevels.music), sfx: bus(this.busLevels.sfx) };
     const duck = ctx.createGain();
     duck.gain.value = 1;
     duck.connect(this.buses.music);
@@ -247,8 +246,7 @@ export class WebAudio implements AudioPort {
     });
     for (const e of SFX_EVENTS) this.pools.set(e, SFX[e].files.flatMap((f) => decoded.get(f) ?? []));
 
-    // The loops: ambience always, plus whatever was asked for before init.
-    this.apply(this.ambience.want("ambience"));
+    // Whatever music was asked for before init.
     this.kick();
   }
 
@@ -299,12 +297,10 @@ export class WebAudio implements AudioPort {
   private kick(): void {
     const track = this.main.wanted;
     if (track) this.ensure(track);
-    if (this.ambience.wanted) this.ensure("ambience");
     this.prefetch();
   }
 
   private landed(layer: MusicLayer): LatchCommand<MusicLayer>[] {
-    if (layer === "ambience") return this.ambience.decoded("ambience");
     return this.main.decoded(layer);
   }
 
@@ -336,16 +332,16 @@ export class WebAudio implements AudioPort {
   /**
    * A fresh source + gain per start, so an instance still fading out never shares a node with
    * the next. A music loop starts when the current fade-out ends (now, if nothing is fading)
-   * and fades in from there; the ambience loop starts now.
+   * and fades in from there.
    */
   private startLoop(layer: MusicLayer): void {
     const ctx = this.ctx;
     const buffer = this.buffers.get(layer);
-    const into = layer === "ambience" ? this.buses?.ambience : this.duckNode;
+    const into = this.duckNode;
     if (!ctx || !buffer || !into) return;
     const spec = MUSIC[layer];
     const now = ctx.currentTime;
-    const at = layer === "ambience" ? now : Math.max(now, this.fadingUntil);
+    const at = Math.max(now, this.fadingUntil);
     const gain = ctx.createGain();
     gain.connect(into);
     const source = ctx.createBufferSource();
@@ -387,7 +383,7 @@ export class WebAudio implements AudioPort {
     loop.gain.gain.setValueAtTime(level, now);
     loop.gain.gain.linearRampToValueAtTime(0, end);
     loop.source.stop(end);
-    if (layer !== "ambience") this.fadingUntil = Math.max(this.fadingUntil, end);
+    this.fadingUntil = Math.max(this.fadingUntil, end);
   }
 
   /** DEV probe: the music bus, the duck envelope in the prototype's terms (.30 at rest, .12 under a slap), what plays. */

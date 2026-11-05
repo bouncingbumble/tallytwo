@@ -7,7 +7,21 @@
  */
 import type { AssetName, SfxAssetName } from "../assets/names";
 
-export type SfxEvent = "shuffle" | "deal" | "select" | "playSmall" | "playFive" | "pass" | "trickClear" | "roundWin";
+export type SfxEvent =
+  | "shuffle"
+  | "deal"
+  | "select"
+  | "deselect"
+  | "reorder"
+  | "playSmall"
+  | "playFive"
+  | "pass"
+  | "trickClear"
+  | "yourTurn"
+  | "lastCard"
+  | "roundWin"
+  | "tally"
+  | "finalRound";
 
 export interface SfxSpec {
   /** Round-robin pool; a pool of one plays the same file every time. */
@@ -29,6 +43,10 @@ export const SFX: Record<SfxEvent, SfxSpec> = {
     ducks: false,
   },
   select: { files: ["sfx_CardGrab03", "sfx_CardGrab04"], gain: boost(0.3), ducks: false },
+  /** A card put back down in the hand. */
+  deselect: { files: ["sfx_CardGenericMove01", "sfx_CardGenericMove05", "sfx_CardGenericMove07"], gain: boost(0.3), ducks: false },
+  /** A dragged card dropped into a new place in the fan. */
+  reorder: { files: ["sfx_CardGenericMovesLong01", "sfx_CardGenericMovesLong03", "sfx_CardGenericMovesLong11"], gain: boost(0.35), ducks: false },
   playSmall: {
     files: ["sfx_CardSlapFast01", "sfx_CardSlapFast03", "sfx_CardSlapFast04", "sfx_CardSlapFast05", "sfx_CardSlapFast07", "sfx_CardSlapFast09"],
     gain: boost(0.8),
@@ -50,15 +68,31 @@ export const SFX: Record<SfxEvent, SfxSpec> = {
     gain: boost(0.45),
     ducks: false,
   },
-  trickClear: { files: ["sfx_CardsFalling01", "sfx_CardsFalling05"], gain: boost(0.6), ducks: false },
+  trickClear: { files: ["sfx_CardsFalling01", "sfx_CardsFalling03", "sfx_CardsFalling04", "sfx_CardsFalling05"], gain: boost(0.6), ducks: false },
+  /** The turn comes round to the human: a soft slide, so a look away from the screen is not a missed turn. */
+  yourTurn: {
+    files: ["sfx_CardGrabSlideLong01", "sfx_CardGrabSlideLong03", "sfx_CardGrabSlideLong04", "sfx_CardGrabSlideLong05"],
+    gain: boost(0.3),
+    ducks: false,
+  },
+  /** A play leaves a hand on its last card. */
+  lastCard: { files: ["sfx_CardsImpact02", "sfx_CardsImpact04"], gain: boost(0.55), ducks: false },
   roundWin: { files: ["sfx_CardsImpact01"], gain: boost(0.85), ducks: true },
+  /** The round is scored: the poster's money changes hands. */
+  tally: { files: ["sfx_BuyCards01", "sfx_BuyCards02", "sfx_BuyCards03", "sfx_BuyCards04", "sfx_BuyCards05"], gain: boost(0.5), ducks: false },
+  /** The last round of the match is dealt: the deck slapped down under the "Final round" banner. */
+  finalRound: { files: ["sfx_DeckMoves01", "sfx_DeckMoves02", "sfx_DeckMoves03"], gain: boost(0.7), ducks: false },
 };
 
 export const SFX_EVENTS = Object.keys(SFX) as SfxEvent[];
 
-/** A music cue the game can ask for. "tension" is what plays in place of "table" while setTension(true). */
-export type MusicTrack = "table" | "results";
-export type MusicLayer = MusicTrack | "tension" | "ambience";
+/**
+ * A music cue the game can ask for. "tension" is what plays in place of "table" while
+ * setTension(true). Over the poster: "roundWon" when the human emptied their hand, "matchWon"
+ * when the human took the match, "results" otherwise (an AI's round, a lost match, How to play).
+ */
+export type MusicTrack = "table" | "results" | "roundWon" | "matchWon";
+export type MusicLayer = MusicTrack | "tension";
 
 export interface LoopSpec {
   file: AssetName;
@@ -67,14 +101,12 @@ export interface LoopSpec {
   loopEnd: number;
 }
 
-export const dbToGain = (db: number): number => Math.pow(10, db / 20);
-export const AMBIENCE_DB = -14;
-
 export const MUSIC: Record<MusicLayer, LoopSpec> = {
   table: { file: "music_ost_1", gain: 0.3, loopEnd: 119.081 },
   tension: { file: "music_ost_3", gain: 0.3, loopEnd: 107.714 },
   results: { file: "music_ost_4", gain: 0.3, loopEnd: 103.109 },
-  ambience: { file: "sfx_CardsMovingLoop03", gain: dbToGain(AMBIENCE_DB), loopEnd: 10.069 },
+  roundWon: { file: "music_ost_2", gain: 0.3, loopEnd: 110.208 },
+  matchWon: { file: "music_ost_5", gain: 0.3, loopEnd: 110.941 },
 };
 
 /** Music steps back under a slap: to 0.12 within 20 ms, back to 0.30 after 300 ms unless re-ducked within 280 ms (P:368-373). */

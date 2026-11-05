@@ -13,7 +13,7 @@
  */
 import type { MusicTrack, SfxEvent } from "./sfxTable";
 
-export type Bus = "music" | "sfx" | "ambience";
+export type Bus = "music" | "sfx";
 
 export interface AudioPort {
   init(): Promise<void>;

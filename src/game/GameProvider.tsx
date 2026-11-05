@@ -106,10 +106,11 @@ export function GameProvider({ audio, shell = NO_SHELL, children }: { audio: Aud
   const toggleCard = useCallback(
     (v: Card) => {
       if (!canToggle(game)) return; // taps during AI turns / roundover do nothing, no sound
+      const on = !selection.includes(v);
       setSelection((s) => (s.includes(v) ? s.filter((c) => c !== v) : [...s, v]));
-      audio.play("select");
+      audio.play(on ? "select" : "deselect");
     },
-    [game, audio],
+    [game, audio, selection],
   );
 
   // `legal` on [game] ONLY: it is a dependency of the turn-loop effect, and memoising it on the

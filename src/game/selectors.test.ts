@@ -287,7 +287,7 @@ test("matchWinner: the clear leader; a tie goes to the last round's winner, else
 
 /* ---- music ---- */
 
-test("musicFor: title -> null, table -> table, scored -> results, howto -> results", () => {
+test("musicFor: title -> null, table -> table, howto -> results; the poster by who won", () => {
   expect(musicFor(null, "none")).toBeNull();
   expect(musicFor(null, "settings")).toBeNull();
   expect(musicFor(null, "howto")).toBe("results");
@@ -296,7 +296,14 @@ test("musicFor: title -> null, table -> table, scored -> results, howto -> resul
   expect(musicFor(g, "settings")).toBe("table");
   expect(musicFor(g, "howto")).toBe("results");
   expect(musicFor({ ...g, phase: "roundover" }, "none")).toBe("table");
-  expect(musicFor({ ...g, phase: "scored" }, "none")).toBe("results");
+  // a round's poster: the round-won song when the human emptied their hand (turn stays on the winner)
+  expect(musicFor({ ...g, phase: "scored", turn: HUMAN }, "none")).toBe("roundWon");
+  expect(musicFor({ ...g, phase: "scored", turn: 2 }, "none")).toBe("results");
+  expect(musicFor({ ...g, phase: "scored", turn: HUMAN }, "howto")).toBe("results");
+  // the final poster: the match-won song when the human took the match, else results — whoever won the last round
+  const last = { ...g, phase: "scored" as const, round: ROUNDS_PER_MATCH };
+  expect(musicFor({ ...last, totals: [9, -3, -3, -3], turn: 2 }, "none")).toBe("matchWon");
+  expect(musicFor({ ...last, totals: [-9, 3, 3, 3], turn: HUMAN }, "none")).toBe("results");
 });
 
 test("tensionFor: on at 3 cards in any hand, off at 4, held through roundover, off once scored", () => {
