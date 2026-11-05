@@ -58,16 +58,20 @@ export function liveCards(legal: readonly Combo[], selection: readonly Card[]): 
 /** Passing on your own lead throws in the engine, so it is never offered (P:831). */
 export const canPass = (g: GameState | null, legal: readonly Combo[]): boolean => !!g && humanTurn(g) && (g.lastPlay !== null || legal.length === 0);
 
-/** The status line under the hand (P:836-842). */
-export function statusFor(g: GameState | null, legal: readonly Combo[], selection: readonly Card[]): Status {
+/**
+ * The status line under the hand (P:836-842). With Hints off, a table nothing in hand can beat
+ * reads like any other ("Pick cards that beat it, or pass.") instead of giving it away.
+ */
+export function statusFor(g: GameState | null, legal: readonly Combo[], selection: readonly Card[], hints = true): Status {
   if (!g) return { text: "", tone: "neutral" };
   if (!humanTurn(g)) return { text: g.phase === "playing" ? COPY.status.thinking(g.players[g.turn].name) : "", tone: "neutral" };
-  if (!legal.length) return { text: COPY.status.mustPass, tone: "bad" };
+  if (!legal.length && hints) return { text: COPY.status.mustPass, tone: "bad" };
   const sel = selection.slice().sort((a, b) => a - b);
   if (!sel.length) return { text: g.lastPlay ? COPY.status.beatIt : needThreeD(g) ? COPY.status.yourLead3D : COPY.status.yourLead, tone: "neutral" };
   const combo = classify(sel, g.rules);
   if (!combo) return { text: COPY.status.notAHand(sel.length), tone: "bad" };
   if (exactMove(legal, sel)) return { text: describe(combo), tone: "good" };
+  if (!legal.length) return { text: COPY.status.doesntBeat(describe(combo)), tone: "bad" };
   if (needThreeD(g) && !sel.includes(THREE_OF_DIAMONDS)) return { text: COPY.status.needs3D(describe(combo)), tone: "bad" };
   return { text: COPY.status.doesntBeat(describe(combo)), tone: "bad" };
 }

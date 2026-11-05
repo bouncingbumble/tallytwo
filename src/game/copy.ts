@@ -72,6 +72,8 @@ export const COPY = {
     fast: "Fast",
     normal: "Normal",
     slow: "Slow",
+    hints: "Hints",
+    hintsHint: "The Hint button, and a word when nothing you hold beats the table",
     sfx: "Card sounds",
     volume: "Volume",
     volumeMusic: "Music",

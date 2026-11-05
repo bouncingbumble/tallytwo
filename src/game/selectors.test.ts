@@ -125,6 +125,14 @@ test("status: nothing beats the table -> mustPass, bad", () => {
   expect(statusFor(g, legal, [])).toEqual({ text: COPY.status.mustPass, tone: "bad" });
 });
 
+test("status: with Hints off, a table nothing beats reads like any other", () => {
+  const g = humanFacing("3C 4C", "2S");
+  const legal = legalFor(g);
+  expect(statusFor(g, legal, [], false)).toEqual({ text: COPY.status.beatIt, tone: "neutral" });
+  expect(statusFor(g, legal, cards("3C"), false)).toEqual({ text: COPY.status.doesntBeat("Three of Clubs"), tone: "bad" });
+  expect(statusFor(g, legal, [], true)).toEqual({ text: COPY.status.mustPass, tone: "bad" });
+});
+
 test("status: following with nothing selected -> beatIt", () => {
   const g = humanFacing("3C AS", "9C");
   const legal = legalFor(g);

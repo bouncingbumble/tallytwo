@@ -17,6 +17,8 @@ export interface Opts {
   difficulty: Difficulty;
   /** Game speed: one setting for the AI's think time and every wait at the table (timing.ts SPEED). */
   gameSpeed: GameSpeed;
+  /** Hints: the Hint button and the "nothing here beats that" status line. Off hides both. */
+  hints: boolean;
   /** "Card sounds": the sfx bus on/off. */
   sfx: boolean;
   /** 0-1 multipliers over the sfxTable gains. */
@@ -33,6 +35,7 @@ export const DEFAULTS: Settings = {
   opts: {
     difficulty: "medium",
     gameSpeed: "normal",
+    hints: false,
     sfx: true,
     volume: { music: 1, sfx: 1 },
   },
@@ -82,6 +85,7 @@ export function parseSettings(raw: string | null | undefined): Settings {
     opts: {
       difficulty: oneOf<Difficulty>(o.difficulty, ["easy", "medium", "hard"], D.opts.difficulty),
       gameSpeed: oneOf<GameSpeed>(o.gameSpeed, GAME_SPEEDS, legacySpeed(o) ?? D.opts.gameSpeed),
+      hints: bool(o.hints, D.opts.hints),
       sfx: bool(o.sfx, D.opts.sfx),
       volume: {
         // the retired "Saloon piano" switch: a blob saved with it off keeps the music silent

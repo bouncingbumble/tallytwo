@@ -34,7 +34,7 @@ export function GameProvider({ audio, shell = NO_SHELL, children }: { audio: Aud
   const aiRng = useRef<Rng>(aiRngFor(0));
   const { list: barkList, show: showBark } = useBarks(); // show, never the whole object: a bark must not recreate act()
   const game = state.game;
-  const { rules } = useSettings();
+  const { opts, rules } = useSettings();
 
   // Rules apply to the game in progress the moment they change, not only to the next match.
   // appReduce's SET_RULES is a no-op when the game already has these rules (or there is no game),
@@ -119,7 +119,7 @@ export function GameProvider({ audio, shell = NO_SHELL, children }: { audio: Aud
   const exact = useMemo(() => exactMove(legal, selection), [legal, selection]);
   const live = useMemo(() => liveCards(legal, selection), [legal, selection]);
   const canPass = useMemo(() => canPassFor(game, legal), [game, legal]);
-  const status = useMemo(() => statusFor(game, legal, selection), [game, legal, selection]);
+  const status = useMemo(() => statusFor(game, legal, selection, opts.hints), [game, legal, selection, opts.hints]);
   const sign = useMemo(() => signFor(game), [game]);
 
   const api = useMemo<GameApi>(

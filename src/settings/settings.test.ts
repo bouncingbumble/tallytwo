@@ -32,7 +32,7 @@ test("a prototype blob with changed values keeps every one that still exists", (
   const opts = { difficulty: "hard", speed: "slow", music: false, sfx: false, reduceMotion: true }; // the prototype's autoPass and sortBy are dropped: the player is never passed for, and a fresh deal is always in value order
   const s = parseSettings(JSON.stringify({ rules, opts }));
   expect(s.rules).toEqual({ straightWrap: true, flushSuitFirst: false }); // passLocksOut, mustLeadWith3D and laterRoundLead are no longer flags
-  expect(s.opts).toEqual({ difficulty: "hard", gameSpeed: "slow", sfx: false, volume: { music: 0, sfx: 1 } }); // the old piano switch off -> music volume 0; reduceMotion is no longer a setting
+  expect(s.opts).toEqual({ difficulty: "hard", gameSpeed: "slow", hints: false, sfx: false, volume: { music: 0, sfx: 1 } }); // the old piano switch off -> music volume 0; reduceMotion is no longer a setting
 });
 
 test("gameSpeed: normal by default, only slow / normal / fast accepted", () => {
@@ -52,6 +52,12 @@ test("gameSpeed: a blob from before the merge maps the old multiplier and pace o
   expect(speedOf({ gameSpeed: "slow", speed: "fast", speedMultiplier: 4 })).toBe("slow"); // a saved gameSpeed wins
   expect("speed" in parseSettings(JSON.stringify({ opts: { speed: "fast" } })).opts).toBe(false);
   expect("speedMultiplier" in parseSettings(JSON.stringify({ opts: { speedMultiplier: 2 } })).opts).toBe(false);
+});
+
+test("hints: off by default, kept when saved", () => {
+  expect(DEFAULTS.opts.hints).toBe(false);
+  expect(parseSettings(JSON.stringify({ opts: { hints: true } })).opts.hints).toBe(true);
+  expect(parseSettings(JSON.stringify({ opts: { hints: "yes" } })).opts.hints).toBe(false);
 });
 
 test("a wrong-typed field falls back to its default; the fields around it survive", () => {
@@ -86,7 +92,7 @@ test("round-trip through memoryStorage: parseSettings(await get(KEY)) after set"
   const storage = memoryStorage();
   const s: Settings = {
     rules: { ...DEFAULT_RULES, flushSuitFirst: false, straightWrap: true },
-    opts: { ...DEFAULTS.opts, gameSpeed: "fast", volume: { music: 0.5, sfx: 0.25 } },
+    opts: { ...DEFAULTS.opts, gameSpeed: "fast", hints: true, volume: { music: 0.5, sfx: 0.25 } },
   };
   expect(await storage.get(KEY)).toBeNull();
   expect(parseSettings(await storage.get(KEY))).toEqual(DEFAULTS);
