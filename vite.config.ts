@@ -74,7 +74,16 @@ function assetNotes(): Plugin {
   };
 }
 
+/**
+ * The public path the build is served under. GitHub Pages serves a project site from
+ * /<repo>/, so the deploy workflow (.github/workflows/pages.yml) sets BASE_PATH=/tallytwo/;
+ * the dev server, `vite preview` and a webview shell keep "/". Vite rewrites every imported
+ * asset and index.html's links to it; the few hand-written URLs read import.meta.env.BASE_URL.
+ */
+const base = process.env.BASE_PATH ?? "/";
+
 export default defineConfig({
+  base,
   plugins: [react(), assetNotes()],
   test: {
     environment: "node",

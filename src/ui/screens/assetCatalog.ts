@@ -136,9 +136,10 @@ function describe(name: AssetName): AssetRow {
 }
 
 /** Assets outside the manifest: the public/ icons index.html links and the npm font. */
+const BASE = import.meta.env.BASE_URL;
 const SHELL_ROWS: AssetRow[] = [
-  { name: "icon-192", file: "public/icons/icon-192.png", url: "/icons/icon-192.png", kind: "image", group: "App shell", use: "Favicon and home-screen icon" },
-  { name: "icon-512", file: "public/icons/icon-512.png", url: "/icons/icon-512.png", kind: "image", group: "App shell", use: "Large icon for app shells" },
+  { name: "icon-192", file: "public/icons/icon-192.png", url: BASE + "icons/icon-192.png", kind: "image", group: "App shell", use: "Favicon and home-screen icon" },
+  { name: "icon-512", file: "public/icons/icon-512.png", url: BASE + "icons/icon-512.png", kind: "image", group: "App shell", use: "Large icon for app shells" },
   { name: "Rye", file: "@fontsource/rye (npm)", url: null, kind: "font", group: "App shell", use: "Western display font" },
 ];
 

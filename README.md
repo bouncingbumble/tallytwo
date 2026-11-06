@@ -31,6 +31,10 @@ Pace: the table runs at `BASE_TIME_SCALE` (4×) times the prototype's waits — 
 
 Dev URL switches: `?seed=N` deals a fixed seed (seat 0 holds the 3♦ for seeds 3, 9, 14, 17; seed 17 also holds A-2-3-4-5). In a dev build `window.__tally = { act, game }` lets you dispatch from the console (`__tally.act({ type: "PLAY", player: 0, cards: [51] })` on your lead shows the crash screen).
 
+## Deploy
+
+Every push to `main` runs `.github/workflows/pages.yml`: the gate (typecheck, lint, tests, `sim 300`), then `vite build` with `BASE_PATH=/tallytwo/`, published to GitHub Pages at **https://bouncingbumble.github.io/tallytwo/**. A failed gate leaves the live site as it was. `BASE_PATH` only changes the public path (`vite.config.ts` `base`); locally and in a webview shell it stays `/`. On an iPhone, open the URL in Safari and Share › Add to Home Screen to run it full screen.
+
 ## Device checks
 
 The device gates are scripted in `e2e/play.mjs` (Playwright; not a dependency of the app):

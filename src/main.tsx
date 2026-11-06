@@ -13,8 +13,8 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { AssetsPage } from "./ui/screens/AssetsPage";
 
-// The one non-game path: /assets lists every asset (ui/screens/AssetsPage.tsx).
-const isAssetsPage = location.pathname.replace(/\/+$/, "") === "/assets";
+// The one non-game path: /assets lists every asset (ui/screens/AssetsPage.tsx), under the build's base path.
+const isAssetsPage = location.pathname.replace(/\/+$/, "") === import.meta.env.BASE_URL + "assets";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>{isAssetsPage ? <AssetsPage /> : <App />}</StrictMode>,

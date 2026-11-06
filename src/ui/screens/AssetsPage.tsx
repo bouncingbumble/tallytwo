@@ -63,7 +63,7 @@ export function AssetsPage() {
       <header className="ap-head">
         <h1 className="western">Tally Two assets</h1>
         <p className="muted">
-          {ASSET_ROWS.length} assets in use · <a href="/">back to the game</a>
+          {ASSET_ROWS.length} assets in use · <a href={import.meta.env.BASE_URL}>back to the game</a>
         </p>
       </header>
       {GROUPS.map((group) => {
