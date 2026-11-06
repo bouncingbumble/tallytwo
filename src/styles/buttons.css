@@ -7,12 +7,14 @@ button {
 .btn {
   border: 0;
   border-radius: 4px;
-  padding: 13px 16px;
+  min-height: var(--tap);
+  padding: 8px 16px;
   background: linear-gradient(180deg, var(--oak-light), var(--oak));
   box-shadow:
     0 3px 0 #1a0f07,
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  font-size: 15px;
+  font-size: var(--fs-em);
+  line-height: 1.2;
   transition:
     transform 0.08s ease,
     box-shadow 0.08s ease;
@@ -32,7 +34,7 @@ button {
   font-weight: 700;
 }
 .btn:disabled {
-  opacity: 0.38;
+  opacity: 0.5;
   cursor: default;
   transform: none;
   box-shadow: 0 3px 0 #1a0f07;
@@ -45,11 +47,17 @@ button:focus-visible {
   outline: 3px solid var(--amber);
   outline-offset: 2px;
 }
+/* a full --tap square to hit, whatever the glyph's size */
 .iconbtn {
   border: 0;
   background: transparent;
-  font-size: 20px;
-  padding: 4px 6px;
+  font-size: 26px;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0;
   line-height: 1;
   color: var(--dust);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }

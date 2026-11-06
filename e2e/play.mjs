@@ -13,7 +13,10 @@
 // 13-card fan steps >= 34 logical px and fits the strip (both rects scaled); nothing scrolls; a
 // drag in screen px reorders the hand (ui/Hand.tsx divides by k); every poster's deltas sum to
 // zero and totals carry; settings from the title show no "Quit game"; a switch flips;
-// localStorage is written; no console errors. Playwright's Chromium has no AAC decoder, so its
+// localStorage is written; no console errors. Size floors (styles/tokens.css) on every screen —
+// title, how to play, table, poster, settings: no visible text under MIN_TEXT_PX and no button,
+// select, slider or switch under MIN_TAP_PX, both in physical CSS px. They bind at "se-safari",
+// the smallest k designed for (0.75). Playwright's Chromium has no AAC decoder, so its
 // "audio: ... dropped" warnings are reported but not counted (the port degrades to silent
 // events by design; real Chrome decodes AAC).
 import { chromium, webkit } from "playwright";
@@ -26,10 +29,15 @@ mkdirSync(OUT, { recursive: true });
 
 /** The canvas height in logical px (render/scale.ts LOGICAL_H). */
 const LOGICAL_H = 440;
+/** Apple HIG floors in physical CSS px: 11-pt text, 44-pt controls (tokens.css --fs-min / --tap). */
+const MIN_TEXT_PX = 11;
+const MIN_TAP_PX = 44;
 
 const DEVICES = [
   // held sideways: the game is landscape-only
   { name: "se", viewport: { width: 667, height: 375 }, deviceScaleFactor: 2, mobile: true },
+  // the same phone in Safari with the address and tab bars showing: k = 0.75, the size floors' design point
+  { name: "se-safari", viewport: { width: 667, height: 331 }, deviceScaleFactor: 2, mobile: true },
   { name: "i15", viewport: { width: 852, height: 393 }, deviceScaleFactor: 3, mobile: true },
   // a desktop Chrome window: k > 1, the layout grows
   { name: "desktop", viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2, mobile: false },
@@ -88,6 +96,51 @@ async function playRound(page, shots) {
   }
 }
 
+/**
+ * The size floors on whatever is on screen: every visible text node's computed font-size times k
+ * (the scale is a transform, so computed sizes are logical), and every control's rect (rects are
+ * physical already). Elements under an open overlay are skipped: the overlay covers them.
+ */
+async function checkSizes(page, label, screen) {
+  const r = await page.evaluate(
+    ({ minText, minTap, logicalH }) => {
+      const k = innerHeight / logicalH;
+      const overlay = document.querySelector(".ov");
+      const shown = (el) => {
+        if (overlay && !overlay.contains(el)) return false;
+        if (el.closest(".sr-only")) return false;
+        const rect = el.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return false;
+        for (let e = el; e; e = e.parentElement) {
+          const cs = getComputedStyle(e);
+          if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) < 0.05) return false;
+        }
+        return true;
+      };
+      const name = (el) => el.tagName.toLowerCase() + (typeof el.className === "string" && el.className ? "." + el.className.trim().split(/\s+/).join(".") : "");
+      const text = [];
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const t = walker.currentNode.textContent.trim();
+        const el = walker.currentNode.parentElement;
+        if (!t || !shown(el)) continue;
+        const px = parseFloat(getComputedStyle(el).fontSize) * k;
+        if (px < minText) text.push(`${name(el)} "${t.slice(0, 20)}" ${px.toFixed(1)}px`);
+      }
+      const taps = [];
+      for (const el of document.querySelectorAll("button, select, input, [role=switch]")) {
+        if (!shown(el)) continue;
+        const b = el.getBoundingClientRect();
+        if (b.width < minTap - 0.5 || b.height < minTap - 0.5) taps.push(`${name(el)} "${(el.textContent || el.getAttribute("aria-label") || "").trim().slice(0, 16)}" ${b.width.toFixed(1)}x${b.height.toFixed(1)}`);
+      }
+      return { text, taps };
+    },
+    { minText: MIN_TEXT_PX, minTap: MIN_TAP_PX, logicalH: LOGICAL_H },
+  );
+  note(label, `${screen}: no text under ${MIN_TEXT_PX} CSS px${r.text.length ? " :: " + r.text.slice(0, 6).join(" | ") : ""}`, r.text.length === 0);
+  note(label, `${screen}: no control under ${MIN_TAP_PX}x${MIN_TAP_PX} CSS px${r.taps.length ? " :: " + r.taps.slice(0, 6).join(" | ") : ""}`, r.taps.length === 0);
+}
+
 async function runDevice(browserType, dev, label) {
   const browser = await browserType.launch();
   const ctx = await browser.newContext({
@@ -113,6 +166,7 @@ async function runDevice(browserType, dev, label) {
   await page.waitForSelector(".title", { timeout: 15000 });
   await page.screenshot({ path: `${shots}/title.png` });
   note(label, "title screen rendered");
+  await checkSizes(page, label, "title");
 
   // The scaled root is the viewport: k from the height, the width following, no letterbox.
   const fit = await page.evaluate(() => {
@@ -133,6 +187,7 @@ async function runDevice(browserType, dev, label) {
   await page.getByRole("button", { name: "How to play" }).click();
   await page.waitForSelector(".howto");
   await page.screenshot({ path: `${shots}/howto.png` });
+  await checkSizes(page, label, "how to play");
   await page.getByRole("button", { name: "Got it" }).click();
 
   await page.getByRole("button", { name: "Deal me in" }).click();
@@ -144,6 +199,7 @@ async function runDevice(browserType, dev, label) {
   const first = await page.locator(".hand .card").first().getAttribute("aria-label");
   note(label, `seed 3: seat ${g0?.turn} leads; leftmost card is the 3♦`, g0?.turn === 0 && first === "Three of Diamonds");
   await page.screenshot({ path: `${shots}/table-dealt.png` });
+  await checkSizes(page, label, "table");
 
   // Drag the 3♦ (leftmost) to the right end of the fan, in screen px (the hand divides by k):
   // the hand reorders, the drag's click selects nothing, and every card rests on a whole px again.
@@ -196,6 +252,7 @@ async function runDevice(browserType, dev, label) {
     if (r === 1) {
       await sleep(700); // let the poster's entry animation finish before the shot
       await page.screenshot({ path: `${shots}/poster.png` });
+      await checkSizes(page, label, "poster");
     }
     if (r < ROUNDS) {
       await page.getByRole("button", { name: "Next round" }).click();
@@ -211,6 +268,7 @@ async function runDevice(browserType, dev, label) {
   await page.getByRole("button", { name: "Settings" }).click();
   await page.waitForSelector(".sheet");
   await page.screenshot({ path: `${shots}/settings.png` });
+  await checkSizes(page, label, "settings");
   note(label, "settings from the title shows no Quit game", (await page.getByRole("button", { name: "Quit game" }).count()) === 0);
   const sw = page.locator('[role="switch"]').first();
   const before = await sw.getAttribute("aria-checked");

@@ -8,7 +8,7 @@ export const CARD_H = 128;
 /**
  * The most a fanned card ever shows of its left edge. The table is a phone held sideways, so a
  * 13-card hand spreads to 96 + 12 * 64 = 864 px when the strip allows and shrinks as far as the
- * strip needs (34 px on an iPhone SE, 41 on an iPhone 15).
+ * strip needs (43 px on an iPhone SE, 57 on an iPhone 15; render/scale.test.ts).
  */
 export const FAN_STEP_MAX = 64;
 /** The trick plays' card step: floor(72 * 0.42) for the 72-px cards on the felt (render/scale.ts PLAY_CARD_W). */

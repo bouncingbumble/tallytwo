@@ -21,6 +21,16 @@
   --cw-small: 72px;
   --ch-small: 96px;
 
+  /* Mobile size floors, in logical px of the 440-px canvas. The canvas is scaled by
+     k = viewportHeight / 440 (render/scale.ts), and the smallest k we design for is 0.75: an
+     iPhone SE held sideways in Safari with its toolbar showing (667x331). Every size below is
+     the target in physical CSS px divided by 0.75, and e2e/play.mjs gates on the physical sizes
+     at that viewport: no visible text under 11 CSS px, no control under 44x44 CSS px. */
+  --fs-min: 15px; /* 11.25 CSS px at k = 0.75 (Apple HIG minimum: 11 pt). Nothing smaller. */
+  --fs-body: 16px; /* 12 CSS px at k = 0.75 */
+  --fs-em: 18px; /* 13.5 CSS px: numbers and button labels */
+  --tap: 60px; /* 45 CSS px at k = 0.75 (Apple HIG minimum: 44 pt) */
+
   /* Textures and portraits are url() declarations written in the rules that use them
      (base.css, table.css, sprites.css), not here, so Vite resolves and hashes each file. */
 

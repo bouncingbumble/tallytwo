@@ -32,11 +32,11 @@ describe("fitScale", () => {
     expect(fitScale(0, 0).k).toBe(1); // a hidden window never divides by zero
   });
   test("a 13-card fan fits every target with a readable corner index", () => {
-    // table.css: 6-px padding each side, the 124-px side column and its 6-px gap, 8 + 8 of hand gutter
-    const availW = (viewportW: number, viewportH: number) => fitScale(viewportW, viewportH).logicalWidth - 12 - 130 - 16;
-    expect(fanLayout(13, Math.floor(availW(667, 375))).step).toBe(44);
-    expect(fanLayout(13, Math.floor(availW(852, 393))).step).toBe(58);
-    expect(fanLayout(13, Math.floor(availW(1280, 800))).step).toBe(37);
+    // table.css: 6-px padding each side, the 136-px side column and its 6-px gap, 8 + 8 of hand gutter
+    const availW = (viewportW: number, viewportH: number) => fitScale(viewportW, viewportH).logicalWidth - 12 - 142 - 16;
+    expect(fanLayout(13, Math.floor(availW(667, 375))).step).toBe(43);
+    expect(fanLayout(13, Math.floor(availW(852, 393))).step).toBe(57);
+    expect(fanLayout(13, Math.floor(availW(1280, 800))).step).toBe(36);
   });
 });
 

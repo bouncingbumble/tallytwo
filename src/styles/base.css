@@ -65,7 +65,7 @@ select {
 }
 .muted {
   color: var(--dust);
-  font-size: 12px;
+  font-size: var(--fs-min);
 }
 .sr-only {
   position: absolute;

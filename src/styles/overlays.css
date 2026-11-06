@@ -6,7 +6,7 @@
   inset: 0;
   background: rgba(12, 7, 3, 0.82);
   display: flex;
-  padding: 16px;
+  padding: 10px 16px;
   z-index: 20;
   overflow: auto;
   image-rendering: auto;
@@ -16,7 +16,7 @@
 }
 /* wide enough that a sideways phone shows most of Settings without scrolling */
 .sheet {
-  width: min(560px, 100%);
+  width: min(680px, 100%);
   background: linear-gradient(180deg, #3a2412, #251506);
   border-radius: 8px;
   padding: 16px;
@@ -25,83 +25,160 @@
     0 18px 40px rgba(0, 0, 0, 0.6);
 }
 .sheet h2 {
-  font-size: 22px;
+  font-size: 26px;
   margin: 0 0 10px;
   color: var(--amber);
 }
 .sheet h3 {
-  font-size: 14px;
-  margin: 16px 0 6px;
+  font-size: var(--fs-body);
+  margin: 16px 0 2px;
   color: var(--dust);
   font-weight: 600;
 }
+/* a row is at least a --tap tall and its label stretches to fill it, so a tap anywhere on the
+   text flips or focuses the control (htmlFor) */
 .row {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 0;
+  align-items: stretch;
+  gap: 12px;
+  min-height: var(--tap);
+  padding: 2px 0;
   border-bottom: 1px solid rgba(201, 176, 138, 0.14);
-  font-size: 14px;
+  font-size: var(--fs-em);
+  line-height: 1.25;
+}
+.row > :not(label) {
+  align-self: center;
 }
 .row:last-of-type {
   border-bottom: 0;
 }
 .row label {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   cursor: pointer;
 }
 .row .hintline {
   display: block;
-  font-size: 11px;
+  font-size: var(--fs-min);
   color: var(--dust);
   margin-top: 2px;
 }
-/* 16px, never smaller: iOS Safari zooms the page to bring a smaller focused control to 16px,
-   and with body overflow hidden there is no scrolling back. */
+/* 16px or more, never smaller: iOS Safari zooms the page to bring a smaller focused control to
+   16px (it reads the computed size, not the scaled one), and with body overflow hidden there is
+   no scrolling back. WebKit's native select ignores height, so it is drawn by hand: no
+   appearance, a --tap tall box and a CSS chevron. */
 select {
   font: inherit;
-  font-size: 16px;
-  background: #1a0f07;
+  font-size: var(--fs-em);
+  height: var(--tap);
+  min-width: 160px;
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #1a0f07;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--dust) 50%),
+    linear-gradient(135deg, var(--dust) 50%, transparent 50%);
+  background-position:
+    calc(100% - 22px) 50%,
+    calc(100% - 15px) 50%;
+  background-size: 7px 7px;
+  background-repeat: no-repeat;
   color: var(--bone);
   border: 1px solid #5c3a20;
-  border-radius: 4px;
-  padding: 6px 8px;
+  border-radius: 6px;
+  padding: 0 40px 0 14px;
 }
+/* The switch is a --tap square to hit; the 60x34 track (::before) and its knob (::after) are
+   drawn inside it, so the button's box, not the drawing, is what a thumb has to find. */
 .sw {
-  width: 46px;
-  height: 26px;
-  border-radius: 13px;
-  background: #1a0f07;
+  width: 72px;
+  height: var(--tap);
+  background: transparent;
   position: relative;
   flex: 0 0 auto;
-  border: 1px solid #5c3a20;
+  border: 0;
   cursor: pointer;
   padding: 0;
+}
+.sw::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: calc(50% - 17px);
+  width: 60px;
+  height: 34px;
+  box-sizing: border-box;
+  border-radius: 17px;
+  background: #1a0f07;
+  border: 1px solid #5c3a20;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 .sw::after {
   content: "";
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
+  left: 10px;
+  top: calc(50% - 13px);
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: var(--dust);
   transition:
     transform 0.15s ease,
     background 0.15s ease;
 }
-.sw[aria-checked="true"] {
+.sw[aria-checked="true"]::before {
   background: #4a2e19;
   border-color: var(--amber);
 }
 .sw[aria-checked="true"]::after {
-  transform: translateX(20px);
+  transform: translateX(26px);
   background: var(--amber);
 }
+/* The slider's box is a --tap tall so a thumb can grab it anywhere along the row; the track is
+   8 px and the knob 30 px, drawn per engine. */
 input[type="range"] {
-  flex: 0 0 120px;
+  flex: 0 0 220px;
+  height: var(--tap);
+  margin: 0;
+  background: transparent;
   accent-color: var(--amber);
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: #1a0f07;
+  box-shadow: inset 0 0 0 1px #5c3a20;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  margin-top: -11px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+input[type="range"]::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: #1a0f07;
+  box-shadow: inset 0 0 0 1px #5c3a20;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 .ovbtns {
   display: flex;
@@ -112,7 +189,7 @@ input[type="range"] {
   flex: 1;
 }
 .note {
-  font-size: 12px;
+  font-size: var(--fs-min);
   color: var(--dust);
   margin: 6px 0 0;
 }
@@ -213,7 +290,7 @@ input[type="range"] {
   margin: 2px 0 0;
 }
 .poster .reward {
-  font-size: 13px;
+  font-size: var(--fs-min);
   margin-top: 4px;
 }
 .poster .reward b {
@@ -224,11 +301,11 @@ input[type="range"] {
 .poster table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--fs-em);
   color: #2a1a0f;
 }
 .poster th {
-  font-size: 10px;
+  font-size: var(--fs-min);
   text-transform: none;
   color: #6b5433;
   font-weight: 600;
@@ -260,7 +337,7 @@ input[type="range"] {
 
 /* how to play */
 .howto p {
-  font-size: 14px;
+  font-size: var(--fs-body);
   margin: 6px 0;
 }
 .howto .ex {
@@ -275,7 +352,7 @@ pre.out {
   background: #120a04;
   border-radius: 4px;
   padding: 10px;
-  font-size: 11px;
+  font-size: var(--fs-min);
   line-height: 1.5;
   max-height: 42vh;
   overflow: auto;
