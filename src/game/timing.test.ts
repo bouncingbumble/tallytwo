@@ -14,10 +14,12 @@ import {
   FIRST_STEP_MS,
   GAME_SPEEDS,
   ROUND_OVER_MS,
-  SLAP_STAGGER_MS,
+  PLAY_FLY_MS,
+  PLAY_FLY_STAGGER_MS,
   SPEED,
   THINK,
   paced,
+  playLandMs,
   thinkMs,
 } from "./timing";
 
@@ -46,7 +48,8 @@ test("the constants are the prototype's numbers", () => {
   expect(FIRST_STEP_MS).toBe(700);
   expect(DOORS_MS).toBe(620);
   expect(DEAL_STAGGER_MS).toBe(32);
-  expect(SLAP_STAGGER_MS).toBe(40);
+  expect(PLAY_FLY_MS).toBe(700); // the prototype's 280-ms slap, now a flight from the portrait and a spread
+  expect(PLAY_FLY_STAGGER_MS).toBe(30);
   expect(BARK_MS).toBe(2000);
   expect(BARK_CHANCE).toBe(0.55);
   expect(FINAL_ROUND_MS).toBeGreaterThan(0);
@@ -69,4 +72,10 @@ test("one Game speed setting: slow is the old 1x table, normal 2x, fast the old 
     expect(paced(ms, "slow")).toBeGreaterThan(paced(ms, "normal"));
   }
   expect(paced(thinkMs("normal", 0.5), "normal")).toBeGreaterThan(paced(thinkMs("fast", 0.5), "fast"));
+});
+
+test("a play lands when its last card has spread: the flight plus one stagger per extra card", () => {
+  expect(playLandMs(1)).toBe(PLAY_FLY_MS);
+  expect(playLandMs(5)).toBe(PLAY_FLY_MS + 4 * PLAY_FLY_STAGGER_MS);
+  expect(playLandMs(0)).toBe(PLAY_FLY_MS);
 });

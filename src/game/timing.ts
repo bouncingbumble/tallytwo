@@ -58,8 +58,17 @@ export const FIRST_STEP_MS = 700;
 export const DOORS_MS = 620;
 /** Deal animation stagger per card. */
 export const DEAL_STAGGER_MS = 32;
-/** Pile slap stagger per card. */
-export const SLAP_STAGGER_MS = 40;
+/**
+ * A play's flight (styles/motion.css `fly`, ui/Pile.tsx): each card leaves from behind its
+ * player's portrait (from behind the hand for the human), flies to the middle of its slot with
+ * the others as a stack, then spreads into place. Fixed, not paced by Game speed: it is how
+ * long the eye needs, whatever the table's tempo. The prototype's slap was 280 ms.
+ */
+export const PLAY_FLY_MS = 700;
+/** Each card leaves this long after the one before it. */
+export const PLAY_FLY_STAGGER_MS = 30;
+/** Until the last card of an n-card play has spread into place. */
+export const playLandMs = (n: number): number => PLAY_FLY_MS + Math.max(0, n - 1) * PLAY_FLY_STAGGER_MS;
 /** How long a bark bubble shows, and the chance an AI speaks at all. */
 export const BARK_MS = 2000;
 export const BARK_CHANCE = 0.55;

@@ -36,13 +36,25 @@
     transform: translateY(0) scale(1);
   }
 }
-@keyframes slap {
-  from {
-    transform: translate(var(--x, 0px), -26px) scale(1.18) rotate(var(--rot, 0deg));
+/* A play's flight (ui/Pile.tsx, timing.PLAY_FLY_MS). Positions are the card's translate in its
+   slot: --ox/--oy is behind the player's portrait (or in the hand strip), --cx the middle of the
+   play where the cards meet as a stack, --x the card's own rest place. Small and tumbling as it
+   leaves, it decelerates into the stack, then the stack spreads with a little overshoot. */
+@keyframes fly {
+  0% {
+    transform: translate(var(--ox, 0px), var(--oy, -120px)) scale(0.6) rotate(calc(var(--rot, 0deg) * -6));
     opacity: 0;
+    animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
   }
-  to {
-    transform: translate(var(--x, 0px), 0) rotate(0deg);
+  8% {
+    opacity: 1;
+  }
+  58% {
+    transform: translate(var(--cx, 0px), 0) scale(1.04) rotate(var(--rot, 0deg));
+    animation-timing-function: cubic-bezier(0.3, 0.9, 0.35, 1.15);
+  }
+  100% {
+    transform: translate(var(--x, 0px), 0) scale(1) rotate(0deg);
     opacity: 1;
   }
 }

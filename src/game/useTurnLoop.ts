@@ -20,7 +20,7 @@
 import { useEffect } from "react";
 import { useSettings } from "../settings/useSettings";
 import { HUMAN } from "./selectors";
-import { FIRST_STEP_MS, ROUND_OVER_MS, paced, thinkMs } from "./timing";
+import { FIRST_STEP_MS, ROUND_OVER_MS, paced, playLandMs, thinkMs } from "./timing";
 import { useGame } from "./useGame";
 
 export function useTurnLoop(paused: boolean): void {
@@ -31,16 +31,19 @@ export function useTurnLoop(paused: boolean): void {
     if (!game || paused || crash) return; // no timers in a hidden tab, under the landscape overlay, or on the crash screen
     // Every wait is paced by the Game speed setting, and only by it.
     const clamp = (ms: number) => paced(ms, opts.gameSpeed);
+    // A play's flight onto the felt is a fixed length, not paced: nothing happens next until it has landed.
+    const last = game.history.at(-1);
+    const landing = last && last.cards.length ? playLandMs(last.cards.length) : 0;
     if (game.phase === "roundover") {
       // The turn stays on the winner, which is how the two delays tell human and AI apart.
-      const t = setTimeout(() => act({ type: "SCORE_ROUND" }), clamp(game.turn === HUMAN ? ROUND_OVER_MS.human : ROUND_OVER_MS.ai));
+      const t = setTimeout(() => act({ type: "SCORE_ROUND" }), landing + clamp(game.turn === HUMAN ? ROUND_OVER_MS.human : ROUND_OVER_MS.ai));
       return () => clearTimeout(t);
     }
     if (game.phase !== "playing") return;
     const seat = game.turn;
     if (game.players[seat].kind === "human") return; // the player's move, however long it takes
     const extra = game.history.length === 0 ? FIRST_STEP_MS : 0;
-    const t = setTimeout(() => actAi(seat, opts.difficulty), clamp(thinkMs(opts.gameSpeed, Math.random()) + extra));
+    const t = setTimeout(() => actAi(seat, opts.difficulty), landing + clamp(thinkMs(opts.gameSpeed, Math.random()) + extra));
     return () => clearTimeout(t);
   }, [game, paused, crash, opts.gameSpeed, opts.difficulty, act, actAi]);
 }

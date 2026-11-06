@@ -125,7 +125,7 @@ Every millisecond lives in `src/game/timing.ts`; nothing else in `src/` may hold
 | `FIRST_STEP_MS` | 700 | P:1037 |
 | `DOORS_MS` | 620 | P:1228 |
 | `DEAL_STAGGER_MS` | 32 per card | P:775 |
-| `SLAP_STAGGER_MS` | 40 per card | P:883 |
+| `PLAY_FLY_MS` / `PLAY_FLY_STAGGER_MS` / `playLandMs(n)` | 700 / 30 per card: a play flies from behind its player's portrait (the hand strip for the human), meets as a stack, then spreads (`motion.css` `fly`). Not paced; the turn loop adds `playLandMs` to the next wait so nothing moves until it lands | new (the prototype's 280-ms slap, 40-ms stagger: P:883) |
 | `BARK_MS` / `BARK_CHANCE` | 2000 / 0.55 | P:894-899 |
 | `SELECT_MS` | 160 (the select lift) | P:151 |
 
