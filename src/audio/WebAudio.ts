@@ -125,7 +125,7 @@ export class WebAudio implements AudioPort {
   private tensionOn = false;
   /** Context time the last music fade-out ends: no music loop starts before it. */
   private fadingUntil = 0;
-  /** suspend() was asked for (hidden tab, landscape): play() must not wake the context until resume(). */
+  /** suspend() was asked for (hidden tab, upright phone): play() must not wake the context until resume(). */
   private held = false;
 
   constructor(opts: WebAudioOptions = {}) {

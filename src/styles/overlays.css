@@ -362,3 +362,68 @@ pre.out {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* The rotate gate (ui/RotatePrompt.tsx): fixed over everything, outside the scaled .game, so it
+   is sized in physical CSS px. A phone outline turns from upright to sideways on a loop. */
+.rotate-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: max(24px, env(safe-area-inset-top)) 32px max(24px, env(safe-area-inset-bottom));
+  text-align: center;
+  background-color: var(--oak-deep);
+  background-image: url("../assets/sprites/wood.png");
+  background-size: 96px 96px;
+  color: var(--bone);
+  touch-action: none;
+}
+.rotate-prompt h2 {
+  margin: 12px 0 0;
+  font-size: 26px;
+  line-height: 1.2;
+  color: var(--amber);
+}
+.rotate-prompt p {
+  margin: 0;
+  max-width: 280px;
+  font-size: 16px;
+  color: var(--dust);
+}
+.rotate-phone {
+  width: 56px;
+  height: 96px;
+  border: 4px solid var(--bone);
+  border-radius: 10px;
+  padding: 6px 4px;
+  animation: rotate-phone 2.4s ease-in-out infinite;
+}
+.rotate-phone-screen {
+  width: 100%;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--felt);
+}
+@keyframes rotate-phone {
+  0%,
+  20% {
+    transform: rotate(0deg);
+  }
+  50%,
+  80% {
+    transform: rotate(-90deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rotate-phone {
+    animation: none;
+    transform: rotate(-90deg);
+  }
+}

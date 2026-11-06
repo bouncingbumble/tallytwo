@@ -18,10 +18,12 @@ import { useBridgeInsets, useBridgePause, useBridgeReady } from "./platform/useB
 import { ScaleContext, fitClass, fitStyle, useFitScale } from "./platform/useFitScale";
 import { useNotchSide } from "./platform/useNotchSide";
 import { usePageVisibility } from "./platform/usePageVisibility";
+import { usePortraitBlock } from "./platform/usePortraitBlock";
 import { webStorage } from "./platform/webStorage";
 import { SettingsProvider } from "./settings/SettingsProvider";
 import { CrashScreen } from "./ui/CrashScreen";
 import { ErrorBoundary } from "./ui/ErrorBoundary";
+import { RotatePrompt } from "./ui/RotatePrompt";
 import { HowToSheet } from "./ui/screens/HowToSheet";
 import { ResultsPoster } from "./ui/screens/ResultsPoster";
 import { SettingsSheet } from "./ui/screens/SettingsSheet";
@@ -58,11 +60,13 @@ export function App() {
 function Screens({ seed }: { seed?: number }) {
   const { game, crash, act, audio } = useGame();
   const [sheet, setSheet] = useState<Sheet>("none");
-  // The table is laid out for a phone held sideways (styles/table.css); there is no orientation
-  // gate, so only a hidden tab — or the shell saying `pause` — pauses the AI.
+  // The table is laid out for a phone held sideways (styles/table.css): an upright phone gets the
+  // rotate prompt over an inert game, and the AI pauses behind it — as it does for a hidden tab
+  // or the shell saying `pause`.
   const hidden = usePageVisibility();
-  const shellPaused = useBridgePause(); // both hooks always run: no `||` short-circuit between them
-  const paused = hidden || shellPaused;
+  const shellPaused = useBridgePause(); // all three hooks always run: no `||` short-circuit between them
+  const upright = usePortraitBlock();
+  const paused = hidden || shellPaused || upright;
   // The logical canvas scaled to the viewport (platform/useFitScale.ts): k rides on ScaleContext
   // for the hooks that measure the DOM.
   const fit = useFitScale();
@@ -85,7 +89,7 @@ function Screens({ seed }: { seed?: number }) {
   const closeSheet = () => setSheet("none");
   return (
     <ScaleContext value={fit.k}>
-      <div className={fitClass(fit) + (notch ? " notch-" + notch : "")} style={fitStyle(fit)} ref={gameRef}>
+      <div className={fitClass(fit) + (notch ? " notch-" + notch : "")} style={fitStyle(fit)} ref={gameRef} inert={upright} aria-hidden={upright || undefined}>
         {crash ? (
           <CrashScreen report={crash} onReset={() => act({ type: "QUIT" })} />
         ) : game === null ? (
@@ -99,6 +103,7 @@ function Screens({ seed }: { seed?: number }) {
         {!crash && sheet === "settings" && <SettingsSheet onClose={closeSheet} />}
         {!crash && sheet === "howto" && <HowToSheet onClose={closeSheet} />}
       </div>
+      {upright && <RotatePrompt />}
     </ScaleContext>
   );
 }

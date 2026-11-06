@@ -2,7 +2,7 @@
  * The turn loop: ONE effect that arms ONE timer from the current game state and clears it on
  * every change (the prototype's single S.timer, P:922). AI think delay and roundover ->
  * SCORE_ROUND live here. The human's turn arms nothing: the player is never passed for them,
- * even with no legal move — the Pass button is the only way on. `paused` (hidden tab, landscape
+ * even with no legal move — the Pass button is the only way on. `paused` (hidden tab, rotate
  * overlay) is computed in App.tsx so no DOM object appears in this file; it copies to React
  * Native unchanged.
  *
@@ -28,7 +28,7 @@ export function useTurnLoop(paused: boolean): void {
   const { opts } = useSettings();
 
   useEffect(() => {
-    if (!game || paused || crash) return; // no timers in a hidden tab, under the landscape overlay, or on the crash screen
+    if (!game || paused || crash) return; // no timers in a hidden tab, under the rotate prompt, or on the crash screen
     // Every wait is paced by the Game speed setting, and only by it.
     const clamp = (ms: number) => paced(ms, opts.gameSpeed);
     // A play's flight onto the felt is a fixed length, not paced: nothing happens next until it has landed.
