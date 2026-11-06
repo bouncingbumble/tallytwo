@@ -16,6 +16,7 @@ import { bridge, bridgeShell } from "./platform/bridge";
 import { bridgeStorage } from "./platform/bridgeStorage";
 import { useBridgeInsets, useBridgePause, useBridgeReady } from "./platform/useBridge";
 import { ScaleContext, fitClass, fitStyle, useFitScale } from "./platform/useFitScale";
+import { useNotchSide } from "./platform/useNotchSide";
 import { usePageVisibility } from "./platform/usePageVisibility";
 import { webStorage } from "./platform/webStorage";
 import { SettingsProvider } from "./settings/SettingsProvider";
@@ -65,6 +66,8 @@ function Screens({ seed }: { seed?: number }) {
   // The logical canvas scaled to the viewport (platform/useFitScale.ts): k rides on ScaleContext
   // for the hooks that measure the DOM.
   const fit = useFitScale();
+  // The island's edge, so the table clears it on that side only (styles/table.css --clear-*).
+  const notch = useNotchSide();
   const gameRef = useRef<HTMLDivElement>(null);
   useBridgeInsets(gameRef);
   useBridgeReady();
@@ -82,7 +85,7 @@ function Screens({ seed }: { seed?: number }) {
   const closeSheet = () => setSheet("none");
   return (
     <ScaleContext value={fit.k}>
-      <div className={fitClass(fit)} style={fitStyle(fit)} ref={gameRef}>
+      <div className={fitClass(fit) + (notch ? " notch-" + notch : "")} style={fitStyle(fit)} ref={gameRef}>
         {crash ? (
           <CrashScreen report={crash} onReset={() => act({ type: "QUIT" })} />
         ) : game === null ? (

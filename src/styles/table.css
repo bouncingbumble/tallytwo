@@ -8,16 +8,31 @@
    cards are 72x96. Every px here is a logical px of the 440-px-tall canvas (base.css .game): the
    vertical budget is 2 + (2 + 90 + 2 + 98 + 6) + 2 + 122 + 2 = 326, and the three play rows
    overlap by 41 px on it. Text and buttons respect the size floors in tokens.css (--fs-min,
-   --tap), chosen for k = 0.75. The side padding is the safe-area inset where that is larger than
-   6 px: --inset-* when a native shell sets them on .game, else the browser's env(). */
+   --tap), chosen for k = 0.75.
+
+   Edges: the table runs out to both sides of the screen, the felt and the hand to the left edge
+   and the side column to the right, with only --edge (16 logical px, 12-16 physical) to clear
+   the screen's rounded corners. The notch / Dynamic Island is handled where it actually is,
+   not with a full-height safe-area gutter: in landscape it sits mid-height on one long edge,
+   where only the trick's middle row (on the left) or the sign and status (on the right) can
+   meet it, so only those step in, by --clear-l / --clear-r: the safe-area inset beyond --edge.
+   iOS reports that inset on BOTH sides, so App.tsx marks the island's side on .game
+   (`notch-left` / `notch-right`, platform/useNotchSide.ts) and the other side's clearance is
+   dropped. The insets are --inset-* (logical px) when a native shell sends them, else the
+   browser's env() in physical px, divided by k into logical px. */
 .table {
-  --side-w: 136px;
+  --edge: 16px;
+  --safe-l: var(--inset-left, calc(env(safe-area-inset-left, 0px) / var(--k, 1)));
+  --safe-r: var(--inset-right, calc(env(safe-area-inset-right, 0px) / var(--k, 1)));
+  --clear-l: max(0px, calc(var(--safe-l) - var(--edge)));
+  --clear-r: max(0px, calc(var(--safe-r) - var(--edge)));
+  --side-w: calc(136px + var(--clear-r));
   --hand-h: calc(var(--ch) - 6px);
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--side-w);
   grid-template-rows: minmax(0, 1fr) var(--hand-h);
   gap: 2px 6px;
-  padding: 2px max(6px, var(--inset-right, env(safe-area-inset-right))) 2px max(6px, var(--inset-left, env(safe-area-inset-left)));
+  padding: 2px var(--edge);
   background:
     linear-gradient(180deg, rgba(42, 26, 15, 0.92), rgba(28, 17, 8, 0.97)),
     url("../assets/sprites/wood.png");
@@ -264,6 +279,8 @@
   grid-column: 1 / -1;
   grid-row: 2;
   position: relative;
+  /* the island, when it is on the left, is level with the trick's middle row */
+  margin-left: var(--clear-l);
   min-height: calc(var(--ch-small) + 2px);
 }
 .play {
@@ -332,8 +349,14 @@
   gap: 6px;
   min-height: 0;
   min-width: 0;
-  padding: 2px 0 var(--inset-bottom, env(safe-area-inset-bottom, 0px));
+  padding: 2px 0 var(--inset-bottom, calc(env(safe-area-inset-bottom, 0px) / var(--k, 1)));
   image-rendering: auto;
+}
+/* the island, when it is on the right, is level with the sign and the status line; the round
+   and tally above and the buttons below run out to the edge */
+.side .sign,
+.status {
+  margin-right: var(--clear-r);
 }
 .topbar {
   display: grid;
@@ -531,4 +554,12 @@
 }
 .hand .card.deal {
   animation: deal 0.38s ease backwards;
+}
+
+/* iOS reports the island's inset on both long edges; only the island's side keeps its clearance */
+.game.notch-left .table {
+  --clear-r: 0px;
+}
+.game.notch-right .table {
+  --clear-l: 0px;
 }
