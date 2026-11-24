@@ -1,6 +1,9 @@
 /** Integer fan positions: step 64 when the strip allows, shrinking to fit, never wider than the strip. */
 import { describe, expect, test } from "vitest";
 import { FAN_STEP_MAX, PILE_STEP, SELECT_LIFT, fanLayout } from "./fanLayout";
+import { cardIndexAt } from "./handGesture";
+import { CORNER_INDEX_ART, fitScale } from "./scale";
+import { tableLayout } from "./tableLayout";
 
 describe("fanLayout", () => {
   test("13 cards on the phones held sideways", () => {
@@ -40,5 +43,24 @@ describe("fanLayout", () => {
     expect(PILE_STEP).toBe(30);
     expect(SELECT_LIFT).toBe(26); // raised from 14 so a selection reads at a glance (docs/MOBILE_UX_PLAN.md §4.3)
     expect(FAN_STEP_MAX).toBe(64);
+  });
+});
+
+describe("the index corners stay exposed on every device (docs/MOBILE_UX_PLAN.md §9)", () => {
+  // the four e2e geometries: the phones held sideways (the SE with Safari's toolbars too) and a desktop window
+  const DEVICES: readonly [string, number, number][] = [
+    ["iPhone SE", 667, 375],
+    ["iPhone SE, toolbars showing", 667, 331],
+    ["iPhone 15", 852, 393],
+    ["desktop", 1280, 800],
+  ];
+  test.each(DEVICES)("%s: a 13-card fan shows at least a corner index of every card", (_name, vw, vh) => {
+    const { logicalWidth } = fitScale(vw, vh);
+    const t = tableLayout({ width: logicalWidth, clearL: 0, clearR: 0, insetBottom: 0 });
+    const f = fanLayout(13, t.fan.w);
+    expect(f.step).toBeGreaterThanOrEqual(CORNER_INDEX_ART);
+    expect(f.x0 + f.span).toBeLessThanOrEqual(t.fan.w);
+    // and the card under the finger is found from its exposed strip (render/handGesture.ts cardIndexAt)
+    for (let i = 0; i < 13; i++) expect(cardIndexAt(f.xs[i] + 1, f)).toBe(i);
   });
 });

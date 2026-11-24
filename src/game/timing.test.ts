@@ -14,7 +14,11 @@ import {
   FINAL_ROUND_MS,
   FIRST_STEP_MS,
   GAME_SPEEDS,
+  MOTION,
   ROUND_OVER_MS,
+  SHEET,
+  TITLE,
+  TRANSITION,
   PLAY_FLY_MS,
   PLAY_FLY_STAGGER_MS,
   SPEED,
@@ -90,4 +94,49 @@ test("a play lands when its last card has spread: the flight plus one stagger pe
   expect(playLandMs(1)).toBe(PLAY_FLY_MS);
   expect(playLandMs(5)).toBe(PLAY_FLY_MS + 4 * PLAY_FLY_STAGGER_MS);
   expect(playLandMs(0)).toBe(PLAY_FLY_MS);
+});
+
+/* ---- presentation motion (docs/MOBILE_UX_PLAN.md §1.5, §9) ---- */
+
+test("MOTION: each token sits in its band, and the bands are in order", () => {
+  // feedback 80-150 ms (a finger's answer), UI transitions 150-350 ms, emphasis 380-700 ms
+  const feedback = [MOTION.press, MOTION.micro, MOTION.knob];
+  const ui = [MOTION.slide, MOTION.uiOut, MOTION.uiIn, MOTION.shake, MOTION.trickHold];
+  const emphasis = [MOTION.dealIn, MOTION.trickSweep, MOTION.emphasis, MOTION.doorsGlow, MOTION.settle];
+  const within = (ds: readonly number[], lo: number, hi: number) => {
+    for (const d of ds) {
+      expect(d).toBeGreaterThanOrEqual(lo);
+      expect(d).toBeLessThanOrEqual(hi);
+    }
+  };
+  within(feedback, 80, 150);
+  within(ui, 150, 350);
+  within(emphasis, 380, 700);
+  expect(Math.max(...feedback)).toBeLessThanOrEqual(Math.min(...ui));
+  expect(Math.max(...ui)).toBeLessThan(Math.min(...emphasis));
+  // within a family: a press is quicker than a pop, leaving quicker than arriving
+  expect(MOTION.press).toBeLessThan(MOTION.micro);
+  expect(MOTION.uiOut).toBeLessThan(MOTION.uiIn);
+  expect(MOTION.uiIn).toBeLessThan(MOTION.emphasis);
+  // the long runs are how long a thing stays on screen, not a move: they outlast every move
+  expect(MOTION.bark).toBeGreaterThan(MOTION.settle);
+  expect(MOTION.announce).toBeGreaterThan(MOTION.bark);
+  expect(MOTION.pulse).toBeGreaterThan(MOTION.emphasis);
+});
+
+test("screens and sheets move inside the UI band; the title's idle life never flashes", () => {
+  for (const d of [TRANSITION.throughDoorsMs, TRANSITION.fadeUpMs, SHEET.springBackMs]) {
+    expect(d).toBeGreaterThanOrEqual(150);
+    expect(d).toBeLessThanOrEqual(350);
+  }
+  // a flick's glide is emphasis-long: it is decelerating, not arriving
+  expect(SHEET.momentumMs).toBeLessThanOrEqual(700);
+  // under 3 flashes a second (principle 1.7): the flicker's quickest step is at least 1/2 s apart
+  expect(TITLE.flickerMs[0]).toBeGreaterThanOrEqual(500);
+  expect(TITLE.flickerMs[1]).toBeGreaterThan(TITLE.flickerMs[0]);
+  expect(TITLE.swayEveryMs).toBeGreaterThan(TITLE.swayMs);
+  // the idle breathing rests at least as long as it breathed before it breathes again
+  expect(TITLE.idlePulseMs).toBeGreaterThanOrEqual(MOTION.pulse * 2);
+  // Deal me in leaves through the doors and the table is up within a second of the tap
+  expect(DOORS_MS + TRANSITION.throughDoorsMs + TRANSITION.fadeUpMs).toBeLessThanOrEqual(1200);
 });

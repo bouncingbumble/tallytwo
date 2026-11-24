@@ -1,6 +1,6 @@
 # Plan: Mobile UI/UX and motion pass
 
-Status: **in progress, on `main`**. Phases 0–4 are done (see "Progress" at the end); Phase 5 is next. Decisions taken 2026-11 (§12): flick-to-play on by default; opponents are dealt to; no haptics for now (visual feedback only); losers' leftover cards are revealed only on Greenhorn; swipe-to-select adopted (reorder moves to press-and-hold, then drag).
+Status: **done**. Phases 0–7 are done (see "Progress" at the end); a few items are deferred or need a real iPhone, listed there. Decisions taken 2026-11 (§12): flick-to-play on by default; opponents are dealt to; no haptics for now (visual feedback only); losers' leftover cards are revealed only on Greenhorn; swipe-to-select adopted (reorder moves to press-and-hold, then drag).
 
 Scope: `src/phaser/**`, `src/game/timing.ts`, `src/render/*Layout.ts`, a few new selectors in `src/game/selectors.ts`, and two new settings. The shell bridge is untouched. The engine, AI, stores, and audio stay as they are. This plan builds on the Phaser port (`PHASER_MIGRATION.md`) and keeps its contracts: the 440-px logical canvas, integer rest poses, the size floors (`theme.ts` `FS_MIN` / `TAP`), no rules in scenes, and no layout numbers outside `render/`.
 
@@ -369,3 +369,32 @@ Not done in Phase 2:
   - **The per-frame script budget (≤ 8 ms on an SE-class device)** is only measurable on the device (the `?perf=1` overlay); headless numbers are reported, not gated.
   - **GC pauses during a trick clear are not measured.** Pooling removes the allocation they came from (about 80 CardViews and 56 backs per round), but no browser API used here reports GC.
 - **`e2e/play.mjs WEBKIT=0`** runs the phone profiles in Chromium where WebKit is not installed. 112/112 checks pass across the four profiles.
+
+**Phase 7, done.**
+- **Unit tests** (node):
+  - `timing.test.ts`: every `MOTION` token sits in its band (feedback 80–150, UI 150–350, emphasis 380–700 ms), and the bands are in order. The transitions and sheets stay in the UI band. The title's flicker never steps faster than 2 Hz. Deal me in to the table takes ≤ 1.2 s.
+  - `fanLayout.test.ts`: at all four e2e geometries a 13-card fan's step is at least the corner index (`CORNER_INDEX_ART`), and `cardIndexAt` finds every card from its exposed strip.
+  - `render/sheetDrag.test.ts`: the sheet drag maths (Phase 5).
+  - `primaryAction`, `tableEvents` (the trick's winner) and `paintSelection` were already covered (Phases 1–3).
+- **`boundary.test.ts`:** nothing under `src/phaser/**` writes a card face's alpha (`.face.setAlpha`, `.face.alpha =`, or a tween targeting `.face` with `alpha`). The timing-literal rule was already in place.
+- **`e2e/play.mjs` additions:**
+  - the sheets close by ✕, by a tap on the dim, and by a pull (a short one springs back);
+  - a tap during the deal makes the hand live within 200 ms (13–18 ms here, one frame);
+  - a tap on disabled Play changes nothing;
+  - after a play has settled every card is opaque at a whole-px rest;
+  - after a resize the rebuilt hand sits exactly where a fresh build at that size puts it;
+  - a lost WebGL context (`WEBGL_lose_context`) pauses the table, and the first frame after the restore is drawn, not blank;
+  - on the desktop, a whole round under reduced motion starts no tween over 120 ms. It starts none at all: every motion is gated by `ms()`.
+  - The swipe, flick and dimming checks were already there (Phase 2).
+  - With `WEBKIT=0`, all four geometries run in Chromium.
+- **Screenshot diffs** (`e2e/visual.mjs`, `npm run e2e:visual`): four still screens per device (title, settings, the table dealt, the table with the 3♦ selected) under reduced motion, compared in the browser with `e2e/baselines/*.jpg`. A screen fails when more than 0.5 % of pixels move more than 40/255; a failure writes the screenshot and a red diff to `e2e/shots/visual/`, and `UPDATE=1` re-baselines.
+  - **Deviation:** the plan said to diff against Phase 0 baselines, but the Phase 0 shots were never committed (`e2e/shots/` is git-ignored). These baselines are this commit's screens, in Chromium at dpr 1. WebKit renders text differently enough that it needs its own baselines on a machine that has it.
+- **Device checklist** (manual, real iPhone, Safari and the Home Screen app). None of these can be checked headless:
+  - [ ] Flick-to-play never fires on a sideways reorder or a single-card tap.
+  - [ ] Swipe vs hold-to-rearrange, with a thumb: a swipe never picks a card up, and a 180-ms hold always does.
+  - [ ] F2 (the torn card mid-flight) is gone. It only ever showed in headless Chromium's software GL.
+  - [ ] 60 fps in Safari's frame meter (or `?perf=1`) during the deal and a trick clear, and ≤ 8 ms script per frame on an SE-class phone.
+  - [ ] Rotation and the toolbar collapsing mid-animation: the cards glide to their new places, a sheet keeps its scroll, the poster does not drop in again.
+  - [ ] Background the app during the deal (a WebGL context loss on iOS): it comes back drawn and the table resumes.
+  - [ ] Sheets: the pull-to-dismiss and the momentum scroll feel native (iOS's own sheets are the reference).
+  - [ ] The title: the lamp flicker reads as a lamp, not a glitch, and the door sway is barely noticeable.

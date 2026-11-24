@@ -110,6 +110,27 @@ test("SCENES: no tween or timer duration written as a number literal (use game/t
   expect(offenders, offenders.join("\n")).toEqual([]);
 });
 
+/**
+ * A card face is never made see-through (docs/MOBILE_UX_PLAN.md F1): the cards overlap, so a
+ * translucent face shows the card under it. A card is dimmed by tint (cards.ts); a card fading in
+ * or out fades its whole container, never `.face` alone.
+ */
+const FACE_ALPHA = [/\.face\.setAlpha\(/, /\.face\.alpha\s*=[^=]/, /targets:\s*[^,}]*\.face\b[^}]*\balpha\s*:/];
+
+test("SCENES: nothing writes a card face's alpha", () => {
+  const offenders: string[] = [];
+  for (const file of walk(join(SRC, "phaser"))) {
+    const r = rel(file);
+    if (/\.test\.tsx?$/.test(r)) continue;
+    readFileSync(file, "utf8")
+      .split("\n")
+      .forEach((line, i) => {
+        if (FACE_ALPHA.some((re) => re.test(line))) offenders.push(`src/${r}:${i + 1}: ${line.trim()}`);
+      });
+  }
+  expect(offenders, offenders.join("\n")).toEqual([]);
+});
+
 test("the phaser/ walk sees the scenes (the rule is not vacuous)", () => {
   expect(walk(join(SRC, "phaser")).map(rel)).toEqual(expect.arrayContaining(["phaser/cards.ts", "phaser/table/Hand.ts", "phaser/scenes/Table.ts"]));
 });

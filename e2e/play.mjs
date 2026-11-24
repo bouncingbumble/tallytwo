@@ -151,6 +151,201 @@ async function handGestures(page, label, k, hand, fan) {
   note(label, `flick: the selected 3♦ (legal: ${exact}) dragged up is played (history ${after} -> ${g.history}, ${g.counts[0]} cards left)`, exact && g.history > after && g.counts[0] === 12);
 }
 
+/**
+ * The sheets (docs/MOBILE_UX_PLAN.md §7.2), from the title: the ✕ closes Settings; a tap on the
+ * dim outside the panel closes How to play; How to play pulled down from the top of its body
+ * goes away; a short pull springs back and stays open.
+ */
+async function sheetChecks(page, label, k) {
+  const sheetIs = () => page.evaluate(() => window.__tally.sheet.get());
+  await tap(page, "title.settings", k);
+  const x = await waitTarget(page, "settings.close");
+  await sleep(500);
+  await page.mouse.click((x.x + x.w / 2) * k, (x.y + x.h / 2) * k);
+  await sleep(700);
+  note(label, `sheet: the ✕ closes Settings (sheet now "${await sheetIs()}")`, (await sheetIs()) === "none");
+
+  await tap(page, "title.howto", k);
+  await waitTarget(page, "howto.close");
+  await sleep(500);
+  const H = 440;
+  await page.mouse.click(4 * k, (H / 2) * k);
+  await sleep(700);
+  note(label, `sheet: a tap on the dim closes How to play (sheet now "${await sheetIs()}")`, (await sheetIs()) === "none");
+
+  await tap(page, "title.howto", k);
+  const c = await waitTarget(page, "howto.close");
+  await sleep(500);
+  const px = c.x - 120;
+  // a short pull springs back
+  await gesture(page, k, px, c.y + 30, [[px, c.y + 45], [px, c.y + 60]]);
+  await sleep(700);
+  const stayed = await sheetIs();
+  // a long pull dismisses
+  await gesture(page, k, px, c.y + 30, [[px, c.y + 80], [px, c.y + 140], [px, c.y + 200]]);
+  await sleep(700);
+  note(label, `sheet: a short pull springs back ("${stayed}"), a long pull dismisses ("${await sheetIs()}")`, stayed === "howto" && (await sheetIs()) === "none");
+}
+
+/** A tap on Play while it is switched off changes nothing (and breaks nothing). */
+async function disabledPlay(page, label, k) {
+  await page.evaluate(() => window.__tally.store.setSelection([]));
+  await sleep(300);
+  const before = await game(page);
+  const t = (await probe(page)).targets["table.play"];
+  await page.mouse.click((t.x + t.w / 2) * k, (t.y + t.h / 2) * k);
+  await sleep(500);
+  const after = await game(page);
+  const sel = await selection(page);
+  note(label, `a tap on disabled Play (enabled: ${t.enabled}) leaves the game as it was (history ${before.history} -> ${after.history}, ${sel.length} selected)`, !t.enabled && after.history === before.history && after.counts[0] === before.counts[0] && sel.length === 0);
+}
+
+/**
+ * A tap during the deal finishes it: the hand takes input within 200 ms of the tap (or, on a
+ * headless machine slower than that per frame, within the next two frames).
+ */
+async function dealSkip(page, label, k) {
+  for (let i = 0; i < 100; i++) {
+    const p = await probe(page);
+    if (p.table?.dealing) break;
+    await sleep(20);
+  }
+  const p = await probe(page);
+  if (!p.table?.dealing) return note(label, "deal skip: the deal was over before the tap could land (nothing to skip)");
+  await page.evaluate(() => {
+    window.__skip = null;
+    document.addEventListener(
+      "pointerdown",
+      () => {
+        const t0 = performance.now();
+        let frames = 0;
+        const tick = () => {
+          frames++;
+          if (!window.__tally.probe().table?.dealing) window.__skip = { ms: performance.now() - t0, frames };
+          else if (frames < 60) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      },
+      { once: true, capture: true },
+    );
+  });
+  const f = p.table.felt;
+  await page.mouse.click((f.x + f.w / 2) * k, (f.y + f.h / 2) * k);
+  let r = null;
+  for (let i = 0; i < 50 && !r; i++) {
+    await sleep(50);
+    r = await page.evaluate(() => window.__skip);
+  }
+  const hand = (await probe(page)).table.hand;
+  note(label, `deal skip: a tap finishes the deal, the hand live after ${r ? Math.round(r.ms) : "?"} ms (${r?.frames} frames), ${hand.length} cards at rest`, !!r && (r.ms <= 200 || r.frames <= 2) && hand.length === 13 && hand.every((c) => Number.isInteger(c.x) && c.faceAlpha === 1));
+}
+
+/**
+ * A viewport change rebuilds the table without losing its place (§7.3): once the cards have
+ * glided to their new places they sit exactly where a fresh build at that size puts them.
+ */
+async function resizeKeepsPlace(page, label, dev) {
+  const other = { width: dev.viewport.width - 120, height: dev.viewport.height - 24 };
+  await page.setViewportSize(other);
+  await sleep(1500);
+  const after = (await probe(page)).table.hand.map((c) => `${c.value}@${c.x},${c.y}`);
+  await page.evaluate(() => {
+    window.__tally.phaser.scene.getScene("Table").scene.restart({ animate: false });
+  });
+  await sleep(1200);
+  const fresh = (await probe(page)).table.hand.map((c) => `${c.value}@${c.x},${c.y}`);
+  await page.setViewportSize(dev.viewport);
+  await sleep(1500);
+  const same = after.length > 0 && after.join(" ") === fresh.join(" ");
+  note(label, `resize to ${other.width}x${other.height}: the rebuilt hand rests where a fresh build puts it (${after.length} cards)${same ? "" : " :: " + after.slice(0, 3).join(" ") + " vs " + fresh.slice(0, 3).join(" ")}`, same);
+}
+
+/**
+ * A lost WebGL context (§8): the table pauses while it is gone; on restore it unpauses and draws
+ * a real frame again (not a blank canvas).
+ */
+async function contextLoss(page, label) {
+  const lost = await page.evaluate(async () => {
+    const ph = window.__tally.phaser;
+    const gl = ph.renderer.gl;
+    const ext = gl?.getExtension("WEBGL_lose_context");
+    if (!ext) return { skipped: true };
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    ext.loseContext();
+    await wait(400);
+    const pausedWhileLost = window.__tally.store.view.paused;
+    // read the first frame drawn after the restore, in the same task as its draw
+    const drawn = new Promise((resolve) => {
+      ph.events.once("postrender", () => {
+        const c = document.createElement("canvas");
+        c.width = 64;
+        c.height = 32;
+        const g = c.getContext("2d");
+        g.drawImage(ph.canvas, 0, 0, 64, 32);
+        const d = g.getImageData(0, 0, 64, 32).data;
+        const lum = [];
+        for (let i = 0; i < d.length; i += 4) lum.push(d[i] + d[i + 1] + d[i + 2]);
+        const mean = lum.reduce((a, b) => a + b, 0) / lum.length;
+        const spread = Math.sqrt(lum.reduce((a, b) => a + (b - mean) ** 2, 0) / lum.length);
+        resolve({ mean, spread });
+      });
+    });
+    ext.restoreContext();
+    const frame = await Promise.race([drawn, wait(3000).then(() => null)]);
+    await wait(300);
+    return { pausedWhileLost, pausedAfter: window.__tally.store.view.paused, frame };
+  });
+  if (lost.skipped) return note(label, "context loss: WEBGL_lose_context not available here (skipped)");
+  note(
+    label,
+    `context loss: paused while lost (${lost.pausedWhileLost}), running after restore (paused ${lost.pausedAfter}), first frame back drawn (mean ${Math.round(lost.frame?.mean ?? 0)}, spread ${Math.round(lost.frame?.spread ?? 0)})`,
+    lost.pausedWhileLost === true && lost.pausedAfter === false && !!lost.frame && lost.frame.mean > 20 && lost.frame.spread > 10,
+  );
+}
+
+/** Every tween any scene starts from now on: the longest duration seen (a tween or one step of a chain). */
+async function watchTweens(page) {
+  await page.evaluate(() => {
+    window.__tw = { max: 0, n: 0, worst: "" };
+    const seen = (cfg, where) => {
+      const ds = [cfg?.duration ?? 0, ...(Array.isArray(cfg?.tweens) ? cfg.tweens.map((t) => t?.duration ?? 0) : [])];
+      for (const d of ds) {
+        window.__tw.n++;
+        if (d > window.__tw.max) window.__tw = { ...window.__tw, max: d, worst: `${where}: ${JSON.stringify(Object.keys(cfg ?? {}))}` };
+      }
+    };
+    for (const s of window.__tally.phaser.scene.scenes) {
+      const tm = s.tweens;
+      for (const fn of ["add", "chain"]) {
+        const orig = tm[fn].bind(tm);
+        tm[fn] = (cfg) => {
+          seen(cfg, `${s.scene.key}.${fn}`);
+          return orig(cfg);
+        };
+      }
+    }
+  });
+}
+
+/**
+ * Reduced motion (Settings › Motion › Reduced): a whole round, from Deal me in to the poster,
+ * starts no tween over 120 ms (§1.5, §2.3).
+ */
+async function reducedRound(page, label, k, shots) {
+  await page.evaluate(() => window.__tally.settings.setOpts({ motion: "reduced" }));
+  await watchTweens(page);
+  await tap(page, "title.deal", k);
+  await waitTarget(page, "table.play");
+  await playRound(page, k, shots);
+  await waitTarget(page, "poster.next");
+  await sleep(500);
+  const tw = await page.evaluate(() => window.__tw);
+  note(label, `reduced motion: a whole round, ${tw.n} tweens started, none over 120 ms (longest ${tw.max} ms${tw.max > 120 ? " :: " + tw.worst : ""})`, tw.max <= 120);
+  await page.evaluate(() => window.__tally.settings.setOpts({ motion: "auto" }));
+  await tap(page, "poster.saddle", k);
+  await waitTarget(page, "title.deal");
+}
+
 /** Tap a registered control at its centre. */
 async function tap(page, id, k) {
   await waitTarget(page, id);
@@ -278,6 +473,10 @@ async function runDevice(browserType, dev, label) {
   page.on("console", (m) => {
     if (m.type() === "error" || m.type() === "warning") errors.push(m.type() + ": " + m.text());
   });
+  let loaded = 0;
+  page.on("load", () => {
+    if (++loaded > 1 && !OFFLINE) console.log(`  !! [${label}] the page reloaded (${page.url()})`);
+  });
   const shots = `${OUT}${label}`;
   mkdirSync(shots, { recursive: true });
 
@@ -311,10 +510,13 @@ async function runDevice(browserType, dev, label) {
   await page.screenshot({ path: `${shots}/howto.png` });
   await checkSizes(page, label, "how to play", k);
   await page.evaluate(() => window.__tally.sheet.set("none")); // "Got it" sits below the fold on a short canvas
+  await sleep(400);
+  await sheetChecks(page, label, k);
 
   await tap(page, "title.deal", k);
   await waitTarget(page, "table.play");
-  await sleep(2000);
+  await dealSkip(page, label, k);
+  await sleep(1500);
   const p1 = await probe(page);
   const hand = p1.table.hand;
   note(label, `13 cards in hand (got ${hand.length})`, hand.length === 13);
@@ -329,7 +531,14 @@ async function runDevice(browserType, dev, label) {
   note(label, `13-card fan: step ${step} logical px (>= 34), span ${span} <= strip ${fan.w}, inside ${fan.x}-${fan.x + fan.w}`, step >= 34 && span <= fan.w && hand[0].x >= fan.x && hand.at(-1).x + 96 <= fan.x + fan.w);
   note(label, `card rest positions are whole logical px (${hand.slice(0, 3).map((c) => c.x + "," + c.y).join(" | ")} ...)`, hand.every((c) => Number.isInteger(c.x) && Number.isInteger(c.y)));
 
+  await disabledPlay(page, label, k);
   await handGestures(page, label, k, hand, fan);
+  // after the gestures have settled: every card opaque and at a whole-px rest
+  await sleep(800);
+  const settled = (await probe(page)).table.hand;
+  note(label, `after a play has settled: ${settled.length} cards, every face alpha 1, whole-px rest`, settled.length === 12 && settled.every((c) => c.faceAlpha === 1 && Number.isInteger(c.x) && Number.isInteger(c.y)));
+  await resizeKeepsPlace(page, label, dev);
+  await contextLoss(page, label);
 
   for (let r = 1; r <= ROUNDS; r++) {
     await playRound(page, k, shots);
@@ -372,6 +581,13 @@ async function runDevice(browserType, dev, label) {
   await tap(page, "settings.switch.Straights may wrap", k);
   const stored = await page.evaluate(() => localStorage.getItem("tallytwo.settings"));
   note(label, `localStorage tallytwo.settings written (${stored ? stored.length : 0} chars)`, !!stored && stored.includes("straightWrap"));
+
+  // one full round under reduced motion, on the desktop (a round is slow; once is enough)
+  if (!dev.mobile) {
+    await page.evaluate(() => window.__tally.sheet.set("none"));
+    await sleep(500);
+    await reducedRound(page, label, k, shots);
+  }
 
   const codec = errors.filter((e) => /audio: .* (unavailable|dropped)|Unable to decode audio data/.test(e));
   const real = errors.filter((e) => !codec.includes(e) && !/\[vite\]|GL Driver|GPU stall|WebGL/.test(e));

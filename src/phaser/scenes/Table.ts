@@ -435,7 +435,7 @@ export class TableScene extends BaseScene {
   }
 
   /** Geometry for the e2e probe. */
-  probe(): { hand: ReturnType<HandView["probe"]>; fan: TableLayout["fan"] } {
-    return { hand: this.#hand.probe(), fan: this.#t.fan };
+  probe(): { hand: ReturnType<HandView["probe"]>; fan: TableLayout["fan"]; felt: TableLayout["felt"]; dealing: boolean; poolMade: number } {
+    return { hand: this.#hand.probe(), fan: this.#t.fan, felt: this.#t.felt, dealing: this.#deal.running, poolMade: poolOf(this).made };
   }
 }
