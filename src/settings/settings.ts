@@ -33,6 +33,12 @@ export interface Opts {
   /** 0-1 multipliers over the sfxTable gains. */
   volume: Volume;
   motion: MotionPref;
+  /** Swipe across the hand to select several cards; off, a sideways drag rearranges at once (the old way). */
+  swipe: boolean;
+  /** Drag the selected cards up onto the felt to play them. */
+  flick: boolean;
+  /** The one-time "swipe to pick several" coach mark has been shown. */
+  swipeHintSeen: boolean;
 }
 
 export interface Settings {
@@ -49,6 +55,9 @@ export const DEFAULTS: Settings = {
     sfx: true,
     volume: { music: 1, sfx: 1 },
     motion: "auto",
+    swipe: true,
+    flick: true,
+    swipeHintSeen: false,
   },
 };
 
@@ -104,6 +113,9 @@ export function parseSettings(raw: string | null | undefined): Settings {
       },
       // the prototype's reduceMotion switch, when it was on, is kept as an explicit "reduced"
       motion: oneOf<MotionPref>(o.motion, MOTION_PREFS, o.reduceMotion === true ? "reduced" : D.opts.motion),
+      swipe: bool(o.swipe, D.opts.swipe),
+      flick: bool(o.flick, D.opts.flick),
+      swipeHintSeen: bool(o.swipeHintSeen, D.opts.swipeHintSeen),
     },
   };
 }

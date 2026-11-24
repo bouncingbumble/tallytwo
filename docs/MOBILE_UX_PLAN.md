@@ -1,6 +1,6 @@
 # Plan: Mobile UI/UX and motion pass
 
-Status: **in progress on branch `ux`** (on top of `perf`). Phase 0 and Phase 1 are done (see "Progress" at the end); Phase 2 is next. Decisions taken 2026-11 (§12): flick-to-play on by default; opponents are dealt to; no haptics for now (visual feedback only); losers' leftover cards are revealed only on Greenhorn; swipe-to-select adopted (reorder moves to press-and-hold, then drag).
+Status: **in progress on branch `ux`** (on top of `perf`). Phases 0, 1 and 2 are done (see "Progress" at the end); Phase 3 is next. Decisions taken 2026-11 (§12): flick-to-play on by default; opponents are dealt to; no haptics for now (visual feedback only); losers' leftover cards are revealed only on Greenhorn; swipe-to-select adopted (reorder moves to press-and-hold, then drag).
 
 Scope: `src/phaser/**`, `src/game/timing.ts`, `src/render/*Layout.ts`, a few new selectors in `src/game/selectors.ts`, and two new settings. The shell bridge is untouched. The engine, AI, stores, and audio stay as they are. This plan builds on the Phaser port (`PHASER_MIGRATION.md`) and keeps its contracts: the 440-px logical canvas, integer rest poses, the size floors (`theme.ts` `FS_MIN` / `TAP`), no rules in scenes, and no layout numbers outside `render/`.
 
@@ -258,6 +258,26 @@ Deviations from the plan:
 
 **Phase 1, done.**
 - **F1:** greyed and older trick cards are darkened by tint only and stay opaque. The e2e check "dimmed cards stay opaque" covers it.
-- **F2:** not reproduced on the perf build (frames captured through a play's flight, render-on-demand on). The perf branch's single card texture removed the `destination-out` shadow layer. It still needs a check on a real iPhone.
+- **F2:** see Phase 2: the tear is real, but only in headless Chromium.
 - **F3:** `selectors.primaryAction` (tested) decides the amber button. Pass turns amber when nothing in hand can beat the table. A switched-off filled button has a flat dark face instead of 50 % alpha. `Button.setKind()` paints the alternative faces up front.
 - **F9 (part):** a tap on a disabled button shakes it, and the status line pops.
+
+**Phase 2, done.**
+- **Gestures** (`render/handGesture.ts`, pure, 9 tests on pointer traces): tap, swipe-to-select (range-based, un-paints on the way back), flick-to-play (from a selected card, ≥ 40 px or flung, legal plays only), and hold-to-rearrange (180 ms; a 1.5× peek after another 400 ms).
+- **Settings:** Swipe to select and Flick to play (both on by default), plus `swipeHintSeen`.
+- **Hit areas:** one touch zone over the fan, from above a lifted card to the bottom edge. Each card owns its exposed strip (`cardIndexAt`).
+- **Selection:** `SELECT_LIFT` 14 → 26. Selected cards glow amber when they form a legal play (a `glow` frame on the card sheet).
+- **Hand → felt (F5):** your cards fly from exactly where they were, at their hand size, in a layer above the hand, then settle into the trick (`HandView.poseOf`, `TrickView.setOverLayer`).
+- **"No" feedback:** tapping a card that cannot join a legal play wobbles it (`fx.wobble`, a rotation, because a sideways shake would fight the card's slide). A flick that is not a play springs back and wobbles.
+- **Coach mark:** "Swipe across your cards to pick several" plus a sweeping finger, shown once to Hints-on players (`shouldCoach`, tested). It goes on the first swipe or after 4 s.
+- **e2e:** new checks for hold-then-drag, swipe and un-paint, deselect by swipe, an upward drag from an unselected card plays nothing, and a flick plays the 3♦. 121 checks pass on all four devices.
+- **Perf gate:** on the iPhone profile, 2 hitches, 46 draws per frame, worst frame 95 ms (was 113).
+- **Docs:** README and ARCHITECTURE §9 describe the gestures.
+- **Gesture timing uses `performance.now()`, not the frame clock.** A slow frame in headless Chromium had turned holds into swipes.
+
+F2 found: the torn card mid-flight appears in about 2 of 14 rotating frames in **headless Chromium**, with render-on-demand on or off, and also before the perf work. **WebKit shows none** across the same frames. The amber ring draws fully while one triangle of the face is missing, which points at Chromium's software GL (SwiftShader), not the game. It still needs one look in real desktop Chrome with a GPU.
+
+Not done in Phase 2:
+- **The fan arc for narrow fans (§4.1).** It is only needed below a 44-px step: desktop (34 px) and the iPhone SE (41 px). The exposed-strip hit-testing already covers taps there.
+- **A first-time status reason for invalid taps (§4.7).** The status line already says why ("doesn't beat it", "not a hand").
+- **`CardView` pooling.** This stays in Phase 6; the hand hands cards over by pose instead (same on screen, no shared objects).

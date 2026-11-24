@@ -105,6 +105,8 @@ export class SettingsScene extends SheetScene {
     row(t.gameSpeed, t.gameSpeedHint, PICKER_W, (x, ry) => new Picker(this, x, ry, PICKER_W, GAME_SPEED, opts().gameSpeed, (v) => settings.setOpts({ gameSpeed: v })));
     row(t.motion, t.motionHint, PICKER_W, (x, ry) => new Picker(this, x, ry, PICKER_W, MOTION_PICK, opts().motion, (v) => settings.setOpts({ motion: v })));
     switchRow(t.hints, t.hintsHint, () => opts().hints, (v) => settings.setOpts({ hints: v }));
+    switchRow(t.swipe, t.swipeHint, () => opts().swipe, (v) => settings.setOpts({ swipe: v }));
+    switchRow(t.flick, t.flickHint, () => opts().flick, (v) => settings.setOpts({ flick: v }));
     switchRow(t.sfx, undefined, () => opts().sfx, (v) => settings.setOpts({ sfx: v }));
     row(`${t.volume} · ${t.volumeMusic}`, undefined, SLIDER_W, (x, ry) => new Slider(this, x, ry, SLIDER_W, opts().volume.music, (v) => setVolume({ music: v })));
     row(`${t.volume} · ${t.volumeSfx}`, undefined, SLIDER_W, (x, ry) => new Slider(this, x, ry, SLIDER_W, opts().volume.sfx, (v) => setVolume({ sfx: v })));

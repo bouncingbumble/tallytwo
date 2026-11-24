@@ -38,7 +38,7 @@ describe("fanLayout", () => {
   });
   test("constants", () => {
     expect(PILE_STEP).toBe(30);
-    expect(SELECT_LIFT).toBe(14);
+    expect(SELECT_LIFT).toBe(26); // raised from 14 so a selection reads at a glance (docs/MOBILE_UX_PLAN.md §4.3)
     expect(FAN_STEP_MAX).toBe(64);
   });
 });

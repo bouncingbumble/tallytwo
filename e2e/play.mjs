@@ -72,6 +72,85 @@ async function waitTarget(page, id, timeout = 10000) {
   }
 }
 
+const selection = (page) => page.evaluate(() => [...window.__tally.store.view.selection]);
+
+/** Press at (x, y) logical, optionally hold, move through `path` (logical points), release. */
+async function gesture(page, k, x, y, path, holdMs = 0) {
+  await page.mouse.move(x * k, y * k);
+  await page.mouse.down();
+  if (holdMs) await sleep(holdMs);
+  for (const [px, py, after] of path) {
+    await page.mouse.move(px * k, py * k, { steps: 4 });
+    if (after) await after();
+  }
+  await page.mouse.up();
+}
+
+/**
+ * The hand's gestures (docs/MOBILE_UX_PLAN.md §4.2), on ?seed=3 where seat 0 leads holding the
+ * 3♦: hold-then-drag rearranges; dimmed faces stay opaque; a swipe paints a range and un-paints
+ * on the way back; a swipe from a selected card deselects; an upward drag from an unselected card
+ * plays nothing; a flick of the selected 3♦ plays it.
+ */
+async function handGestures(page, label, k, hand, fan) {
+  // hold the 3♦ (leftmost) still past GESTURE.holdMs, then drag it to the right end of the fan
+  const c0 = hand[0];
+  await gesture(page, k, c0.x + 16, c0.y + 100, [[c0.x + 40, c0.y + 100], [fan.x + fan.w - 20, c0.y + 100]], 350);
+  await sleep(1200);
+  let p = await probe(page);
+  let sel = await selection(page);
+  note(label, `hold-then-drag: the 3♦ dropped at the right end (rightmost now ${p.table.hand.at(-1).value}); ${sel.length} selected; whole-px rest`, p.table.hand.at(-1).value === 0 && sel.length === 0 && p.table.hand.every((c) => Number.isInteger(c.x)));
+
+  // select the 3♦ (now rightmost) so the cards that cannot join it dim: dimmed faces stay opaque
+  // (F1: a see-through face shows the overlapped card under it). Then deselect.
+  const r0 = p.table.hand.at(-1);
+  await page.mouse.click((r0.x + 48) * k, (r0.y + 100) * k);
+  await sleep(400);
+  const pDim = await probe(page);
+  const dimmed = pDim.table.hand.filter((c) => c.dim).length;
+  note(label, `dimmed cards stay opaque: ${dimmed} dimmed, every face alpha 1`, dimmed > 0 && pDim.table.hand.every((c) => c.faceAlpha === 1));
+  await page.mouse.click((r0.x + 48) * k, (r0.y + 100) * k);
+  await sleep(400);
+
+  // swipe across three cards, then back one: 3 selected mid-swipe, 2 at the end
+  const h = (await probe(page)).table.hand;
+  const at = (i) => h[i].x + 10;
+  const y = h[0].y + 100;
+  let mid = [];
+  await gesture(page, k, at(0), y, [[at(2), y, async () => (mid = await selection(page))], [at(1), y]]);
+  await sleep(300);
+  sel = await selection(page);
+  note(label, `swipe: 3 selected across three cards (${mid.length}), 2 after sliding back (${sel.length})`, mid.length === 3 && sel.length === 2 && sel.includes(h[0].value) && sel.includes(h[1].value));
+
+  // a swipe that starts on a selected card deselects
+  await gesture(page, k, at(0), y, [[at(1), y]]);
+  await sleep(300);
+  sel = await selection(page);
+  note(label, `swipe from a selected card deselects (${sel.length} selected)`, sel.length === 0);
+
+  // an upward drag from an unselected card never plays
+  const before = (await game(page)).history;
+  await gesture(page, k, at(3), y, [[at(3), y - 90]]);
+  await sleep(500);
+  const after = (await game(page)).history;
+  note(label, `an upward drag from an unselected card plays nothing (history ${before} -> ${after})`, after === before);
+  await page.evaluate(() => window.__tally.store.setSelection([]));
+  await sleep(300);
+
+  // flick: tap the 3♦ (a legal opening lead), then drag it up onto the felt
+  p = await probe(page);
+  const d = p.table.hand.find((c) => c.value === 0);
+  await page.mouse.click((d.x + 48) * k, (d.y + 100) * k);
+  await sleep(400);
+  const exact = await page.evaluate(() => window.__tally.store.view.exact !== null);
+  const lifted = (await probe(page)).table.hand.find((c) => c.value === 0);
+  await gesture(page, k, lifted.x + 48, lifted.y + 80, [[lifted.x + 48, lifted.y + 20], [lifted.x + 48, lifted.y - 40]]);
+  await sleep(1500);
+  const g = await game(page);
+  // the AI may already have answered by the time this reads, so check the player's own count
+  note(label, `flick: the selected 3♦ (legal: ${exact}) dragged up is played (history ${after} -> ${g.history}, ${g.counts[0]} cards left)`, exact && g.history > after && g.counts[0] === 12);
+}
+
 /** Tap a registered control at its centre. */
 async function tap(page, id, k) {
   await waitTarget(page, id);
@@ -242,28 +321,7 @@ async function runDevice(browserType, dev, label) {
   note(label, `13-card fan: step ${step} logical px (>= 34), span ${span} <= strip ${fan.w}, inside ${fan.x}-${fan.x + fan.w}`, step >= 34 && span <= fan.w && hand[0].x >= fan.x && hand.at(-1).x + 96 <= fan.x + fan.w);
   note(label, `card rest positions are whole logical px (${hand.slice(0, 3).map((c) => c.x + "," + c.y).join(" | ")} ...)`, hand.every((c) => Number.isInteger(c.x) && Number.isInteger(c.y)));
 
-  // drag the 3♦ (leftmost) to the right end of the fan, in screen px
-  const c0 = hand[0];
-  await page.mouse.move((c0.x + 16) * k, (c0.y + 64) * k);
-  await page.mouse.down();
-  await page.mouse.move((c0.x + 40) * k, (c0.y + 64) * k, { steps: 4 });
-  await page.mouse.move((fan.x + fan.w - 20) * k, (c0.y + 64) * k, { steps: 12 });
-  await page.mouse.up();
-  await sleep(1200);
-  const p2 = await probe(page);
-  const sel = await page.evaluate(() => window.__tally.store.view.selection.length);
-  note(label, `drag: the 3♦ dropped at the right end (rightmost now ${p2.table.hand.at(-1).value}); ${sel} selected; whole-px rest`, p2.table.hand.at(-1).value === 0 && sel === 0 && p2.table.hand.every((c) => Number.isInteger(c.x)));
-
-  // select the 3♦ (now rightmost) so the cards that cannot join it dim: dimmed faces stay opaque
-  // (docs/MOBILE_UX_PLAN.md F1: a see-through face shows the overlapped card under it). Then deselect.
-  const r0 = p2.table.hand.at(-1);
-  await page.mouse.click((r0.x + 48) * k, (r0.y + 64) * k);
-  await sleep(400);
-  const pDim = await probe(page);
-  const dimmed = pDim.table.hand.filter((c) => c.dim).length;
-  note(label, `dimmed cards stay opaque: ${dimmed} dimmed, every face alpha 1`, dimmed > 0 && pDim.table.hand.every((c) => c.faceAlpha === 1));
-  await page.mouse.click((r0.x + 48) * k, (r0.y + 64) * k);
-  await sleep(400);
+  await handGestures(page, label, k, hand, fan);
 
   for (let r = 1; r <= ROUNDS; r++) {
     await playRound(page, k, shots);

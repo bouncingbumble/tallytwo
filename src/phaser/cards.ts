@@ -40,7 +40,22 @@ export function cardFrames(): PaintedFrame[] {
     { key: `shadow-deep-${sizeKey(w, h)}`, w, h, pad: 24, res: SHADOW_RES, draw: shadowPainter(true) },
     { key: `ring-in-${sizeKey(w, h)}`, w, h, pad: 4, res: RING_RES, draw: ringPainter(true) },
     { key: `ring-out-${sizeKey(w, h)}`, w, h, pad: 4, res: RING_RES, draw: ringPainter(false) },
+    { key: `glow-${sizeKey(w, h)}`, w, h, pad: 16, res: SHADOW_RES, draw: glowPainter },
   ]);
+}
+
+/** The "this can be played" halo under a selected card whose selection is a legal play: soft amber, the box erased. */
+function glowPainter(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  ctx.save();
+  ctx.shadowColor = "rgba(240, 180, 87, 0.95)";
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = "#f0b457";
+  roundRect(ctx, 0, 0, w, h, 3);
+  ctx.fill();
+  ctx.restore();
+  ctx.globalCompositeOperation = "destination-out";
+  roundRect(ctx, 0, 0, w, h, 3);
+  ctx.fill();
 }
 
 /** A shadow under a w x h card, painted once per size and depth: the box itself erased, so the face's rounded corners stay clean. */
@@ -89,6 +104,8 @@ export class CardView extends Phaser.GameObjects.Container {
   #shadowDeep: Phaser.GameObjects.Image;
   #ringIn: Phaser.GameObjects.Image;
   #ringOut: Phaser.GameObjects.Image;
+  #glow: Phaser.GameObjects.Image;
+  #playable = false;
   #selected = false;
   #dim = false;
   #lit = false;
@@ -103,12 +120,13 @@ export class CardView extends Phaser.GameObjects.Container {
     const x0 = -w / 2;
     const y0 = -h / 2;
     const k = sizeKey(w, h);
+    this.#glow = sheetImage(scene, `glow-${k}`, x0, y0, w, h).setVisible(false);
     this.#shadow = sheetImage(scene, `shadow-${k}`, x0, y0, w, h);
     this.#shadowDeep = sheetImage(scene, `shadow-deep-${k}`, x0, y0, w, h).setVisible(false);
     this.face = sheetImage(scene, `face-${frameOf(value)}`, x0, y0, w, h);
     this.#ringIn = sheetImage(scene, `ring-in-${k}`, x0, y0, w, h).setVisible(false);
     this.#ringOut = sheetImage(scene, `ring-out-${k}`, x0, y0, w, h).setVisible(false);
-    this.add([this.#shadow, this.#shadowDeep, this.face, this.#ringIn, this.#ringOut]);
+    this.add([this.#glow, this.#shadow, this.#shadowDeep, this.face, this.#ringIn, this.#ringOut]);
     this.setSize(w, h);
     scene.add.existing(this);
   }
@@ -119,6 +137,7 @@ export class CardView extends Phaser.GameObjects.Container {
     this.#shadowDeep.setVisible(deep);
     this.#ringIn.setVisible(this.#selected);
     this.#ringOut.setVisible(!this.#selected && this.#lit);
+    this.#glow.setVisible(this.#selected && this.#playable);
     // Darkened by tint only, never by alpha: the cards overlap, so a see-through face shows the
     // card under it and the saloon behind (docs/MOBILE_UX_PLAN.md F1). The face stays opaque.
     if (this.#dim) this.face.setTint(DIM_TINT);
@@ -128,20 +147,23 @@ export class CardView extends Phaser.GameObjects.Container {
 
   /**
    * selected: lifted ring; dim: cannot complete a legal move; lit: the play to beat; lifted: being
-   * dragged; recede: an earlier play in the trick, pushed back behind the latest.
+   * dragged; recede: an earlier play in the trick, pushed back behind the latest; playable: the
+   * selection this card is in is a legal play (a selected card glows amber).
    */
-  setLook(o: { selected?: boolean; dim?: boolean; lit?: boolean; lifted?: boolean; recede?: boolean }): this {
+  setLook(o: { selected?: boolean; dim?: boolean; lit?: boolean; lifted?: boolean; recede?: boolean; playable?: boolean }): this {
     const sel = o.selected ?? this.#selected;
     const dim = o.dim ?? this.#dim;
     const lit = o.lit ?? this.#lit;
     const lifted = o.lifted ?? this.#lifted;
     const recede = o.recede ?? this.#recede;
-    if (sel === this.#selected && dim === this.#dim && lit === this.#lit && lifted === this.#lifted && recede === this.#recede) return this;
+    const playable = o.playable ?? this.#playable;
+    if (sel === this.#selected && dim === this.#dim && lit === this.#lit && lifted === this.#lifted && recede === this.#recede && playable === this.#playable) return this;
     this.#selected = sel;
     this.#dim = dim;
     this.#lit = lit;
     this.#lifted = lifted;
     this.#recede = recede;
+    this.#playable = playable;
     this.#draw();
     return this;
   }

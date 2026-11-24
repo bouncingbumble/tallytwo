@@ -32,7 +32,7 @@ test("a prototype blob with changed values keeps every one that still exists", (
   const opts = { difficulty: "hard", speed: "slow", music: false, sfx: false, reduceMotion: true }; // the prototype's autoPass and sortBy are dropped: the player is never passed for, and a fresh deal is always in value order
   const s = parseSettings(JSON.stringify({ rules, opts }));
   expect(s.rules).toEqual({ straightWrap: true }); // passLocksOut, mustLeadWith3D, laterRoundLead and flushSuitFirst are no longer flags (flushes always rank by suit first)
-  expect(s.opts).toEqual({ difficulty: "hard", gameSpeed: "slow", hints: false, sfx: false, volume: { music: 0, sfx: 1 }, motion: "reduced" }); // the old piano switch off -> music volume 0; the old reduceMotion on -> motion "reduced"
+  expect(s.opts).toEqual({ difficulty: "hard", gameSpeed: "slow", hints: false, sfx: false, volume: { music: 0, sfx: 1 }, motion: "reduced", swipe: true, flick: true, swipeHintSeen: false }); // the old piano switch off -> music volume 0; the old reduceMotion on -> motion "reduced"
 });
 
 test("motion: auto by default, only auto / full / reduced accepted; a saved motion beats the old reduceMotion", () => {
@@ -44,6 +44,13 @@ test("motion: auto by default, only auto / full / reduced accepted; a saved moti
   expect(motionOf({ reduceMotion: false })).toBe("auto");
   expect(motionOf({ motion: "full", reduceMotion: true })).toBe("full");
   expect("reduceMotion" in parseSettings(JSON.stringify({ opts: { reduceMotion: true } })).opts).toBe(false);
+});
+
+test("swipe / flick: on by default, kept when saved off; the swipe coach mark starts unseen", () => {
+  expect(DEFAULTS.opts).toMatchObject({ swipe: true, flick: true, swipeHintSeen: false });
+  const o = parseSettings(JSON.stringify({ opts: { swipe: false, flick: false, swipeHintSeen: true } })).opts;
+  expect(o).toMatchObject({ swipe: false, flick: false, swipeHintSeen: true });
+  expect(parseSettings(JSON.stringify({ opts: { swipe: "no" } })).opts.swipe).toBe(true);
 });
 
 test("motionReduced: auto follows the device, full and reduced override it", () => {

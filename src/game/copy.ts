@@ -49,6 +49,8 @@ export const COPY = {
     pass: "Pass",
     hint: "Hint",
     play: "Play",
+    /** The one-time coach mark over the hand (Settings › Swipe to select on). */
+    swipeCoach: "Swipe across your cards to pick several",
   },
   poster: {
     wanted: "WANTED",
@@ -90,6 +92,10 @@ export const COPY = {
     motionAuto: "Auto",
     motionFull: "Full",
     motionReduced: "Reduced",
+    swipe: "Swipe to select",
+    swipeHint: "Slide across your cards to pick several. Off: slide to rearrange",
+    flick: "Flick to play",
+    flickHint: "Drag your chosen cards up onto the felt to play them",
     seedLine: (seed: number, round: number) => `Seed ${seed} · round ${round}`,
     copyLog: "Copy game log",
     copied: "Copied",

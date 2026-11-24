@@ -89,6 +89,33 @@ export function shake(scene: Phaser.Scene, obj: Movable, px = 4, duration: numbe
   return claim(obj, "shake", h);
 }
 
+/** A rotational "no": a damped wiggle of `deg` that settles back on angle 0 (for a card whose x a slide may own). */
+export function wobble(scene: Phaser.Scene, obj: Movable, deg = 5, duration: number = MOTION.shake): FxHandle {
+  const d = ms(duration);
+  if (!d) return NONE;
+  running.get(obj)?.get("wobble")?.skip();
+  const p = { t: 0 };
+  const t = scene.tweens.add({
+    targets: p,
+    t: 1,
+    duration: d,
+    ease: "Linear",
+    onUpdate: () => obj.setAngle(deg * Math.sin(p.t * Math.PI * 5) * (1 - p.t)),
+  });
+  const h: FxHandle = {
+    skip() {
+      t.stop();
+      obj.setAngle(0);
+      release(obj, "wobble", h);
+    },
+  };
+  t.once("complete", () => {
+    obj.setAngle(0);
+    release(obj, "wobble", h);
+  });
+  return claim(obj, "wobble", h);
+}
+
 /**
  * A slow breathing scale loop: an idle reminder. Use sparingly — while it runs every frame draws
  * (render on demand counts it as an animation), so stop it as soon as it has done its job.

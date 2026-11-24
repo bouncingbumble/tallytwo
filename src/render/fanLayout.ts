@@ -13,8 +13,11 @@ export const CARD_H = 128;
 export const FAN_STEP_MAX = 64;
 /** The trick plays' card step: floor(72 * 0.42) for the 72-px cards on the felt (render/scale.ts PLAY_CARD_W). */
 export const PILE_STEP = 30;
-/** A selected card lifts this many CSS px. */
-export const SELECT_LIFT = 14;
+/** A selected card lifts this many logical px (was 14: too little to read at a glance on a phone). */
+export const SELECT_LIFT = 26;
+/** A card picked up to rearrange grows this much; held still longer, it grows to PEEK_SCALE above the fan. */
+export const HOLD_SCALE = 1.08;
+export const PEEK_SCALE = 1.5;
 
 export interface FanLayout {
   /** Distance between card left edges. */

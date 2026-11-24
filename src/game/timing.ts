@@ -130,6 +130,21 @@ export const DOORS_FRAMES_MS = { ajar: 200, open: 420 } as const;
 export const COPIED_MS = 1500;
 
 /**
+ * The hand's gestures (render/handGesture.ts, docs/MOBILE_UX_PLAN.md §4.2). Input timings, not
+ * motion: reduced motion does not change them.
+ */
+export const GESTURE = {
+  /** A press held still this long picks the card up to rearrange. */
+  holdMs: 180,
+  /** Held still this much longer after the pick-up, the card grows to a peek. */
+  peekMs: 400,
+  /** The select sound plays at most this often while a swipe paints cards. */
+  paintSfxMs: 40,
+  /** The one-time "swipe to pick several" coach mark goes away by itself after this. */
+  coachMs: 4000,
+} as const;
+
+/**
  * Named easings (Phaser ease names). Enter decelerates, exit accelerates, `land` overshoots a
  * little and is only for short moves (<= 300 ms: a long overshoot reads as a wobble, PERF_PLAN
  * 2.5), `settle` glides in without one.

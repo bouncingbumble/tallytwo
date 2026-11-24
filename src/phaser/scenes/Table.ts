@@ -9,12 +9,16 @@
  */
 import Phaser from "phaser";
 import type { GameView } from "../../game/store";
-import { HUMAN } from "../../game/selectors";
+import { COPY } from "../../game/copy";
+import { HUMAN, humanTurn } from "../../game/selectors";
+import { EASE, GESTURE, MOTION } from "../../game/timing";
+import { SELECT_LIFT, fanLayout } from "../../render/fanLayout";
+import { shouldCoach } from "../../render/handGesture";
 import { env } from "../../platform/env";
 import { type TableLayout, clearFor, tableLayout } from "../../render/tableLayout";
 import { ANNOUNCE_ANIM_MS, ms } from "../motion";
 import { artPattern, insetStroke, painted, roundRect, text } from "../paint";
-import { CSS, WESTERN } from "../theme";
+import { C, CSS, FS_BODY, WESTERN } from "../theme";
 import { fit } from "../viewport";
 import { HandView } from "../table/Hand";
 import { drawSaloon } from "../table/Saloon";
@@ -33,6 +37,9 @@ export class TableScene extends BaseScene {
   #announceId = 0;
   #animate = false;
   #prewarm = false;
+  #coach: Phaser.GameObjects.Container | null = null;
+  /** The coach mark has been shown and dismissed in this run of the scene. */
+  #coachDone = false;
   #last: GameView | null = null;
 
   constructor() {
@@ -110,12 +117,20 @@ export class TableScene extends BaseScene {
     });
 
     const { game, sheet } = this.app;
-    // the trick under the badges: a play flies out from behind its portrait
-    this.#trick = new TrickView(this, t, (seat) => (seat === HUMAN ? null : (this.#seats.find((s) => s.seat === seat)?.faceCentre() ?? null)));
+    // the trick under the badges: a play flies out from behind its portrait, or from the very spot in the hand
+    this.#trick = new TrickView(this, t, (seat, card) => (seat === HUMAN ? (this.#hand?.poseOf(card) ?? null) : (this.#seats.find((s) => s.seat === seat)?.faceCentre() ?? null)));
     for (const seat of [1, 2, 3]) this.#seats.push(new SeatView(this, seat, t.badges[seat]));
 
     drawSaloon(this, t.handRow);
-    this.#hand = new HandView(this, t.fan, game);
+    const opts = () => this.app.settings.opts;
+    this.#hand = new HandView(this, t.fan, game, () => ({ swipe: opts().swipe, flick: opts().flick }));
+    // the player's own play flies above the hand it leaves, then settles into the trick
+    this.#trick.setOverLayer(this.add.container(0, 0));
+    this.#coach = null;
+    this.#coachDone = false;
+    this.#hand.onGesture = (g) => {
+      if (g === "paint") this.#endCoach();
+    };
     this.#side = new SideView(this, t.side, t.sideClearR, game, () => sheet.set("settings"));
 
     if (this.#prewarm) {
@@ -144,6 +159,51 @@ export class TableScene extends BaseScene {
     this.#hand.update(v, animate);
     this.#side.update(v, this.app.settings.opts.hints);
     this.#updateAnnouncement(v);
+    if (shouldCoach(this.app.settings.opts, humanTurn(v.game), v.game.players[HUMAN].hand.length)) this.#showCoach();
+  }
+
+  /**
+   * The one-time "swipe to pick several" coach mark (docs/MOBILE_UX_PLAN.md §4.2): a plaque over
+   * the hand and a finger sweeping across the first cards. Gone on the first swipe or after
+   * GESTURE.coachMs, and never shown again (Settings swipeHintSeen).
+   */
+  #showCoach(): void {
+    if (this.#coach || this.#coachDone) return;
+    const fan = this.#t.fan;
+    const label = text(this, 0, 0, COPY.controls.swipeCoach, { size: FS_BODY, color: CSS.barkInk, align: "center" }).setOrigin(0.5);
+    const w = Math.ceil(label.width) + 28;
+    const h = Math.ceil(label.height) + 10;
+    const plate = painted(this, "coach", -w / 2, -h / 2, w, h, (ctx, pw, ph) => {
+      ctx.fillStyle = CSS.bone;
+      roundRect(ctx, 0, 0, pw, ph, ph / 2);
+      ctx.fill();
+      insetStroke(ctx, pw, ph, ph / 2, 2, CSS.amber);
+    });
+    const x0 = fan.x + 40;
+    const fy = fan.y + 64;
+    const finger = this.add.circle(x0, fy, 11, C.amber, 0.85).setStrokeStyle(2, C.bone);
+    const tag = this.add.container(Math.min(fan.x + fan.w / 2, x0 + w / 2), fan.y - SELECT_LIFT - h, [plate, label]);
+    this.#coach = this.add.container(0, 0, [tag, finger]);
+    const sweep = ms(MOTION.settle);
+    if (sweep) {
+      this.#coach.setAlpha(0);
+      this.tweens.add({ targets: this.#coach, alpha: 1, duration: ms(MOTION.uiIn), ease: EASE.fadeIn });
+      this.tweens.add({ targets: finger, x: x0 + 3 * fanLayout(13, fan.w).step, duration: sweep, ease: EASE.inOut, yoyo: true, repeat: 2 });
+    }
+    this.after(GESTURE.coachMs, () => this.#endCoach());
+  }
+
+  #endCoach(): void {
+    if (this.#coachDone) return;
+    this.#coachDone = true;
+    const c = this.#coach;
+    this.#coach = null;
+    if (c) {
+      const out = ms(MOTION.uiOut);
+      if (out) this.tweens.add({ targets: c, alpha: 0, duration: out, ease: EASE.fadeOut, onComplete: () => c.destroy() });
+      else c.destroy();
+    }
+    if (!this.app.settings.opts.swipeHintSeen) this.app.settings.setOpts({ swipeHintSeen: true });
   }
 
   /** The final-round banner: a wooden plaque dropped across the middle of the felt; it never takes a tap. */

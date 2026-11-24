@@ -1,27 +1,38 @@
 /**
  * The fanned hand (what ui/Hand.tsx did): every card at a whole-px x from fanLayout(), flown in
- * on a fresh deal, lifted when selected, dimmed when it cannot complete a legal move.
+ * on a fresh deal, lifted when selected, dimmed when it cannot complete a legal move, glowing
+ * amber when the selection is a legal play.
  *
- * Order: a fresh deal is sorted low to high, a rank's cards by suit (selectors.sortHand); from
- * then on the player drags cards anywhere, any time, and same-rank neighbours are put back low
- * suit to high (selectors.suitSortRuns). The order is view state per deal, never engine state,
- * and only shrinks as cards are played. A press becomes a drag once the pointer has moved
- * DRAG_THRESHOLD logical px: the card follows the pointer and the others slide to the slot
- * nearest its left edge; a press that never became a drag is a tap and toggles the card.
- * Pointer worldX is already logical px (the camera does the ÷k).
+ * Input (docs/MOBILE_UX_PLAN.md §4.2). One touch zone covers the fan, from above the lifted
+ * cards to the bottom edge; the card under a finger comes from the fan's geometry
+ * (handGesture.cardIndexAt: each card owns its exposed strip), never from object hits, so thin
+ * overlapped strips still register. Every press becomes exactly one gesture
+ * (handGesture.resolveGesture):
+ *
+ *   tap     toggles the card (a card that cannot join a legal play also wobbles "no")
+ *   paint   swipe-to-select: the cards between the first and the one under the finger take the
+ *           first card's new state, live; sliding back un-paints (paintSelection)
+ *   flick   from a selected card, upward: the selection follows the finger and, released far or
+ *           fast enough while it is a legal play, is played; otherwise it springs back
+ *   hold    held still: the card lifts and grows (and, held longer, grows to a peek), then
+ *           follows the finger to rearrange; same-rank neighbours are put back low suit to high
+ *
+ * The order is view state per deal, never engine state, and only shrinks as cards are played.
+ * Pointer worldX/Y are already logical px (the camera does the ÷k).
  */
 import Phaser from "phaser";
 import type { Card } from "../../engine/cards";
-import { HUMAN, sortHand, suitSortRuns } from "../../game/selectors";
+import { HUMAN, canToggle, sortHand, suitSortRuns } from "../../game/selectors";
 import type { GameStore, GameView } from "../../game/store";
-import { DEAL_STAGGER_MS } from "../../game/timing";
-import { CARD_H, CARD_W, SELECT_LIFT, fanLayout } from "../../render/fanLayout";
+import { DEAL_STAGGER_MS, EASE, GESTURE } from "../../game/timing";
+import { CARD_H, CARD_W, HOLD_SCALE, PEEK_SCALE, SELECT_LIFT, fanLayout } from "../../render/fanLayout";
+import { DRAG_THRESHOLD, FLICK_MAX, type Gesture, cardIndexAt, flickPlays, paintSelection, resolveGesture } from "../../render/handGesture";
+import { LOGICAL_H, PLAY_CARD_W } from "../../render/scale";
 import type { Rect } from "../../render/tableLayout";
-import { CardView, faceHitArea } from "../cards";
+import { CardView } from "../cards";
+import { pop, wobble } from "../fx";
 import { DEAL_IN_MS, SETTLE_MS, SLIDE_MS, ms } from "../motion";
-
-/** A pointer that travels this far (logical px) is dragging, not tapping. */
-const DRAG_THRESHOLD = 6;
+import type { FlyOrigin } from "./Trick";
 
 const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n));
 
@@ -31,15 +42,41 @@ function moveTo(hand: readonly Card[], card: Card, to: number): Card[] {
   return rest;
 }
 
-interface Drag {
-  card: Card;
+/** What the hand reads from Settings, live. */
+export interface HandOpts {
+  swipe: boolean;
+  flick: boolean;
+}
+
+/** One press on the hand, from pointerdown to release. */
+interface Press {
   pointerId: number;
-  /** Where the pointer took hold, relative to the card's left edge. */
+  card: Card;
+  /** The card's index in the fan at the press. */
+  idx: number;
+  /** Pointer at the press, logical px, and when. */
+  x: number;
+  y: number;
+  t: number;
+  onSelected: boolean;
+  gesture: Gesture | null;
+  /** paint: the selection at the press, the state being painted, the last card index painted. */
+  pressSel: readonly Card[];
+  paintOn: boolean;
+  paintTo: number;
+  /** hold: the pointer's offset from the card's left edge, and the card's dragged left edge (null until it moves). */
   grab: number;
-  /** The pointer's x at the press, in fan coordinates. */
-  startX: number;
-  /** The card's left edge while dragging; null until the press has travelled DRAG_THRESHOLD. */
-  x: number | null;
+  dragX: number | null;
+  /** hold: where the hold began, to tell a still hold (peek) from a drag. */
+  holdX: number;
+  holdY: number;
+  peeking: boolean;
+  /** flick: how far the selection is pulled (<= 0), and the upward speed at the last move (px/ms). */
+  dy: number;
+  vy: number;
+  lastY: number;
+  lastT: number;
+  timers: Phaser.Time.TimerEvent[];
 }
 
 export class HandView {
@@ -47,35 +84,51 @@ export class HandView {
   readonly layer: Phaser.GameObjects.Container;
   readonly #fan: Rect;
   readonly #store: GameStore;
+  readonly #opts: () => HandOpts;
   #dealId = -1;
   #order: Card[] = [];
   #count = 0;
   #settle = false;
-  #drag: Drag | null = null;
+  #press: Press | null = null;
   #views = new Map<Card, CardView>();
   #view: GameView | null = null;
   /** Each card's resting pose, so a repeat update does not restart its tween. */
-  #pose = new Map<Card, { x: number; y: number }>();
+  #pose = new Map<Card, { x: number; y: number; s: number }>();
+  #lastSfx = 0;
+  /** Called once per decided gesture (the coach mark goes on the first paint). */
+  onGesture: ((g: Gesture) => void) | null = null;
 
-  constructor(scene: Phaser.Scene, fan: Rect, store: GameStore) {
+  constructor(scene: Phaser.Scene, fan: Rect, store: GameStore, opts: () => HandOpts) {
     this.scene = scene;
     this.#fan = fan;
     this.#store = store;
-    this.layer = scene.add.container(fan.x, fan.y + fan.h - CARD_H);
+    this.#opts = opts;
+    const top = fan.y + fan.h - CARD_H;
+    this.layer = scene.add.container(fan.x, top);
+    // the touch zone: the fan's width, from above a lifted card to the bottom edge
+    const zy = top - SELECT_LIFT;
+    const zone = scene.add.zone(fan.x, zy, fan.w, LOGICAL_H - zy).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+    zone.on("pointerdown", this.#down, this);
     scene.input.on("pointermove", this.#move, this);
-    scene.input.on("pointerup", this.#release, this);
-    scene.input.on("pointerupoutside", this.#release, this);
+    scene.input.on("pointerup", this.#up, this);
+    scene.input.on("pointerupoutside", this.#up, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       scene.input.off("pointermove", this.#move, this);
-      scene.input.off("pointerup", this.#release, this);
-      scene.input.off("pointerupoutside", this.#release, this);
+      scene.input.off("pointerup", this.#up, this);
+      scene.input.off("pointerupoutside", this.#up, this);
+      this.#cancelTimers();
     });
   }
 
   /** The cards in fan order as the player has them, filtered to what is still held. */
-  #hand(raw: readonly Card[]): Card[] {
+  #hand(raw: readonly Card[] = this.#raw()): Card[] {
     const held = new Set(raw);
     return this.#order.filter((v) => held.has(v));
+  }
+
+  #raw(): readonly Card[] {
+    const g = this.#view?.game;
+    return g ? g.players[HUMAN].hand : [];
   }
 
   update(v: GameView, animate: boolean): void {
@@ -87,7 +140,7 @@ export class HandView {
       this.#order = sortHand(raw);
       this.#count = raw.length;
       this.#settle = false;
-      this.#drag = null;
+      this.#endPress();
       for (const c of this.#views.values()) c.destroy();
       this.#views.clear();
       this.#pose.clear();
@@ -95,6 +148,7 @@ export class HandView {
       // after a play the remaining cards close the gap at a slower pace
       this.#settle = raw.length < this.#count;
       this.#count = raw.length;
+      if (this.#press && !raw.includes(this.#press.card)) this.#endPress();
     }
     const held = new Set(raw);
     for (const [card, view] of this.#views) {
@@ -109,8 +163,6 @@ export class HandView {
     hand.forEach((card, i) => {
       if (this.#views.has(card)) return;
       const c = new CardView(this.scene, 0, CARD_H / 2, card, CARD_W, CARD_H);
-      c.face.setInteractive({ hitArea: faceHitArea(), hitAreaCallback: Phaser.Geom.Rectangle.Contains, useHandCursor: true });
-      c.face.on("pointerdown", (p: Phaser.Input.Pointer) => this.#press(card, p));
       this.layer.add(c);
       this.#views.set(card, c);
       if (dealIn) c.setData("dealIndex", i);
@@ -118,107 +170,306 @@ export class HandView {
     this.#layout(dealIn);
   }
 
-  /** Place every card: fan slot, lift, dim, drawing order; tween what moved. */
+  /** Where card `card` is now, for the trick to fly it from (absolute logical px, scale at play size). */
+  poseOf(card: Card): FlyOrigin | null {
+    const c = this.#views.get(card);
+    if (!c) return null;
+    return { x: this.layer.x + c.x, y: this.layer.y + c.y, scale: (c.scaleX * CARD_W) / PLAY_CARD_W };
+  }
+
+  /** Place every card: fan slot, lift, scale, look, drawing order; tween what moved. */
   #layout(dealIn = false): void {
     const v = this.#view;
     if (!v) return;
-    const raw = v.game ? v.game.players[HUMAN].hand : [];
-    const hand = this.#hand(raw);
+    const hand = this.#hand();
     const { xs, x0, step } = fanLayout(hand.length, this.#fan.w);
-    const resting = new Map(hand.map((c, i) => [c, i]));
-    const d = this.#drag && resting.has(this.#drag.card) ? this.#drag : null;
-    const target = d && d.x !== null && step > 0 ? clamp(Math.round((d.x - x0) / step), 0, hand.length - 1) : null;
-    const at = target !== null && d ? new Map(moveTo(hand, d.card, target).map((c, i) => [c, i])) : resting;
+    const p = this.#press && hand.includes(this.#press.card) ? this.#press : null;
+    const held = p?.gesture === "hold" ? p : null;
+    const flick = p?.gesture === "flick" ? p : null;
+    // a held card being dragged: the others make room at the slot nearest its left edge
+    const target = held && held.dragX !== null && step > 0 ? clamp(Math.round((held.dragX - x0) / step), 0, hand.length - 1) : null;
+    const at = new Map((target !== null && held ? moveTo(hand, held.card, target) : hand).map((c, i) => [c, i]));
     const selection = new Set(v.selection);
+    const playable = v.exact !== null;
     const ordered: CardView[] = [];
     for (const [card, view] of this.#views) {
       const i = at.get(card) ?? 0;
-      const dragging = d !== null && d.x !== null && d.card === card;
       const selected = selection.has(card);
-      const x = dragging && d.x !== null ? d.x : xs[i];
-      const y = selected || dragging ? -SELECT_LIFT : 0;
-      view.setLook({ selected, dim: v.live !== null && !v.live.has(card), lifted: dragging });
+      const isHeld = held?.card === card;
+      const pulled = flick !== null && selected;
+      view.setLook({ selected, dim: v.live !== null && !v.live.has(card), lifted: isHeld || pulled, playable: playable && selected });
       ordered[i] = view;
-      const cx = x + CARD_W / 2;
-      const cy = y + CARD_H / 2;
+      const t = this.#targetOf(xs[i], selected, isHeld ? held : null, pulled ? flick : null);
       const pose = this.#pose.get(card);
-      if (pose && pose.x === cx && pose.y === cy) continue;
-      this.#pose.set(card, { x: cx, y: cy });
-      const dealIndex = view.getData("dealIndex") as number | undefined;
-      if (dealIn && dealIndex !== undefined) {
-        // flies in from the dealer's corner: off up-left, turned and small
-        const W = this.scene.scale.gameSize.width / this.scene.cameras.main.zoom;
-        view.setPosition(cx - 0.4 * W, cy - 0.38 * 440).setAngle(-40).setScale(0.7).setAlpha(0);
-        this.scene.tweens.add({ targets: view, x: cx, y: cy, angle: 0, scale: 1, alpha: 1, delay: dealIndex * DEAL_STAGGER_MS, duration: ms(DEAL_IN_MS), ease: "Sine.Out" });
-        view.setData("dealIndex", undefined);
-        continue;
-      }
-      this.scene.tweens.killTweensOf(view);
-      view.setAngle(0).setScale(1).setAlpha(1);
-      if (dragging) view.setPosition(cx, cy);
-      // the quick slide keeps the CSS curve's little overshoot; the slow settle after a play
-      // glides in without one (a 640-ms overshoot reads as a wobble)
-      else if (this.#settle) this.scene.tweens.add({ targets: view, x: cx, y: cy, duration: ms(SETTLE_MS), ease: "Cubic.Out" });
-      else this.scene.tweens.add({ targets: view, x: cx, y: cy, duration: ms(SLIDE_MS), ease: "Back.Out", easeParams: [1.2] });
+      if (pose && pose.x === t.x && pose.y === t.y && pose.s === t.s) continue;
+      this.#pose.set(card, t);
+      if (dealIn && this.#dealIn(view, t.x, t.y)) continue;
+      this.#place(view, t.x, t.y, t.s, t.direct);
     }
-    // drawing order = fan order (so the topmost card under a finger is the one it sees), the dragged card above all
+    // drawing order = fan order; a held card, or the pulled selection, above all
     for (const view of ordered) if (view) this.layer.bringToTop(view);
-    if (d && d.x !== null) {
-      const dv = this.#views.get(d.card);
-      if (dv) this.layer.bringToTop(dv);
+    if (held) {
+      const hv = this.#views.get(held.card);
+      if (hv) this.layer.bringToTop(hv);
     }
+    if (flick) for (const c of v.selection) this.#topOf(c);
   }
+
+  /**
+   * Where a card rests (its centre, logical px in the layer) and at what scale: its fan slot,
+   * lifted when selected; a held card at the finger, grown (more while peeking); the pulled
+   * selection raised by the flick. `direct`: follow the finger with no tween.
+   */
+  #targetOf(slotX: number, selected: boolean, held: Press | null, flick: Press | null): { x: number; y: number; s: number; direct: boolean } {
+    const dragged = held !== null && held.dragX !== null;
+    const x = held && held.dragX !== null ? held.dragX : slotX;
+    let y = selected || held ? -SELECT_LIFT : 0;
+    if (held?.peeking) y -= Math.round((CARD_H * (PEEK_SCALE - 1)) / 2);
+    if (flick) y += flick.dy;
+    let s = 1;
+    if (held) s = held.peeking ? PEEK_SCALE : HOLD_SCALE;
+    return { x: x + CARD_W / 2, y: y + CARD_H / 2, s, direct: dragged || flick !== null };
+  }
+
+  /** A card of a fresh deal flies in from the dealer's corner: off up-left, turned and small. False if it is not dealing. */
+  #dealIn(view: CardView, cx: number, cy: number): boolean {
+    const dealIndex = view.getData("dealIndex") as number | undefined;
+    if (dealIndex === undefined) return false;
+    const W = this.scene.scale.gameSize.width / this.scene.cameras.main.zoom;
+    view.setPosition(cx - 0.4 * W, cy - 0.38 * LOGICAL_H).setAngle(-40).setScale(0.7).setAlpha(0);
+    this.scene.tweens.add({ targets: view, x: cx, y: cy, angle: 0, scale: 1, alpha: 1, delay: dealIndex * DEAL_STAGGER_MS, duration: ms(DEAL_IN_MS), ease: EASE.fadeIn });
+    view.setData("dealIndex", undefined);
+    return true;
+  }
+
+  #topOf(card: Card): void {
+    const view = this.#views.get(card);
+    if (view) this.layer.bringToTop(view);
+  }
+
+  /** Move one card to its pose: under the finger at once, else a slide (a settle after a play). */
+  #place(view: CardView, cx: number, cy: number, s: number, direct: boolean): void {
+    this.scene.tweens.killTweensOf(view);
+    view.setAngle(0).setAlpha(1);
+    if (direct) {
+      view.setPosition(cx, cy);
+      if (view.scale !== s) this.scene.tweens.add({ targets: view, scale: s, duration: ms(SLIDE_MS), ease: EASE.enter });
+      return;
+    }
+    // the quick slide keeps the CSS curve's little overshoot; the slow settle after a play
+    // glides in without one (a 640-ms overshoot reads as a wobble)
+    const d = ms(this.#settle ? SETTLE_MS : SLIDE_MS);
+    if (!d) {
+      view.setPosition(cx, cy).setScale(s);
+      return;
+    }
+    this.scene.tweens.add({ targets: view, x: cx, y: cy, scale: s, duration: d, ease: this.#settle ? EASE.settle : EASE.land, easeParams: this.#settle ? undefined : [1.2] });
+  }
+
+  /* ---------------- input ---------------- */
 
   #fanX(p: Phaser.Input.Pointer): number {
     return p.worldX - this.#fan.x;
   }
 
-  #press(card: Card, p: Phaser.Input.Pointer): void {
-    if (p.button !== 0) return;
+  #down(p: Phaser.Input.Pointer): void {
+    if (p.button !== 0 || this.#press) return;
     const v = this.#view;
     if (!v) return;
+    const hand = this.#hand();
+    const f = fanLayout(hand.length, this.#fan.w);
+    const idx = cardIndexAt(this.#fanX(p), f);
+    if (idx < 0) return;
+    const card = hand[idx];
     this.#settle = false;
-    const hand = this.#hand(v.game ? v.game.players[HUMAN].hand : []);
-    const { xs } = fanLayout(hand.length, this.#fan.w);
-    const px = this.#fanX(p);
-    const x = xs[hand.indexOf(card)] ?? 0;
-    this.#drag = { card, pointerId: p.id, grab: px - x, startX: px, x: null };
+    const now = performance.now();
+    const press: Press = {
+      pointerId: p.id,
+      card,
+      idx,
+      x: p.worldX,
+      y: p.worldY,
+      t: now,
+      onSelected: v.selection.includes(card),
+      gesture: null,
+      pressSel: v.selection,
+      paintOn: true,
+      paintTo: idx,
+      grab: this.#fanX(p) - f.xs[idx],
+      dragX: null,
+      holdX: p.worldX,
+      holdY: p.worldY,
+      peeking: false,
+      dy: 0,
+      vy: 0,
+      lastY: p.worldY,
+      lastT: now,
+      timers: [],
+    };
+    this.#press = press;
+    // held still: decided at the hold time even if the pointer never moves
+    press.timers.push(this.scene.time.delayedCall(GESTURE.holdMs, () => this.#decide(p.worldX, p.worldY, p)));
+  }
+
+  /** Run the arbitration; the first gesture it names is final. */
+  #decide(x: number, y: number, p: Phaser.Input.Pointer): void {
+    const press = this.#press;
+    if (!press || press.gesture || p.id !== press.pointerId) return;
+    const o = this.#opts();
+    const g = resolveGesture(press, x, y, performance.now(), { swipe: o.swipe, flick: o.flick, holdMs: GESTURE.holdMs });
+    if (!g) return;
+    press.gesture = g;
+    this.onGesture?.(g);
+    if (g === "paint") {
+      press.paintOn = !press.onSelected;
+      this.#paint(press, press.idx);
+    } else if (g === "hold") {
+      press.holdX = x;
+      press.holdY = y;
+      // a hold that began by moving (Swipe to select off) drags at once; a still one may peek
+      if (Math.hypot(x - press.x, y - press.y) < DRAG_THRESHOLD) press.timers.push(this.scene.time.delayedCall(GESTURE.peekMs, () => this.#peek(press)));
+      this.#store.audio.play("select");
+      this.#layout();
+    } else this.#layout();
   }
 
   #move(p: Phaser.Input.Pointer): void {
-    const d = this.#drag;
-    if (!d || p.id !== d.pointerId || !p.isDown) return;
-    const px = this.#fanX(p);
-    if (d.x === null && Math.abs(px - d.startX) < DRAG_THRESHOLD) return;
-    d.x = Math.round(clamp(px - d.grab, 0, Math.max(0, this.#fan.w - CARD_W)));
+    const press = this.#press;
+    if (!press || p.id !== press.pointerId || !p.isDown) return;
+    if (!press.gesture) this.#decide(p.worldX, p.worldY, p);
+    switch (press.gesture) {
+      case "paint":
+        this.#paint(press, cardIndexAt(this.#fanX(p), fanLayout(this.#hand().length, this.#fan.w)));
+        break;
+      case "hold":
+        this.#dragHeld(press, p);
+        break;
+      case "flick":
+        this.#pull(press, p);
+        break;
+      default:
+        break;
+    }
+  }
+
+  #up(p: Phaser.Input.Pointer): void {
+    const press = this.#press;
+    if (!press || p.id !== press.pointerId) return;
+    const v = this.#view;
+    this.#endPress();
+    if (!v) return;
+    switch (press.gesture) {
+      case null:
+        this.#tap(press.card, v);
+        break;
+      case "hold":
+        this.#drop(press);
+        break;
+      case "flick":
+        this.#release(press, v);
+        break;
+      default:
+        break; // a paint is already committed
+    }
     this.#layout();
   }
 
-  #release(p: Phaser.Input.Pointer): void {
-    const d = this.#drag;
-    if (!d || p.id !== d.pointerId) return;
-    this.#drag = null;
+  #cancelTimers(): void {
+    for (const t of this.#press?.timers ?? []) t.remove(false);
+  }
+
+  #endPress(): void {
+    this.#cancelTimers();
+    this.#press = null;
+  }
+
+  /* ---------------- gestures ---------------- */
+
+  #tap(card: Card, v: GameView): void {
+    const misfit = v.live !== null && !v.live.has(card) && !v.selection.includes(card);
+    this.#store.toggleCard(card); // the store re-renders us
+    const view = this.#views.get(card);
+    if (misfit && view && canToggle(v.game)) wobble(this.scene, view); // it cannot join a legal play with what is chosen
+  }
+
+  /** Swipe-to-select: the range from the first card to card `to` takes the painted state, live. */
+  #paint(press: Press, to: number): void {
     const v = this.#view;
-    if (d.x === null) {
-      this.#store.toggleCard(d.card); // a tap: the store re-renders us
+    if (!v || to < 0 || !canToggle(v.game)) return;
+    if (to === press.paintTo && v.selection !== press.pressSel) return;
+    press.paintTo = to;
+    const hand = this.#hand();
+    const next = paintSelection(press.pressSel, hand, press.idx, to, press.paintOn);
+    const before = new Set(v.selection);
+    const after = new Set(next);
+    const changed = hand.filter((c) => before.has(c) !== after.has(c));
+    if (!changed.length) return;
+    this.#store.setSelection(next);
+    for (const c of changed) {
+      const view = this.#views.get(c);
+      if (view) pop(this.scene, view, 1.06, ms(GESTURE.paintSfxMs * 3));
+    }
+    const now = performance.now();
+    if (now - this.#lastSfx >= GESTURE.paintSfxMs) {
+      this.#lastSfx = now;
+      this.#store.audio.play(after.has(changed[0]) ? "select" : "deselect");
+    }
+  }
+
+  /** Hold-to-rearrange: the held card follows the finger; a still hold grows to a peek, which a move ends. */
+  #dragHeld(press: Press, p: Phaser.Input.Pointer): void {
+    if (press.dragX === null && Math.hypot(p.worldX - press.holdX, p.worldY - press.holdY) < DRAG_THRESHOLD) return;
+    press.peeking = false;
+    press.dragX = Math.round(clamp(this.#fanX(p) - press.grab, 0, Math.max(0, this.#fan.w - CARD_W)));
+    this.#layout();
+  }
+
+  #peek(press: Press): void {
+    if (this.#press !== press || press.dragX !== null) return;
+    press.peeking = true;
+    this.#layout();
+  }
+
+  /** Drop a held card: put it in the slot nearest its left edge (same-rank runs tidied), or just set it down. */
+  #drop(press: Press): void {
+    if (press.dragX === null) return;
+    const hand = this.#hand();
+    const { x0, step } = fanLayout(hand.length, this.#fan.w);
+    const from = hand.indexOf(press.card);
+    const target = step > 0 ? clamp(Math.round((press.dragX - x0) / step), 0, hand.length - 1) : from;
+    this.#order = suitSortRuns(moveTo(hand, press.card, target));
+    if (target !== from) this.#store.audio.play("reorder");
+  }
+
+  /** Flick-to-play: the selection follows the finger upward, never down, never off the felt. */
+  #pull(press: Press, p: Phaser.Input.Pointer): void {
+    const now = performance.now();
+    const dt = Math.max(1, now - press.lastT);
+    press.vy = (p.worldY - press.lastY) / dt;
+    press.lastY = p.worldY;
+    press.lastT = now;
+    press.dy = Math.round(clamp(p.worldY - press.y, -FLICK_MAX, 0));
+    this.#layout();
+  }
+
+  /** Released: a legal selection pulled far or fast enough is played; anything else springs back. */
+  #release(press: Press, v: GameView): void {
+    const exact = v.exact;
+    if (exact && flickPlays(press.dy, press.vy)) {
+      this.#store.act({ type: "PLAY", player: HUMAN, cards: exact.cards }); // the trick flies them from here (poseOf)
       return;
     }
-    if (v) {
-      const hand = this.#hand(v.game ? v.game.players[HUMAN].hand : []);
-      const { x0, step } = fanLayout(hand.length, this.#fan.w);
-      const target = step > 0 ? clamp(Math.round((d.x - x0) / step), 0, hand.length - 1) : hand.indexOf(d.card);
-      const from = hand.indexOf(d.card);
-      this.#order = suitSortRuns(moveTo(hand, d.card, target));
-      if (target !== from) this.#store.audio.play("reorder");
+    const pulledFar = flickPlays(press.dy, press.vy);
+    press.dy = 0;
+    if (pulledFar && !exact) for (const c of v.selection) {
+      const view = this.#views.get(c);
+      if (view) wobble(this.scene, view); // not a play: say no as it goes back
     }
-    this.#layout();
   }
 
   /** Rects of the cards in fan order, absolute logical px (the e2e probe). */
   probe(): { value: Card; x: number; y: number; w: number; h: number; dim: boolean; faceAlpha: number }[] {
-    const v = this.#view;
-    const hand = this.#hand(v?.game ? v.game.players[HUMAN].hand : []);
-    return hand.map((card) => {
+    return this.#hand().map((card) => {
       const c = this.#views.get(card)!;
       const { dim, faceAlpha } = c.look;
       return { value: card, x: this.layer.x + c.x - CARD_W / 2, y: this.layer.y + c.y - CARD_H / 2, w: CARD_W, h: CARD_H, dim, faceAlpha };
