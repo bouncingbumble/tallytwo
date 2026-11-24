@@ -37,6 +37,7 @@ import {
   portraitFor,
   primaryAction,
   replayLog,
+  revealLeftovers,
   roundDeltas,
   roundWinner,
   scoreRows,
@@ -336,6 +337,18 @@ test("roundDeltas / roundWinner: null while playing, the scoring and the winner 
   const scored = reduce(over, { type: "SCORE_ROUND" });
   expect(roundDeltas(scored)).toEqual(roundScore([0, 13, 13, 13]));
   expect(roundWinner(scored)).toBe(HUMAN);
+});
+
+test("revealLeftovers: Greenhorn only, at roundover, the AI seats still holding cards", () => {
+  const g = humanLead();
+  const last = { ...g, players: g.players.map((p, i) => (i === HUMAN ? { ...p, hand: [THREE_OF_DIAMONDS] } : i === 2 ? { ...p, hand: [] } : p)) };
+  const over = reduce(last, { type: "PLAY", player: HUMAN, cards: [THREE_OF_DIAMONDS] });
+  expect(revealLeftovers(over, "easy")).toEqual([1, 3]); // seat 2 holds nothing; the human is never an AI
+  expect(revealLeftovers(over, "medium")).toEqual([]);
+  expect(revealLeftovers(over, "hard")).toEqual([]);
+  expect(revealLeftovers(g, "easy")).toEqual([]); // still playing
+  expect(revealLeftovers(reduce(over, { type: "SCORE_ROUND" }), "easy")).toEqual([]); // the poster's turn now
+  expect(revealLeftovers(null, "easy")).toEqual([]);
 });
 
 /* ---- the match ---- */

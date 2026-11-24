@@ -6,7 +6,7 @@ import { expect, test } from "vitest";
 import {
   BARK_CHANCE,
   BARK_MS,
-  DEAL_STAGGER_MS,
+  DEAL,
   DOORS_MS,
   FAST_SLOWDOWN,
   FAST_SPEED,
@@ -19,11 +19,18 @@ import {
   PLAY_FLY_STAGGER_MS,
   SPEED,
   THINK,
+  dealTotalMs,
   paced,
   pacedThink,
   playLandMs,
   thinkMs,
 } from "./timing";
+
+test("the deal is over before the earliest first AI move at every speed, and within 1.6 s", () => {
+  expect(dealTotalMs()).toBeLessThanOrEqual(1600);
+  expect(dealTotalMs()).toBe(51 * DEAL.staggerMs + DEAL.flyMs + 12 * DEAL.flipStaggerMs + DEAL.flipMs);
+  for (const speed of GAME_SPEEDS) expect(dealTotalMs()).toBeLessThan(paced(FIRST_STEP_MS, speed) + pacedThink(speed, 0));
+});
 
 test("thinkMs spans each tier's range: r=0 is the floor, r=1 the ceiling", () => {
   expect(thinkMs("slow", 0)).toBe(650);
@@ -49,7 +56,6 @@ test("the constants are the prototype's numbers", () => {
   expect(ROUND_OVER_MS).toEqual({ ai: 900, human: 800 });
   expect(FIRST_STEP_MS).toBe(700);
   expect(DOORS_MS).toBe(620);
-  expect(DEAL_STAGGER_MS).toBe(32);
   expect(PLAY_FLY_MS).toBe(700); // the prototype's 280-ms slap, now a flight from the portrait and a spread
   expect(PLAY_FLY_STAGGER_MS).toBe(30);
   expect(BARK_MS).toBe(2000);

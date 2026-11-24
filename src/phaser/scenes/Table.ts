@@ -10,8 +10,8 @@
 import Phaser from "phaser";
 import type { GameView } from "../../game/store";
 import { COPY } from "../../game/copy";
-import { HUMAN, type TableEvents, humanTurn, tableEvents } from "../../game/selectors";
-import { EASE, GESTURE, MOTION, TURN } from "../../game/timing";
+import { HUMAN, type TableEvents, humanTurn, revealLeftovers, tableEvents } from "../../game/selectors";
+import { EASE, GESTURE, MOTION, ROUND_END, TURN, playLandMs } from "../../game/timing";
 import { SELECT_LIFT, fanLayout } from "../../render/fanLayout";
 import { shouldCoach } from "../../render/handGesture";
 import { env } from "../../platform/env";
@@ -20,6 +20,7 @@ import { ANNOUNCE_ANIM_MS, ms } from "../motion";
 import { artPattern, insetStroke, painted, roundRect, text } from "../paint";
 import { C, CSS, FS_BODY, WESTERN } from "../theme";
 import { fit } from "../viewport";
+import { DealRun } from "../table/Deal";
 import { HandView } from "../table/Hand";
 import { drawSaloon } from "../table/Saloon";
 import { SeatView } from "../table/Seat";
@@ -29,6 +30,8 @@ import { BaseScene } from "./base";
 
 /** The your-turn glow's height above the hand row (logical px). */
 const TURN_GLOW_H = 26;
+/** How far the camera jolts when the round's winning play slaps down (logical px). */
+const SLAP_JOLT = 3;
 
 export class TableScene extends BaseScene {
   #t!: TableLayout;
@@ -47,6 +50,7 @@ export class TableScene extends BaseScene {
   /** The coach mark has been shown and dismissed in this run of the scene. */
   #coachDone = false;
   #last: GameView | null = null;
+  #deal!: DealRun;
 
   constructor() {
     super("Table");
@@ -144,10 +148,11 @@ export class TableScene extends BaseScene {
     }).setAlpha(0);
     this.#idle?.remove(false);
     this.#idle = null;
-    // any touch on the player's turn is attention enough: no reminder
+    // any touch on the player's turn is attention enough: no reminder; a touch during the deal finishes it
     this.input.on("pointerdown", () => {
       this.#idle?.remove(false);
       this.#idle = null;
+      if (this.#deal?.running) this.#deal.finish();
     });
     const opts = () => this.app.settings.opts;
     this.#hand = new HandView(this, t.fan, game, () => ({ swipe: opts().swipe, flick: opts().flick }));
@@ -159,6 +164,8 @@ export class TableScene extends BaseScene {
       if (g === "paint") this.#endCoach();
     };
     this.#side = new SideView(this, t.side, t.sideClearR, game, () => sheet.set("settings"));
+    // the deal's backs fly above everything on the table
+    this.#deal = new DealRun(this, this.add.container(0, 0), this.#hand, this.#seats, () => this.#afterDeal());
 
     if (this.#prewarm) {
       this.cameras.main.setVisible(false);
@@ -173,6 +180,29 @@ export class TableScene extends BaseScene {
     this.watch(game, () => this.#render());
     this.watch(this.app.settings, () => this.#render(true));
     this.#render();
+    // a fresh deal (not a rebuild) is dealt out from a deck in the middle of the felt
+    if (this.#animate) this.#deal.start(t.plays.x + Math.round(t.plays.w / 2), t.plays.y + Math.round(t.plays.h / 2));
+  }
+
+  /** The cards are all out: the opening turn gets its cue, and a newcomer the swipe coach mark. */
+  #afterDeal(): void {
+    const v = this.app.game.view;
+    if (!v.game || !this.scene.isActive()) return;
+    this.#turnCue({ turnStarted: v.game.turn, played: null, passed: null, trickWonBy: null }, v);
+    if (shouldCoach(this.app.settings.opts, humanTurn(v.game), v.game.players[HUMAN].hand.length)) this.#showCoach();
+  }
+
+  /**
+   * The round's last play (docs/MOBILE_UX_PLAN.md §6.2): once it has landed it holds, then slaps
+   * down with a jolt of the camera; on Greenhorn the losers' leftover cards then come out of their
+   * portraits face-up (the store waits ROUND_END.revealHoldMs longer before the poster for it).
+   */
+  #roundEnd(seat: number, cards: number, g: NonNullable<GameView["game"]>): void {
+    const reveal = revealLeftovers(g, this.app.settings.opts.difficulty);
+    this.after(playLandMs(cards) + ROUND_END.holdMs, () => {
+      if (this.#trick.slap(seat) && ms(ROUND_END.slapMs)) this.cameras.main.shake(ms(ROUND_END.slapMs), SLAP_JOLT / this.H);
+      for (const s of reveal) this.#seats.find((v) => v.seat === s)?.revealLeftovers(g.players[s].hand, ms(ROUND_END.slapMs));
+    });
   }
 
   #render(force = false): void {
@@ -188,8 +218,15 @@ export class TableScene extends BaseScene {
     this.#hand.update(v, animate);
     this.#side.update(v, this.app.settings.opts.hints);
     this.#updateAnnouncement(v);
-    if (ev) this.#turnCue(ev, v);
-    if (shouldCoach(this.app.settings.opts, humanTurn(v.game), v.game.players[HUMAN].hand.length)) this.#showCoach();
+    if (ev) this.#cues(ev, v);
+    if (!this.#deal.running && shouldCoach(this.app.settings.opts, humanTurn(v.game), v.game.players[HUMAN].hand.length)) this.#showCoach();
+  }
+
+  /** The table-wide cues for what just happened: a turn arriving, the round's last play. */
+  #cues(ev: TableEvents, v: GameView): void {
+    this.#turnCue(ev, v);
+    const g = v.game;
+    if (ev.played !== null && g?.phase === "roundover") this.#roundEnd(ev.played, g.history.at(-1)?.cards.length ?? 1, g);
   }
 
   /**
@@ -311,10 +348,10 @@ export class TableScene extends BaseScene {
     this.#announce = c;
     const run = ms(ANNOUNCE_ANIM_MS);
     if (run) {
-      c.setAlpha(0).setScale(1.08);
-      c.y -= 24;
-      this.tweens.add({ targets: c, alpha: 1, scale: 1, y: c.y + 24, duration: run * 0.1, ease: "Sine.Out" });
-      this.tweens.add({ targets: c, alpha: 0, delay: run * 0.85, duration: run * 0.15, ease: "Sine.In" });
+      // slammed down onto the felt, then left to fade (§6.4)
+      c.setAlpha(0).setScale(1.5);
+      this.tweens.add({ targets: c, alpha: 1, scale: 1, duration: ms(MOTION.uiIn), ease: EASE.land, easeParams: [2] });
+      this.tweens.add({ targets: c, alpha: 0, delay: run * 0.85, duration: run * 0.15, ease: EASE.fadeOut });
     }
   }
 

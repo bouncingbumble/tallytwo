@@ -16,7 +16,7 @@
  */
 import Phaser from "phaser";
 import { type TrickPlay, emptyFeltText, trickPlays } from "../../game/selectors";
-import { EASE, MOTION, PLAY_FLY_MS, PLAY_FLY_STAGGER_MS } from "../../game/timing";
+import { EASE, MOTION, PLAY_FLY_MS, PLAY_FLY_STAGGER_MS, ROUND_END } from "../../game/timing";
 import type { GameView } from "../../game/store";
 import { PLAY_CARD_H, PLAY_CARD_W } from "../../render/scale";
 import { type Rect, SLOT_ALIGN, type TableLayout, pileLayout } from "../../render/tableLayout";
@@ -25,6 +25,9 @@ import { pop } from "../fx";
 import { ms } from "../motion";
 import { text } from "../paint";
 import { CSS, FS_BODY } from "../theme";
+
+/** The round's winning play is slapped down from this scale. */
+const SLAP_SCALE = 1.15;
 
 /** Top row, middle row (left and right), bottom row: the drawing order. */
 const SEATS = [2, 1, 3, 0];
@@ -102,6 +105,22 @@ export class TrickView {
     this.#empty.setText(plays.length === 0 ? emptyFeltText(g) : "").setVisible(plays.length === 0 && !swept);
     // "<name> leads" appears once the won cards have gone
     if (swept && plays.length === 0) this.scene.time.delayedCall(ms(MOTION.trickHold + MOTION.trickSweep), () => this.#empty.setVisible(this.#groups.size === 0));
+  }
+
+  /**
+   * The round's winning play, once it has landed: it grows and comes down hard (ROUND_END.slapMs,
+   * scale 1.15 → 1). The table adds the camera's jolt. Returns false if that seat has nothing here.
+   */
+  slap(seat: number): boolean {
+    const grp = this.#groups.get(seat);
+    const d = ms(ROUND_END.slapMs);
+    if (!grp || !d) return false;
+    for (const c of grp.cards) {
+      this.scene.tweens.killTweensOf(c);
+      c.setScale(SLAP_SCALE).setAngle(0);
+      this.scene.tweens.add({ targets: c, scale: 1, duration: d, ease: EASE.exit });
+    }
+    return true;
   }
 
   /** One group per seat with a play on the felt: a seat that played again gets a new one, a seat with none loses its. */

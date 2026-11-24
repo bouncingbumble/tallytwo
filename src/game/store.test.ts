@@ -9,6 +9,7 @@ import { manualClock } from "./clock";
 import { HUMAN } from "./selectors";
 import { GameStore } from "./store";
 import { SEAT_PAN } from "../audio/sfxTable";
+import { ROUND_END, ROUND_OVER_MS, paced, playLandMs } from "./timing";
 
 const make = () => {
   const clock = manualClock();
@@ -51,6 +52,35 @@ test("a whole round plays out with the human always passing, and scores itself",
   expect(store.game!.phase).toBe("scored");
   expect(store.view.crash).toBeNull();
   expect(store.game!.totals.reduce((a, b) => a + b, 0)).toBe(0);
+});
+
+test("round over -> poster: landing + the paced wait, plus ROUND_END.revealHoldMs on Greenhorn (the leftovers are shown)", () => {
+  for (const difficulty of ["medium", "easy"] as const) {
+    const clock = manualClock();
+    const store = new GameStore({ audio: silentAudio, clock, random: () => 0.5, opts: { gameSpeed: "normal", difficulty, hints: false } });
+    let overAt: number | null = null;
+    let scoredAt: number | null = null;
+    store.subscribe(() => {
+      const ph = store.game?.phase;
+      if (ph === "roundover" && overAt === null) overAt = clock.now;
+      if (ph === "scored" && scoredAt === null) scoredAt = clock.now;
+    });
+    store.act({ type: "NEW_MATCH", seed: seedWhere(false), rules: DEFAULT_RULES });
+    for (let i = 0; i < 4000 && store.game!.phase !== "scored"; i++) {
+      const v = store.view;
+      if (v.game!.phase === "playing" && v.game!.turn === HUMAN) {
+        if (v.canPass) store.act({ type: "PASS", player: HUMAN });
+        else store.act({ type: "PLAY", player: HUMAN, cards: v.legal[0].cards });
+      } else clock.tick(50);
+    }
+    const g = store.game!;
+    const last = g.history.at(-1)!;
+    const reveal = difficulty === "easy" && g.players.some((p, i) => i !== g.turn && p.kind === "ai" && p.hand.length > 0) ? ROUND_END.revealHoldMs : 0;
+    const expected = playLandMs(last.cards.length) + paced(g.turn === HUMAN ? ROUND_OVER_MS.human : ROUND_OVER_MS.ai, "normal") + reveal;
+    expect(overAt).not.toBeNull();
+    expect(scoredAt! - overAt!).toBe(expected);
+    if (difficulty === "easy") expect(reveal).toBe(ROUND_END.revealHoldMs);
+  }
 });
 
 test("a card tap never re-arms the pending AI timer; pause cancels it and resume re-arms it", () => {

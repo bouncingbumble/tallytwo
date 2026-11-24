@@ -8,7 +8,7 @@ import { type Action, DEFAULT_SEATS, deal, reduce } from "../engine/reducer";
 import type { RuleConfig } from "../engine/rules";
 import { roundScore } from "../engine/scoring";
 import { type GameState, type PlayRecord, type Player, needThreeD, publicView } from "../engine/state";
-import { chooseMove } from "../ai/choose";
+import { type Difficulty, chooseMove } from "../ai/choose";
 import { getPersonality } from "../ai/getPersonality";
 import { legalMoves } from "../ai/moves";
 import { PERSONALITIES } from "../ai/personalities";
@@ -207,6 +207,14 @@ export const roundDeltas = (g: GameState | null): number[] | null => (g && g.pha
 
 /** The seat that emptied its hand: the turn stays there after roundover. */
 export const roundWinner = (g: GameState | null): number | null => (g && g.phase !== "playing" ? g.turn : null);
+
+/**
+ * The opponents whose leftover cards are turned face-up when a round ends (docs/MOBILE_UX_PLAN.md
+ * §6.2): on Greenhorn only, the AI seats still holding cards, so a learner sees what the penalty
+ * was made of. Regular and Card sharp keep their hands hidden. Empty while the round is live.
+ */
+export const revealLeftovers = (g: GameState | null, difficulty: Difficulty): number[] =>
+  g && g.phase === "roundover" && difficulty === "easy" ? g.players.flatMap((p, i) => (p.kind === "ai" && p.hand.length > 0 ? [i] : [])) : [];
 
 /** A match is exactly this many rounds — no setting (2026-10-07: "8 rounds per match no more, no less"). */
 export const ROUNDS_PER_MATCH = 8;

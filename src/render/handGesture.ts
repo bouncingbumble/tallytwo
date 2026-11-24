@@ -45,10 +45,13 @@ export interface Press {
  * once more at the hold time; the first non-null answer is final.
  */
 export function resolveGesture(p: Press, x: number, y: number, t: number, o: GestureOpts): Gesture | null {
+  // Undecided this long means it was held still (every earlier move fell inside DRAG_THRESHOLD,
+  // or it would have been decided then): a hold, even if the first answer comes with a big move
+  // because the hold timer's frame was late.
+  if (t - p.t >= o.holdMs) return "hold";
   const dx = x - p.x;
   const dy = y - p.y;
-  const moved = Math.hypot(dx, dy) >= DRAG_THRESHOLD;
-  if (!moved) return t - p.t >= o.holdMs ? "hold" : null;
+  if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return null;
   const upward = -dy > Math.abs(dx);
   if (upward && p.onSelected && o.flick) return "flick";
   return o.swipe ? "paint" : "hold";

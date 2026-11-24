@@ -47,10 +47,11 @@ import {
   liveCards,
   matchOver,
   matchWinner,
+  revealLeftovers,
   signFor,
   statusFor,
 } from "./selectors";
-import { BARK_CHANCE, BARK_MS, FINAL_ROUND_MS, FIRST_STEP_MS, type GameSpeed, ROUND_OVER_MS, paced, pacedThink, playLandMs } from "./timing";
+import { BARK_CHANCE, BARK_MS, FINAL_ROUND_MS, FIRST_STEP_MS, type GameSpeed, ROUND_END, ROUND_OVER_MS, paced, pacedThink, playLandMs } from "./timing";
 
 export interface Bark {
   id: number;
@@ -389,8 +390,11 @@ export class GameStore extends Observable {
     const last = game.history.at(-1);
     const landing = last && last.cards.length ? playLandMs(last.cards.length) : 0;
     if (game.phase === "roundover") {
-      // The turn stays on the winner, which is how the two delays tell human and AI apart.
-      this.#loopCancel = this.#clock.after(landing + paced(game.turn === HUMAN ? ROUND_OVER_MS.human : ROUND_OVER_MS.ai, speed), () => this.act({ type: "SCORE_ROUND" }));
+      // The turn stays on the winner, which is how the two delays tell human and AI apart. On
+      // Greenhorn the losers' leftover cards are shown first (revealLeftovers), and the poster
+      // waits a fixed ROUND_END.revealHoldMs more so they can be read.
+      const reveal = revealLeftovers(game, this.#opts.difficulty).length ? ROUND_END.revealHoldMs : 0;
+      this.#loopCancel = this.#clock.after(landing + paced(game.turn === HUMAN ? ROUND_OVER_MS.human : ROUND_OVER_MS.ai, speed) + reveal, () => this.act({ type: "SCORE_ROUND" }));
       return;
     }
     if (game.phase !== "playing") return;

@@ -1,6 +1,6 @@
 # Plan: Mobile UI/UX and motion pass
 
-Status: **in progress on branch `ux`** (on top of `perf`). Phases 0–3 are done (see "Progress" at the end); Phase 4 is next. Decisions taken 2026-11 (§12): flick-to-play on by default; opponents are dealt to; no haptics for now (visual feedback only); losers' leftover cards are revealed only on Greenhorn; swipe-to-select adopted (reorder moves to press-and-hold, then drag).
+Status: **in progress, on `main`**. Phases 0–4 are done (see "Progress" at the end); Phase 5 is next. Decisions taken 2026-11 (§12): flick-to-play on by default; opponents are dealt to; no haptics for now (visual feedback only); losers' leftover cards are revealed only on Greenhorn; swipe-to-select adopted (reorder moves to press-and-hold, then drag).
 
 Scope: `src/phaser/**`, `src/game/timing.ts`, `src/render/*Layout.ts`, a few new selectors in `src/game/selectors.ts`, and two new settings. The shell bridge is untouched. The engine, AI, stores, and audio stay as they are. This plan builds on the Phaser port (`PHASER_MIGRATION.md`) and keeps its contracts: the 440-px logical canvas, integer rest poses, the size floors (`theme.ts` `FS_MIN` / `TAP`), no rules in scenes, and no layout numbers outside `render/`.
 
@@ -297,3 +297,31 @@ Not done in Phase 2:
 - **Fix:** `fx.pop` / `pulse` now scale relative to the object's resting scale. A portrait drawn with `setDisplaySize` rests near 0.28, and popping it from 1 had blown it up to fill the corner.
 - **Perf gate:** on the iPhone profile, 3 hitches, ≤ 48 draws, worst frame 117 ms. The dots raise frames drawn from 76 % to 82 % of frames.
 - **Deviation:** no looping "breathing" ring. A loop would make render-on-demand draw every frame of every AI think (most of a game), so the ring flares in once and the dots step on a timer instead. The primary-button pop at turn start only happens when a control *is* primary (usually Pass when stuck); at an ordinary turn start the hand glow is the cue.
+
+**Phase 4, done.**
+- **Deal (F7)** (`table/Deal.ts`, `DEAL` / `dealTotalMs` in `timing.ts`):
+  - A short deck sits on the felt. 52 backs leave it round-robin, 14 ms apart.
+  - Opponents' backs shrink into their portraits while their counts tick up from 0 (`SeatView.setDealt`).
+  - Your backs land face-down in your fan slots, then flip over left to right (`HandView.flipIn`).
+  - About 1.5 s in all. `timing.test.ts` pins it inside the earliest first AI move at every speed, so the deal never overlaps play.
+  - A tap anywhere finishes it at once (`DealRun.finish`), and the hand ignores input until then.
+  - Under reduced motion it finishes immediately.
+  - When it ends, the opening turn gets its cue and a newcomer gets the swipe coach mark.
+- **Round end:**
+  - The last play lands, holds 300 ms, then slaps down (1.15 → 1) with a 3-px camera jolt (`TrickView.slap`).
+  - On Greenhorn (`selectors.revealLeftovers`, tested), the losers' leftover cards come out of their portraits face-up, one after another, and fan across their badges.
+  - The store waits a fixed `ROUND_END.revealHoldMs` (1.5 s) more before scoring so they can be read. A fake-clock test pins the round-over → poster wait for both Regular and Greenhorn.
+- **Poster:**
+  - It drops in on a spring, turned −3°, and settles square. Rows arrive 60 ms apart.
+  - Round scores count up from 0 and tallies from last round's value, with a throttled tick sound.
+  - The buttons sleep until the count ends; a tap anywhere, including on a sleeping button, finishes it.
+  - A button lifts the poster away before it acts.
+  - The final poster gets an amber rule and five glints around the winner's frame.
+  - The probe now reports the poster buttons' enabled state, and the e2e `tap()` waits for a control to wake.
+- **Final-round banner:** slammed in (scale 1.5 → 1, `land`) instead of sliding.
+- **Sequencer:** each skippable sequence owns its own `finish()` (the deal's, the poster's). A shared class was not needed.
+- **Fix: a hold whose timer frame came late is still a hold.** `resolveGesture` checks the elapsed time first; there is a test for it. A busy deal frame in headless Chromium had turned the e2e's hold-then-drag into a swipe.
+- **Fix:** dealt backs scale relative to their resting scale, like `fx.pop`. A 3x back rests near 0.25.
+- **Perf gate:** on the iPhone profile, 3 hitches, ≤ 53 draws, worst frame 90 ms. Uploads rose 344 → 408 from the poster counters and the deal's backs. e2e 121/121 on all four devices.
+- **F2 again:** in headless Chromium, rotated backs and the turned poster show the same torn triangles; WebKit captures of the same frames are clean.
+- **Not done:** skipping the Greenhorn leftover reveal by tap. It is covered by the poster when the store's timer runs out, so a skip would save nothing.

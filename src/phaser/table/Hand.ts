@@ -24,14 +24,14 @@ import Phaser from "phaser";
 import type { Card } from "../../engine/cards";
 import { HUMAN, canToggle, sortHand, suitSortRuns } from "../../game/selectors";
 import type { GameStore, GameView } from "../../game/store";
-import { DEAL_STAGGER_MS, EASE, GESTURE } from "../../game/timing";
+import { DEAL, EASE, GESTURE } from "../../game/timing";
 import { CARD_H, CARD_W, HOLD_SCALE, PEEK_SCALE, SELECT_LIFT, fanLayout } from "../../render/fanLayout";
 import { DRAG_THRESHOLD, FLICK_MAX, type Gesture, cardIndexAt, flickPlays, paintSelection, resolveGesture } from "../../render/handGesture";
 import { LOGICAL_H, PLAY_CARD_W } from "../../render/scale";
 import type { Rect } from "../../render/tableLayout";
 import { CardView } from "../cards";
 import { pop, wobble } from "../fx";
-import { DEAL_IN_MS, SETTLE_MS, SLIDE_MS, ms } from "../motion";
+import { SETTLE_MS, SLIDE_MS, ms } from "../motion";
 import type { FlyOrigin } from "./Trick";
 
 const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n));
@@ -89,6 +89,8 @@ export class HandView {
   #order: Card[] = [];
   #count = 0;
   #settle = false;
+  /** A fresh deal is landing: cards hidden at their slots, input off. */
+  #dealing = false;
   #press: Press | null = null;
   #views = new Map<Card, CardView>();
   #view: GameView | null = null;
@@ -159,15 +161,49 @@ export class HandView {
       }
     }
     const hand = this.#hand(raw);
-    const dealIn = fresh && animate;
-    hand.forEach((card, i) => {
+    // a fresh deal that is to be animated: the cards wait at their slots, hidden, until the deal
+    // (table/Deal.ts) lands a back on each and flips it over
+    if (fresh) this.#dealing = animate && ms(DEAL.flyMs) > 0;
+    hand.forEach((card) => {
       if (this.#views.has(card)) return;
       const c = new CardView(this.scene, 0, CARD_H / 2, card, CARD_W, CARD_H);
+      if (this.#dealing) c.setVisible(false);
       this.layer.add(c);
       this.#views.set(card, c);
-      if (dealIn) c.setData("dealIndex", i);
     });
-    this.#layout(dealIn);
+    this.#layout();
+  }
+
+  /** True while the deal is still landing cards: the hand takes no input. */
+  get dealing(): boolean {
+    return this.#dealing;
+  }
+
+  /** Each card's resting centre in fan order, absolute logical px: where the deal lands the backs. */
+  slots(): { card: Card; x: number; y: number }[] {
+    return this.#hand().map((card) => {
+      const c = this.#views.get(card)!;
+      return { card, x: this.layer.x + c.x, y: this.layer.y + c.y };
+    });
+  }
+
+  /** The deal flips card `card` over: its face grows out of the edge the back shrank into. */
+  flipIn(card: Card): void {
+    const c = this.#views.get(card);
+    if (!c) return;
+    c.setVisible(true).setScale(0, 1);
+    this.scene.tweens.add({ targets: c, scaleX: 1, duration: ms(DEAL.flipMs / 2), ease: EASE.enter });
+  }
+
+  /** The deal is over (or skipped): every card showing, at rest, and the hand takes input. */
+  endDeal(): void {
+    this.#dealing = false;
+    for (const c of this.#views.values()) {
+      if (c.scaleX !== 1 || !c.visible) {
+        this.scene.tweens.killTweensOf(c);
+        c.setVisible(true).setScale(1);
+      }
+    }
   }
 
   /** Where card `card` is now, for the trick to fly it from (absolute logical px, scale at play size). */
@@ -178,7 +214,7 @@ export class HandView {
   }
 
   /** Place every card: fan slot, lift, scale, look, drawing order; tween what moved. */
-  #layout(dealIn = false): void {
+  #layout(): void {
     const v = this.#view;
     if (!v) return;
     const hand = this.#hand();
@@ -203,7 +239,10 @@ export class HandView {
       const pose = this.#pose.get(card);
       if (pose && pose.x === t.x && pose.y === t.y && pose.s === t.s) continue;
       this.#pose.set(card, t);
-      if (dealIn && this.#dealIn(view, t.x, t.y)) continue;
+      if (this.#dealing) {
+        view.setPosition(t.x, t.y); // waiting for the deal: at rest, hidden
+        continue;
+      }
       this.#place(view, t.x, t.y, t.s, t.direct);
     }
     // drawing order = fan order; a held card, or the pulled selection, above all
@@ -229,17 +268,6 @@ export class HandView {
     let s = 1;
     if (held) s = held.peeking ? PEEK_SCALE : HOLD_SCALE;
     return { x: x + CARD_W / 2, y: y + CARD_H / 2, s, direct: dragged || flick !== null };
-  }
-
-  /** A card of a fresh deal flies in from the dealer's corner: off up-left, turned and small. False if it is not dealing. */
-  #dealIn(view: CardView, cx: number, cy: number): boolean {
-    const dealIndex = view.getData("dealIndex") as number | undefined;
-    if (dealIndex === undefined) return false;
-    const W = this.scene.scale.gameSize.width / this.scene.cameras.main.zoom;
-    view.setPosition(cx - 0.4 * W, cy - 0.38 * LOGICAL_H).setAngle(-40).setScale(0.7).setAlpha(0);
-    this.scene.tweens.add({ targets: view, x: cx, y: cy, angle: 0, scale: 1, alpha: 1, delay: dealIndex * DEAL_STAGGER_MS, duration: ms(DEAL_IN_MS), ease: EASE.fadeIn });
-    view.setData("dealIndex", undefined);
-    return true;
   }
 
   #topOf(card: Card): void {
@@ -273,7 +301,7 @@ export class HandView {
   }
 
   #down(p: Phaser.Input.Pointer): void {
-    if (p.button !== 0 || this.#press) return;
+    if (p.button !== 0 || this.#press || this.#dealing) return; // a tap during the deal finishes it (TableScene) instead
     const v = this.#view;
     if (!v) return;
     const hand = this.#hand();

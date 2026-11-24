@@ -12,12 +12,15 @@
  * - at one card a red LAST CARD tag hangs on the portrait (words as well as colour).
  */
 import Phaser from "phaser";
+import type { Card } from "../../engine/cards";
 import type { GameState } from "../../engine/state";
 import { COPY } from "../../game/copy";
 import { type TableEvents, portraitFor } from "../../game/selectors";
 import type { Bark } from "../../game/store";
-import { EASE, MOTION, TURN } from "../../game/timing";
+import { EASE, MOTION, ROUND_END, TURN } from "../../game/timing";
+import { PLAY_CARD_H, PLAY_CARD_W } from "../../render/scale";
 import { FACE_H, FACE_W, type Rect } from "../../render/tableLayout";
+import { CardView } from "../cards";
 import { pop, wobble } from "../fx";
 import { BARK_ANIM_MS, ms, reducedMotion } from "../motion";
 import { markDirty } from "../onDemand";
@@ -54,6 +57,9 @@ const INFO_X = 4 + FACE_W + 6;
 /** The portrait's centre in the badge (it turns and grows about it). */
 const FACE_CX = 4 + FACE_W / 2;
 const FACE_CY = 1 + FACE_H / 2;
+/** The losers' leftover cards on Greenhorn: play-size cards at this scale, at most this far apart. */
+const LEFTOVER_SCALE = 0.56;
+const LEFTOVER_STEP = 18;
 /** How far the portrait lunges toward the felt as the seat plays. */
 const LUNGE = 4;
 /** The thinking dots: three, this big, this far apart, in the badge's bottom-right corner. */
@@ -84,6 +90,10 @@ export class SeatView extends Phaser.GameObjects.Container {
   #lastCard: Phaser.GameObjects.Container;
   #count0 = -1;
   #wasPassed = false;
+  /** While the deal runs: the cards that have reached this seat so far (the count shows this, not the hand). */
+  #dealt: number | null = null;
+  #g: GameState | null = null;
+  #leftovers: Phaser.GameObjects.Container | null = null;
 
   constructor(scene: Phaser.Scene, seat: number, r: Rect) {
     super(scene, r.x, r.y);
@@ -157,8 +167,9 @@ export class SeatView extends Phaser.GameObjects.Container {
   }
 
   update(g: GameState, barks: readonly Bark[], ev: TableEvents | null = null): void {
+    this.#g = g;
     const p = g.players[this.seat];
-    const n = p.hand.length;
+    const n = this.#dealt ?? p.hand.length;
     const key = portraitFor(p);
     if (key !== this.#faceKey) {
       this.#face?.destroy();
@@ -179,7 +190,7 @@ export class SeatView extends Phaser.GameObjects.Container {
   /** The info column: name (two lines where the badge is narrow), chips and count, tally; centred. */
   #layoutInfo(g: GameState): void {
     const p = g.players[this.seat];
-    const n = p.hand.length;
+    const n = this.#dealt ?? p.hand.length;
     if (p.name !== this.#nameText) {
       this.#nameText = p.name;
       this.#name.setText(p.name);
@@ -352,6 +363,43 @@ export class SeatView extends Phaser.GameObjects.Container {
   #paintDots(): void {
     const still = reducedMotion();
     this.#dots.forEach((d, i) => d.setAlpha(still ? 0.8 : i === this.#dotStep ? 1 : 0.3));
+  }
+
+  /**
+   * The deal (table/Deal.ts) counts this seat's cards up as they arrive: `n` so far, or null when
+   * the deal is over and the count is the hand's again.
+   */
+  setDealt(n: number | null): void {
+    this.#dealt = n;
+    this.setAlpha(n === 0 ? 0.55 : 1);
+    if (this.#g) this.#layoutInfo(this.#g);
+  }
+
+  /**
+   * The round is over and this seat lost with `cards` still held (Greenhorn only,
+   * selectors.revealLeftovers): they come out of the portrait face-up and fan across the badge,
+   * one after another, and stay until the poster covers the table.
+   */
+  revealLeftovers(cards: readonly Card[], delay: number): void {
+    this.#leftovers?.destroy();
+    const scene = this.scene;
+    const w = Math.round(PLAY_CARD_W * LEFTOVER_SCALE);
+    const h = Math.round(PLAY_CARD_H * LEFTOVER_SCALE);
+    const room = this.r.w - INFO_X - 6 - w;
+    const step = cards.length > 1 ? Math.min(LEFTOVER_STEP, Math.floor(room / (cards.length - 1))) : 0;
+    const fan = scene.add.container(INFO_X, this.r.h - h / 2 - 3);
+    this.#leftovers = fan;
+    this.add(fan);
+    cards.forEach((card, i) => {
+      const c = new CardView(scene, i * step + w / 2, 0, card, PLAY_CARD_W, PLAY_CARD_H).setScale(LEFTOVER_SCALE);
+      fan.add(c);
+      const d = ms(MOTION.emphasis);
+      if (!d) return;
+      // out of the portrait: small and turned, then to its place in the fan
+      const x = c.x;
+      c.setPosition(FACE_CX - INFO_X, FACE_CY - fan.y).setScale(0.1).setAngle(-12).setAlpha(0);
+      scene.tweens.add({ targets: c, x, y: 0, scale: LEFTOVER_SCALE, angle: 0, alpha: 1, delay: delay + i * ROUND_END.revealStaggerMs, duration: d, ease: EASE.land });
+    });
   }
 
   /** The portrait's centre, absolute logical px: where this seat's plays fly from. */

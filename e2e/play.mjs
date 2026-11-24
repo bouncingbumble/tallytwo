@@ -156,7 +156,12 @@ async function tap(page, id, k) {
   await waitTarget(page, id);
   // a control created this frame takes input from the next one: give a freshly started scene a beat
   await sleep(600);
-  const t = await waitTarget(page, id);
+  // a control that wakes after its scene's entrance (the poster's buttons, after the count) is waited for
+  let t = await waitTarget(page, id);
+  for (let i = 0; i < 50 && !t.enabled; i++) {
+    await sleep(100);
+    t = await waitTarget(page, id);
+  }
   await page.mouse.click((t.x + t.w / 2) * k, (t.y + t.h / 2) * k);
 }
 

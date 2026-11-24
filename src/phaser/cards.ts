@@ -174,5 +174,13 @@ export class CardView extends Phaser.GameObjects.Container {
   }
 }
 
+/**
+ * A card back w x h logical px centred on (cx, cy), origin at its centre so it turns and shrinks
+ * about its middle (the deal's flying backs). Its pad is symmetric, so the centre is the card's.
+ */
+export function backImage(scene: Phaser.Scene, cx: number, cy: number, w: number, h: number): Phaser.GameObjects.Image {
+  return sheetImage(scene, "back", cx - w / 2, cy - h / 2, w, h).setOrigin(0.5).setPosition(cx, cy);
+}
+
 /** The face's hit area in frame texels: the card itself, not its transparent pad. */
 export const faceHitArea = (): Phaser.Geom.Rectangle => new Phaser.Geom.Rectangle(FACE_PAD, FACE_PAD, CELL_W * 3, CELL_H * 3);

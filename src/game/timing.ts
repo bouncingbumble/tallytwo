@@ -64,8 +64,6 @@ export const ROUND_OVER_MS = { ai: 900, human: 800 } as const;
 export const FIRST_STEP_MS = 700;
 /** The saloon doors swing before the table appears. */
 export const DOORS_MS = 620;
-/** Deal animation stagger per card. */
-export const DEAL_STAGGER_MS = 32;
 /**
  * A play's flight (styles/motion.css `fly`, ui/Pile.tsx): each card leaves from behind its
  * player's portrait (from behind the hand for the human), flies to the middle of its slot with
@@ -159,6 +157,51 @@ export const GESTURE = {
 } as const;
 
 /**
+ * The deal (docs/MOBILE_UX_PLAN.md §6.1): 52 backs leave a deck on the felt round-robin, the
+ * opponents' shrink into their portraits, the player's land face-down in the fan, then flip over
+ * in a wave. Presentation only: the store does not wait for it, so it must be over before the
+ * earliest first AI move (timing.test.ts pins that), and a tap finishes it at once.
+ */
+export const DEAL = {
+  /** One card leaves the deck this long after the one before it. */
+  staggerMs: 14,
+  /** One card's flight from the deck. */
+  flyMs: 300,
+  /** One card's flip, back to face (half shrinking the back, half growing the face). */
+  flipMs: 220,
+  /** Each card in the fan flips this long after the one to its left. */
+  flipStaggerMs: 25,
+} as const;
+/** The whole deal, first card out to last card flipped. */
+export const dealTotalMs = (cards = 52, hand = 13): number => (cards - 1) * DEAL.staggerMs + DEAL.flyMs + (hand - 1) * DEAL.flipStaggerMs + DEAL.flipMs;
+
+/**
+ * The round's end (§6.2): the winning card lands, holds, and slaps down; then, on Greenhorn, the
+ * losers' leftover cards fan out face-up over their badges until the poster.
+ */
+export const ROUND_END = {
+  /** After the last play lands, before the slap. */
+  holdMs: 300,
+  /** The slap: the winning cards grow and come down, the camera jolts. */
+  slapMs: 220,
+  /** Each leftover card turns over this long after the one before it. */
+  revealStaggerMs: 40,
+  /**
+   * On Greenhorn, with leftovers to show, the poster waits this much longer (fixed, not paced by
+   * Game speed: it is reading time). The store adds it to the round-over wait.
+   */
+  revealHoldMs: 1500,
+} as const;
+
+/** The poster (§6.3): rows arrive one after another, then the numbers count up. */
+export const POSTER = {
+  rowStaggerMs: 60,
+  countMs: 700,
+  /** A tick sound plays at most this often while the numbers count. */
+  tickMs: 70,
+} as const;
+
+/**
  * Named easings (Phaser ease names). Enter decelerates, exit accelerates, `land` overshoots a
  * little and is only for short moves (<= 300 ms: a long overshoot reads as a wobble, PERF_PLAN
  * 2.5), `settle` glides in without one.
@@ -171,4 +214,6 @@ export const EASE = {
   inOut: "Sine.InOut",
   fadeIn: "Sine.Out",
   fadeOut: "Sine.In",
+  /** A heavier overshoot for something dropped into place (the poster, the final-round banner). */
+  spring: "Back.Out",
 } as const;

@@ -29,6 +29,11 @@ test("held still for GESTURE.holdMs is a hold (pick up to rearrange), even if it
   expect(run(press(), [[101, 50, GESTURE.holdMs - 1], [101, 50, GESTURE.holdMs], [180, 50, 400]])).toBe("hold");
 });
 
+test("a hold whose timer frame came late is still a hold: the first answer is a big move after the hold time", () => {
+  expect(run(press(), [[180, 50, GESTURE.holdMs + 170]])).toBe("hold");
+  expect(run(press(true), [[100, -40, GESTURE.holdMs + 10]])).toBe("hold"); // not a flick either
+});
+
 test("moving sideways before the hold time paints", () => {
   expect(run(press(), [[103, 50, 30], [112, 51, 60]])).toBe("paint");
   expect(run(press(true), [[90, 52, 60]])).toBe("paint"); // from a selected card too: it deselects

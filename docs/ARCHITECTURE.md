@@ -128,7 +128,10 @@ Every millisecond lives in `src/game/timing.ts`; nothing else in `src/` may hold
 | `ROUND_OVER_MS` | `{ ai: 900, human: 800 }` | P:943, P:966 |
 | `FIRST_STEP_MS` | 700 | P:1037 |
 | `DOORS_MS` | 620 | P:1228 |
-| `DEAL_STAGGER_MS` | 32 per card | P:775 |
+| `DEAL` / `dealTotalMs()` | 52 backs leave a deck on the felt 14 ms apart, fly 300 ms (the opponents' shrink into their portraits, the player's land face-down in the fan), then the player's flip over 25 ms apart, 220 ms each: ≈ 1.5 s. Presentation only; `timing.test.ts` pins it inside the earliest first AI move at every speed. A tap finishes it | new (replaces the prototype's 32-ms `DEAL_STAGGER_MS` fly-in, P:775) |
+| `ROUND_END` | the round's last play holds 300 ms after landing, then slaps down (220 ms, camera jolt). On Greenhorn the losers' leftover cards come out face-up, and the store waits a fixed `revealHoldMs` (1500) more before scoring | new |
+| `POSTER` | rows 60 ms apart, then the numbers count up over 700 ms (a tick sound at most every 70 ms); a tap finishes it | new |
+| `MOTION` / `EASE` / `GESTURE` / `TURN` | presentation durations and easings, the hand's gesture timings, the turn cues (docs/MOBILE_UX_PLAN.md); `boundary.test.ts` fails on a number literal in a `phaser/` tween or timer | new |
 | `PLAY_FLY_MS` / `PLAY_FLY_STAGGER_MS` / `playLandMs(n)` | 700 / 30 per card: a play flies from behind its player's portrait (the hand strip for the human), meets as a stack, then spreads (`motion.css` `fly`). Not paced; the turn loop adds `playLandMs` to the next wait so nothing moves until it lands | new (the prototype's 280-ms slap, 40-ms stagger: P:883) |
 | `BARK_MS` / `BARK_CHANCE` | 2000 / 0.55 | P:894-899 |
 | `SELECT_MS` | 160 (the select lift) | P:151 |
