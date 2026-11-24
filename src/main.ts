@@ -73,7 +73,7 @@ function boot(): void {
   const sheet = new Value<Sheet>("none");
   const fault = new Value<Error | null>(null);
   provide({ game, settings, sheet, seed: readSeed(), fault, update: updates, install });
-  registerOffline(bridge.host); // docs/OFFLINE_PLAN.md: a production build caches itself for offline play
+  registerOffline(bridge.host); // a production build caches itself for offline play (platform/offline.ts)
   watchInstall(bridge.host); // the Title's "add to Home Screen" line
   directAudio(game, settings, sheet);
 

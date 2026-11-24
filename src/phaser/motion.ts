@@ -1,7 +1,7 @@
 /**
- * Motion helpers. Reduced motion cuts every presentation tween to nothing (what motion.css's
- * media query did); the bark and the banner then simply appear and are removed by the store's
- * timers. It is decided live from Settings › Motion and, on "auto", the device's
+ * Motion helpers. Reduced motion cuts every presentation tween to nothing; the bark and the banner
+ * then simply appear and are removed by the store's timers. It is decided live from Settings ›
+ * Motion and, on "auto", the device's
  * `prefers-reduced-motion` (motionReduced in settings.ts), so a change applies to the next tween
  * without a reload. Every duration is a token from game/timing.ts MOTION.
  */

@@ -1,7 +1,7 @@
 /**
- * The runtime twin of the explicit import table (the original build plan §3.8): every name resolves to a URL
- * whose file exists, the sprites and cards the UI needs are present, every AI portrait is
- * wired, and the images are the one-file-per-asset 3x cuts the CSS box sizes assume.
+ * The explicit import table at runtime: every name resolves to a URL whose file exists, the
+ * sprites and cards the table needs are present, every AI portrait is wired, and the images are
+ * the one-file-per-asset 3x cuts the art sizes (phaser/art.ts) assume.
  */
 /// <reference types="node" />
 import { existsSync, readFileSync } from "node:fs";
@@ -24,9 +24,9 @@ const pngSize = (file: string): [number, number] => {
   return [b.readUInt32BE(16), b.readUInt32BE(20)];
 };
 
-const PROTO_SPRITES: SpriteAssetName[] = ["wood", "felt", "p_marshal", "p_outlaw", "p_gambler", "wanted"];
+const TABLE_SPRITES: SpriteAssetName[] = ["wood", "felt", "p_marshal", "p_outlaw", "p_gambler", "wanted"];
 const CARD_FILES: CardAssetName[] = ["cards_atlas", "card_back"];
-/** Each image is 3x the CSS box the styles draw it in (docs/ASSETS.md §7); the doors' box is already a 2x cut. */
+/** Each image is 3x its art size in logical px (phaser/art.ts); the doors are already a 2x cut. */
 const PIXEL_SIZES: Partial<Record<AssetName, [number, number]>> = {
   cards_atlas: [3744, 1536],
   card_back: [288, 384],
@@ -49,8 +49,8 @@ test("every AssetName key maps to a non-empty string", () => {
   for (const [k, v] of entries) expect(typeof v === "string" && v.length > 0, k).toBe(true);
 });
 
-test("the six proto sprites are present", () => {
-  for (const s of PROTO_SPRITES) expect(MANIFEST[s], s).toBeTruthy();
+test("the six table sprites are present", () => {
+  for (const s of TABLE_SPRITES) expect(MANIFEST[s], s).toBeTruthy();
 });
 
 test("the two card files are present", () => {

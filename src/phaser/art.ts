@@ -1,6 +1,6 @@
 /**
- * The saloon props and portraits at their art size in logical px (what sprites.css's .sp-* rules
- * said): an art pixel each, the doors at exactly 2x. Each file holds 3x those pixels.
+ * The saloon props and portraits at their art size in logical px: an art pixel each, the doors
+ * at exactly 2x. Each file holds 3x those pixels.
  */
 import type Phaser from "phaser";
 import type { AssetName } from "../assets/names";

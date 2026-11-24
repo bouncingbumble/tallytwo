@@ -11,16 +11,15 @@ export type CardAssetName = "cards_atlas" | "card_back";
 export type PortraitKey = "p_marshal" | "p_outlaw" | "p_gambler";
 
 /**
- * One file per sprite, at 3x the art's pixels (docs/ASSETS.md §7): the CSS draws it at the
- * art size in CSS px and lets the browser scale, smoothed by default and pixelated only when
- * the whole game is upscaled (styles/sprites.css `.game.upscaled`).
+ * One file per sprite, at 3x the art's pixels (docs/ASSETS.md): a scene draws it at the art size
+ * in logical px (phaser/art.ts) and the GPU scales it.
  */
 /** The table and the poster. */
 export type TableSpriteBase = PortraitKey | "wood" | "felt" | "wanted";
 /**
- * The saloon props cut from the B-4 / B-6 tileset sheets (docs/ASSETS.md §7): the title's
- * batwing doors (three swing frames, drawn at exactly 2x), its sign and furniture, and the bar
- * behind the hand. Art pixel = CSS pixel, so each is placed by whole px in the CSS that draws it.
+ * The saloon props cut from the B-4 / B-6 tileset sheets (docs/ASSETS.md): the title's batwing
+ * doors (three swing frames, drawn at exactly 2x), its sign and furniture, and the bar behind
+ * the hand.
  */
 export type SaloonSpriteBase =
   | "doors_closed"

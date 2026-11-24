@@ -1,10 +1,11 @@
 /**
- * The palette (the prototype's, P:6-19) and the type scale, in one place for every scene.
+ * The palette and the type scale, in one place for every scene.
  *
  * Mobile size floors, in logical px of the 440-px canvas. The canvas is scaled by
  * k = viewportHeight / 440, and the smallest k designed for is 0.75 (an iPhone SE held sideways
  * in Safari with its toolbar showing, 667x331). Every size below is the target in physical CSS
- * px divided by 0.75: no text under FS_MIN (11.25 CSS px there), no control under TAP (45).
+ * px divided by 0.75: no text under FS_MIN (11.25 CSS px there), no control under TAP (45 CSS px
+ * there).
  */
 export const C = {
   oakDeep: 0x241408,

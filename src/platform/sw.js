@@ -1,7 +1,7 @@
 // The offline service worker body. Plain JS with no imports: vite.config.ts (tally-offline)
 // prepends `const PLAN = { version, base, index, core, music }` (src/platform/precache.ts) and
 // writes the result to dist/sw.js. sw.test.ts runs this file against fake caches and a fake
-// network. docs/OFFLINE_PLAN.md has the reasoning; in short:
+// network. In short:
 //
 // - install: every core file must cache (or the install fails and the old worker stays); the
 //   music is cached one file at a time and a miss is ignored (filled in at runtime).

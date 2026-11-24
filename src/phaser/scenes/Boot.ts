@@ -12,7 +12,7 @@ import { SHEET_KEY, buildCardSheet } from "../cardSheet";
 import { C } from "../theme";
 import { BaseScene } from "./base";
 
-/** The art files are 3x the art's pixels (docs/ASSETS.md §7). */
+/** The art files are 3x the art's pixels (docs/ASSETS.md). */
 export const ART_SCALE = 3;
 
 /** Every image asset except the atlas and the back, by manifest name. */

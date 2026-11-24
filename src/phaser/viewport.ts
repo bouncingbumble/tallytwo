@@ -1,11 +1,10 @@
 /**
- * The 440-px logical canvas on a Phaser canvas (what useFitScale + `.game { transform: scale(k) }`
- * did). The backing canvas is the viewport times the device pixel ratio, drawn at CSS size, so
- * nothing is blurred by the browser; every scene's camera zooms by Z = k * dpr from its top-left
- * corner, so every scene lays out in logical px and never sees k. Pointer worldX/worldY are
- * therefore logical px too.
+ * The 440-px logical canvas on a Phaser canvas. The backing canvas is the viewport times the device
+ * pixel ratio, drawn at CSS size, so nothing is blurred by the browser; every scene's camera zooms
+ * by Z = k * dpr from its top-left corner, so every scene lays out in logical px and never sees k.
+ * Pointer worldX/worldY are therefore logical px too.
  *
- * Crispness (docs/PERF_PLAN.md Phase 3):
+ * Crispness:
  * - The art is one 3x file per sprite, so a texel is 1/3 of an art pixel and an art pixel covers
  *   Z device px. While Z <= 3 the art is being shrunk from 3x: plain LINEAR is a clean resample
  *   (and the card sheet has mipmaps for strong shrinking). Once Z > 3 the art is being enlarged:
@@ -49,7 +48,7 @@ export function fitCamera(cam: Phaser.Cameras.Scene2D.Camera, game: Phaser.Game)
   cam.setRoundPixels(false);
 }
 
-/** Texels per art pixel in every art file (docs/ASSETS.md §7). */
+/** Texels per art pixel in every art file (docs/ASSETS.md). */
 const ART_TEXELS = 3;
 
 export type PixelMode = "smooth" | "linear" | "nearest";
@@ -83,8 +82,9 @@ interface Roundable {
  * Snap unrotated quads to device px. Phaser 4 rounds a quad's corners (in device px) when the
  * object's `willRoundVertices` says so; its default ('safeAuto') only does it when the whole
  * transform, camera included, is a pure translation and camera.roundPixels is on — never here,
- * where every camera zooms by Z. This takes over 'safeAuto' (the default every object has): round when nothing from the
- * object up through its containers is rotated. Any other mode an object sets is left to Phaser.
+ * where every camera zooms by Z. This takes over 'safeAuto' (the default every object has): round
+ * when nothing from the object up through its containers is rotated. Any other mode an object sets
+ * is left to Phaser.
  */
 export function installCrispVertices(): void {
   if (typeof location !== "undefined" && new URLSearchParams(location.search).get("snap") === "0") return;

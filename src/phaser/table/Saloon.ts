@@ -39,8 +39,8 @@ const PROPS: readonly [AssetName, number, number | "floor" | { b: number }][] = 
 
 export function drawSaloon(scene: Phaser.Scene, r: Rect): void {
   // ONE painted texture: the wall and floor, every prop (baked in sharp, drawArt), and the rim.
-  // It was a background, ~15 prop Images and a rim: up to 17 draw calls a frame where Phaser
-  // batches one texture per draw (iOS, Android), for a strip that never changes. It is cached
+  // As a background, ~15 prop Images and a rim it would be up to 17 draw calls a frame where
+  // Phaser batches one texture per draw (iOS, Android), for a strip that never changes. It is cached
   // by size like every painted texture, so the title's table prewarm paints it before the deal.
   const left = Math.floor((r.w - ROOM_W) / 2);
   painted(scene, "saloon-baked", r.x, r.y, r.w, r.h, (ctx, w, h) => {

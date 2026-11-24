@@ -1,7 +1,7 @@
 /**
- * The browser around the game, as plain observables (what the React use* hooks were): the fit
- * of the 440-px logical canvas to the viewport, the device pixel ratio, a hidden tab, an
- * upright phone, the notch side and the safe-area insets. WEB bucket.
+ * The browser around the game, as plain observables: the fit of the 440-px logical canvas to
+ * the viewport, the device pixel ratio, a hidden tab, an upright phone, the notch side and the
+ * safe-area insets. WEB bucket.
  */
 import { Value } from "../game/observable";
 import { type FitScale, fitScale } from "../render/scale";

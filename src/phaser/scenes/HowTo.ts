@@ -1,7 +1,6 @@
 /**
- * How to play (P:284-302, P:1277-1283): the prototype's text from copy.ts, with the two example
- * rows as small cards. It starts no music of its own: the audio director derives the results loop
- * from sheet === "howto".
+ * How to play: the text from copy.ts, with the two example rows as small cards. It starts no music
+ * of its own: the audio director derives the results loop from sheet === "howto".
  */
 import { COPY } from "../../game/copy";
 import { PLAY_CARD_H, PLAY_CARD_W } from "../../render/scale";

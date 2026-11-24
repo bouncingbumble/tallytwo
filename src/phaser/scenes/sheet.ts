@@ -5,12 +5,12 @@
  * clipped by the camera, and a tap outside the panel can never reach a control scrolled out of
  * view. A control only fires on a press that did not travel (widgets.ts TAP_SLOP).
  *
- * Motion (docs/MOBILE_UX_PLAN.md §7.2): the panel slides up from below the canvas over a dim that
- * fades in with it (MOTION.uiIn) and goes back down the same way (uiOut) before the sheet closes. It
- * closes by a tap on the dim, by pulling it down from the top of its body (it follows the finger,
- * and goes past render/sheetDrag.ts DISMISS_PX or on a downward flick; short of that it springs
- * back), or by its ✕. The body scrolls with momentum and stretches past its ends. A rebuild for a
- * new viewport keeps the scroll and skips the entrance.
+ * Motion: the panel slides up from below the canvas over a dim that fades in with it (MOTION.uiIn)
+ * and goes back down the same way (uiOut) before the sheet closes. It closes by a tap on the dim,
+ * by pulling it down from the top of its body (it follows the finger, and goes past
+ * render/sheetDrag.ts DISMISS_PX or on a downward flick; short of that it springs back), or by its
+ * ✕. The body scrolls with momentum and stretches past its ends. A rebuild for a new viewport keeps
+ * the scroll and skips the entrance.
  */
 import Phaser from "phaser";
 import { EASE, MOTION, SHEET } from "../../game/timing";

@@ -1,7 +1,7 @@
 /**
  * Offline play: registers dist/sw.js (built by vite.config.ts's tally-offline plugin from
  * src/platform/sw.js and the plan in precache.ts) and reports a waiting update. The only file
- * that touches navigator.serviceWorker (boundary.test.ts). docs/OFFLINE_PLAN.md.
+ * that touches navigator.serviceWorker (boundary.test.ts).
  *
  * Registered only in a production build, where service workers exist, and not inside a native
  * shell: a WKWebView has no service workers outside App-Bound Domains, and a shell bundles dist/

@@ -1,8 +1,8 @@
 /**
- * The controls (what buttons.css and overlays.css drew): Button, IconButton, Switch, Slider and
- * Picker. Every one is at least TAP (60 logical px) to hit, whatever its drawing, so the 44-pt
- * floor holds at k = 0.75. A tap is a pointerup on the control that has not travelled — a finger
- * that scrolls a sheet never presses what it started on.
+ * The controls: Button, IconButton, Switch, Slider and Picker. Every one is at least TAP (60
+ * logical px) to hit, whatever its drawing, so the 44-px floor holds at k = 0.75. A tap is a
+ * pointerup on the control that has not travelled — a finger that scrolls a sheet never presses
+ * what it started on.
  */
 import Phaser from "phaser";
 import { dropShadow, insetStroke, painted, roundRect, text, vgrad } from "./paint";
@@ -52,7 +52,7 @@ const FACE: Record<FaceKind, { top: string; bottom: string; base: string | null;
   ghostDark: { top: "", bottom: "", base: null, text: CSS.paperInk, ring: "rgba(42, 26, 15, 0.35)", bold: false },
 };
 
-/** One button face, up or pressed: the CSS .btn (radius 4, a 3-px base under it, a 1-px highlight). */
+/** One button face, up or pressed: radius 4, a 3-px base under it, a 1-px highlight. */
 function buttonPainter(kind: FaceKind, pressed: boolean) {
   const f = FACE[kind];
   return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
@@ -373,7 +373,7 @@ export function cover(scene: Phaser.Scene, w: number, h: number): Phaser.GameObj
   return scene.add.rectangle(0, 0, w, h, 0x0c0703, 0.82).setOrigin(0, 0);
 }
 
-/** A sheet's wooden panel: the CSS .sheet. */
+/** A sheet's wooden panel. */
 export function sheetPanel(scene: Phaser.Scene, x: number, y: number, w: number, h: number): Phaser.GameObjects.Image {
   return painted(
     scene,

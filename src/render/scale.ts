@@ -2,12 +2,10 @@
  * The table's geometry. Pure, zero imports.
  *
  * The game is designed on a fixed logical canvas: LOGICAL_H (440) logical px tall and as wide
- * as the viewport allows at that height. The web shell scales the whole canvas by
- * k = viewportHeight / LOGICAL_H (`transform: scale(k)` on `.game`, platform/useFitScale.ts),
- * so a phone held sideways (k < 1) shows the same layout smaller and a desktop window (k > 1)
- * shows it larger; there is no letterbox and no cap. Every layout number below and in
- * fanLayout.ts is a logical px; the DOM hooks (platform/useElementSize.ts) divide their
- * measurements by k so the UI never sees a physical px.
+ * as the viewport allows at that height. The Phaser camera scales the whole canvas by
+ * k = viewportHeight / LOGICAL_H (phaser/viewport.ts), so a phone held sideways (k < 1) shows the
+ * same layout smaller and a desktop window (k > 1) shows it larger; there is no letterbox and no
+ * cap. Every layout number below, in fanLayout.ts and in tableLayout.ts is a logical px.
  */
 export const CARD_ART_W = 96;
 export const CARD_ART_H = 128;

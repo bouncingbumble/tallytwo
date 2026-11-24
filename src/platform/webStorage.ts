@@ -1,5 +1,5 @@
 /**
- * The StoragePort over localStorage (P:1048-1056). Promise.resolve inside try/catch: Safari
+ * The StoragePort over localStorage. Promise.resolve inside try/catch: Safari
  * private mode, blocked site data and a full quota all throw on access, and the game must boot
  * from DEFAULTS and run without persistence rather than fail. Hydration resolves in the same tick.
  */

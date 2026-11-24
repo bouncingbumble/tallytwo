@@ -10,7 +10,7 @@
  * hidden until it clears its portrait's frame.
  *
  * The human's cards leave from exactly where they were in the hand, at their hand size, already
- * showing (docs/MOBILE_UX_PLAN.md §4.5): the hand drops its copies the same frame, so the card
+ * showing: the hand drops its copies the same frame, so the card
  * the player tapped or flicked is the one that lands. They fly in a layer above the hand and drop
  * into the trick's layer once they land.
  */
@@ -94,8 +94,8 @@ export class TrickView {
 
   /**
    * Bring the felt in line with the view; `animate` false on a rebuild (a resize), so nothing flies
-   * twice. `wonBy`: the trick just cleared to that seat (selectors.tableEvents), so the cards on the
-   * felt sweep to it instead of vanishing.
+   * twice. `wonBy`: the trick just cleared to that seat (selectors.tableEvents), so the cards on
+   * the felt sweep to it instead of vanishing.
    */
   update(v: GameView, animate: boolean, wonBy: number | null = null): void {
     const g = v.game;
@@ -148,7 +148,7 @@ export class TrickView {
   }
 
   /**
-   * A won trick (docs/MOBILE_UX_PLAN.md §5.4): every play on the felt holds for MOTION.trickHold
+   * A won trick: every play on the felt holds for MOTION.trickHold
    * (the winning one pops so it is read), then sweeps into the winner's portrait or the hand,
    * shrinking and fading. The groups leave the live set at once, so a play made meanwhile starts
    * a fresh trick beside them.

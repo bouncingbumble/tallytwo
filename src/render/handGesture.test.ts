@@ -46,7 +46,7 @@ test("moving up from a selected card flicks; from an unselected card it paints (
   expect(run(press(true), [[112, 42, 50]])).toBe("paint"); // more sideways than up
 });
 
-test("Swipe to select off: a move rearranges (the old drag); Flick to play off: an upward move paints", () => {
+test("Swipe to select off: a move rearranges; Flick to play off: an upward move paints", () => {
   expect(run(press(), [[112, 50, 60]], { ...ON, swipe: false })).toBe("hold");
   expect(run(press(true), [[102, 40, 50]], { ...ON, flick: false })).toBe("paint");
   expect(run(press(true), [[102, 40, 50]], { ...ON, swipe: false })).toBe("flick");

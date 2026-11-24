@@ -1,7 +1,7 @@
 /**
  * What the service worker saves for offline play, decided from the built dist/ file list. PURE (no
  * DOM, no node:): vite.config.ts's `tally-offline` plugin walks dist/, hands the files here and
- * inlines the result into dist/sw.js; precache.test.ts pins the rules. docs/OFFLINE_PLAN.md.
+ * inlines the result into dist/sw.js; precache.test.ts pins the rules.
  *
  * - **core** must all be cached for the worker to install: the page, the JS and CSS, the woff2
  *   font, every image, the SFX, the icons and the web manifest.

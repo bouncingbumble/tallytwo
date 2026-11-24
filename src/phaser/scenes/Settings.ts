@@ -1,5 +1,5 @@
 /**
- * The settings sheet (P:256-282), labels verbatim from copy.ts. One sheet serves the title and
+ * The settings sheet, labels verbatim from copy.ts. One sheet serves the title and
  * the table; only the footer differs: "Done" from the title; the seed line and Copy game log /
  * Quit game / Back to table in a game. Everything applies live, rules included (the store pushes
  * a rules change into the game in progress). No playback here: the audio director follows the

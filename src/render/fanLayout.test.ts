@@ -6,9 +6,9 @@ import { CORNER_INDEX_ART, fitScale } from "./scale";
 import { tableLayout } from "./tableLayout";
 
 describe("fanLayout", () => {
-  test("13 cards on the phones held sideways", () => {
-    expect(fanLayout(13, 509)).toMatchObject({ step: 34, span: 504, x0: 2 }); // iPhone SE
-    expect(fanLayout(13, 588)).toMatchObject({ step: 41, span: 588, x0: 0 }); // iPhone 15
+  test("13 cards on a narrow strip overlap to fit and centre", () => {
+    expect(fanLayout(13, 509)).toMatchObject({ step: 34, span: 504, x0: 2 });
+    expect(fanLayout(13, 588)).toMatchObject({ step: 41, span: 588, x0: 0 });
     const se = fanLayout(13, 509);
     expect(se.xs).toEqual(Array.from({ length: 13 }, (_, i) => 2 + i * 34));
   });
@@ -41,13 +41,13 @@ describe("fanLayout", () => {
   });
   test("constants", () => {
     expect(PILE_STEP).toBe(30);
-    expect(SELECT_LIFT).toBe(26); // raised from 14 so a selection reads at a glance (docs/MOBILE_UX_PLAN.md §4.3)
+    expect(SELECT_LIFT).toBe(26);
     expect(FAN_STEP_MAX).toBe(64);
   });
 });
 
-describe("the index corners stay exposed on every device (docs/MOBILE_UX_PLAN.md §9)", () => {
-  // the four e2e geometries: the phones held sideways (the SE with Safari's toolbars too) and a desktop window
+describe("the index corners stay exposed on every device", () => {
+  // the phones held sideways (the SE with Safari's toolbars too) and a desktop window
   const DEVICES: readonly [string, number, number][] = [
     ["iPhone SE", 667, 375],
     ["iPhone SE, toolbars showing", 667, 331],

@@ -1,10 +1,10 @@
 /**
- * One opponent's badge on the felt (P:846-867): portrait, name, back chips and count, the running
+ * One opponent's badge on the felt: portrait, name, back chips and count, the running
  * tally, the "passed" stamp, and what they just said as a speech bubble over the info column
  * pointing at the portrait. Active / low / out change the ring, the count's colour and the alpha.
  * The portrait comes from portraitFor() in selectors.ts, so this file never reaches into ai/.
  *
- * Motion that explains state (docs/MOBILE_UX_PLAN.md §5), all one-shot except the thinking dots,
+ * Motion that explains state, all one-shot except the thinking dots,
  * which step on a timer so a long think draws a few frames a second, not every frame:
  * - the ring flares in when the seat's turn starts, and stepping dots say it is thinking;
  * - the portrait lunges toward the felt as the seat plays, and pops when it takes a trick;
@@ -30,7 +30,7 @@ import { CSS, FS_EM, FS_MIN } from "../theme";
 /** "+3" / "0" / "-7", as the top bar and the poster show a tally. */
 export const signed = (n: number): string => (n > 0 ? `+${n}` : String(n));
 
-/** At most this many back chips are drawn, whatever the count says (P:859). */
+/** At most this many back chips are drawn, whatever the count says. */
 const MAX_CHIPS = 5;
 /** One back chip: a dark 10x12 edge around a 8x10 red back with four darker stripes. */
 const CHIP_W = 10;
@@ -253,7 +253,7 @@ export class SeatView extends Phaser.GameObjects.Container {
 
   /**
    * Paint the bubble at every height a bark can have (one line to BARK_LINES), now, so no bark
-   * rasterises a texture mid-round (docs/MOBILE_UX_PLAN.md §8).
+   * rasterises a texture mid-round.
    */
   prewarm(): void {
     for (let n = 1; n <= BARK_LINES; n++) {

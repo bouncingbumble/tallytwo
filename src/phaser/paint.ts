@@ -1,5 +1,5 @@
 /**
- * The CSS that was hard to say in Phaser primitives — rounded boxes with gradients, inset
+ * What is hard to say in Phaser primitives — rounded boxes with gradients, inset
  * strokes and soft shadows — painted once with the 2D canvas API into a texture at the current
  * render resolution, cached by key, and shown at its logical size. Also the text factory, which
  * rasterises at the same resolution so text is crisp at any zoom.
@@ -11,7 +11,7 @@ import { resolution } from "./viewport";
 export type Painter = (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
 
 /**
- * The DEV guard (docs/MOBILE_UX_PLAN.md §8): once a round is under way (the table passes its
+ * The DEV guard: once a round is under way (the table passes its
  * scene and a time), a painted() texture that is not already cached means a canvas draw and a GPU
  * upload mid-motion — prewarm it instead. It warns, and the e2e counts warnings as failures.
  */

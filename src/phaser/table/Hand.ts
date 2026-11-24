@@ -1,13 +1,12 @@
 /**
- * The fanned hand (what ui/Hand.tsx did): every card at a whole-px x from fanLayout(), flown in
+ * The fanned hand: every card at a whole-px x from fanLayout(), flown in
  * on a fresh deal, lifted when selected, dimmed when it cannot complete a legal move, glowing
  * amber when the selection is a legal play.
  *
- * Input (docs/MOBILE_UX_PLAN.md §4.2). One touch zone covers the fan, from above the lifted
- * cards to the bottom edge; the card under a finger comes from the fan's geometry
- * (handGesture.cardIndexAt: each card owns its exposed strip), never from object hits, so thin
- * overlapped strips still register. Every press becomes exactly one gesture
- * (handGesture.resolveGesture):
+ * Input. One touch zone covers the fan, from above the lifted cards to the bottom edge; the card
+ * under a finger comes from the fan's geometry (handGesture.cardIndexAt: each card owns its exposed
+ * strip), never from object hits, so thin overlapped strips still register. Every press becomes
+ * exactly one gesture (handGesture.resolveGesture):
  *
  *   tap     toggles the card (a card that cannot join a legal play also wobbles "no")
  *   paint   swipe-to-select: the cards between the first and the one under the finger take the
@@ -287,7 +286,7 @@ export class HandView {
       if (view.scale !== s) this.scene.tweens.add({ targets: view, scale: s, duration: ms(SLIDE_MS), ease: EASE.enter });
       return;
     }
-    // the quick slide keeps the CSS curve's little overshoot; the slow settle after a play
+    // the quick slide keeps a little overshoot; the slow settle after a play
     // glides in without one (a 640-ms overshoot reads as a wobble)
     const d = ms(this.#settle ? SETTLE_MS : SLIDE_MS);
     if (!d) {

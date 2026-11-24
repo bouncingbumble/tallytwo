@@ -4,7 +4,7 @@
  * is; the device's rotation can. window.orientation is 90 when the phone is turned
  * counter-clockwise (its top, and the island, on the left) and -90 when clockwise;
  * screen.orientation.angle is the fallback (90 / 270); 0 or 180 means upright or a desktop.
- * Pure, so useNotchSide.test.ts runs under node.
+ * Pure, so notch.test.ts runs under node.
  */
 export type NotchSide = "left" | "right" | null;
 

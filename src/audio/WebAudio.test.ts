@@ -564,7 +564,7 @@ test("playSmall ducks the music and deal does not; the lift is scheduled on the 
   expect(node.gain.targetTimes.slice(2)).toEqual([10.1, 10.1 + DUCK.holdMs / 1000]);
 });
 
-test("dealRoll plays a shuffle now and schedules the deal ticks on the audio clock at the prototype's offsets", async () => {
+test("dealRoll plays a shuffle now and schedules the deal ticks on the audio clock at DEAL_ROLL's offsets", async () => {
   const { ctx, audio } = setup();
   await audio.init();
   ctx.currentTime = 3;

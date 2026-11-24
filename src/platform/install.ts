@@ -1,6 +1,6 @@
 /**
- * "Add to Home Screen", offered on the Title so the game is one tap from playing offline
- * (docs/OFFLINE_PLAN.md). Two paths, because the browsers differ:
+ * "Add to Home Screen", offered on the Title so the game is one tap from playing offline.
+ * Two paths, because the browsers differ:
  *
  * - **prompt**: Chromium (Android Chrome, desktop Chrome/Edge) fires `beforeinstallprompt`; we
  *   keep the event and `prompt()` it from the tap, which opens the browser's own install dialog.

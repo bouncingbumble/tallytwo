@@ -264,7 +264,7 @@ export class TableScene extends BaseScene {
   }
 
   /**
-   * The round's last play (docs/MOBILE_UX_PLAN.md §6.2): once it has landed it holds, then slaps
+   * The round's last play: once it has landed it holds, then slaps
    * down with a jolt of the camera; on Greenhorn the losers' leftover cards then come out of their
    * portraits face-up (the store waits ROUND_END.revealHoldMs longer before the poster for it).
    */
@@ -301,7 +301,7 @@ export class TableScene extends BaseScene {
   }
 
   /**
-   * The player's turn arriving (docs/MOBILE_UX_PLAN.md §5.1): the hand row glows once, and the
+   * The player's turn arriving: the hand row glows once, and the
    * asked-for control is nudged. If nothing is touched for TURN.idleNudgeMs, one more nudge —
    * one reminder, never a nag. The turn moving on cancels it.
    */
@@ -331,7 +331,7 @@ export class TableScene extends BaseScene {
   }
 
   /**
-   * The one-time "swipe to pick several" coach mark (docs/MOBILE_UX_PLAN.md §4.2): a plaque over
+   * The one-time "swipe to pick several" coach mark: a plaque over
    * the hand and a finger sweeping across the first cards. Gone on the first swipe or after
    * GESTURE.coachMs, and never shown again (Settings swipeHintSeen).
    */
@@ -433,7 +433,7 @@ export class TableScene extends BaseScene {
     this.#announce = c;
     const run = ms(ANNOUNCE_ANIM_MS);
     if (run) {
-      // slammed down onto the felt, then left to fade (§6.4)
+      // slammed down onto the felt, then left to fade
       c.setAlpha(0).setScale(1.5);
       this.tweens.add({ targets: c, alpha: 1, scale: 1, duration: ms(MOTION.uiIn), ease: EASE.land, easeParams: [2] });
       this.tweens.add({ targets: c, alpha: 0, delay: run * 0.85, duration: run * 0.15, ease: EASE.fadeOut });

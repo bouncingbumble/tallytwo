@@ -1,5 +1,5 @@
 /**
- * Where each card of the hand sits, in whole CSS px. Integer positions and zero rotation at
+ * Where each card of the hand sits, in whole logical px. Integer positions and zero rotation at
  * rest are what keep the pixel art crisp; animations may pass through fractions but must end
  * here.
  */
@@ -8,12 +8,12 @@ export const CARD_H = 128;
 /**
  * The most a fanned card ever shows of its left edge. The table is a phone held sideways, so a
  * 13-card hand spreads to 96 + 12 * 64 = 864 px when the strip allows and shrinks as far as the
- * strip needs (41 px on an iPhone SE, 55 on an iPhone 15; render/scale.test.ts).
+ * strip needs (41 px on an iPhone SE, 55 on an iPhone 15; render/tableLayout.test.ts).
  */
 export const FAN_STEP_MAX = 64;
 /** The trick plays' card step: floor(72 * 0.42) for the 72-px cards on the felt (render/scale.ts PLAY_CARD_W). */
 export const PILE_STEP = 30;
-/** A selected card lifts this many logical px (was 14: too little to read at a glance on a phone). */
+/** A selected card lifts this many logical px: enough to read at a glance on a phone. */
 export const SELECT_LIFT = 26;
 /** A card picked up to rearrange grows this much; held still longer, it grows to PEEK_SCALE above the fan. */
 export const HOLD_SCALE = 1.08;
@@ -32,8 +32,8 @@ export interface FanLayout {
 
 /**
  * Fit n cards into availW. Cards overlap by (cardW - step); the step is FAN_STEP_MAX at most and
- * shrinks as far as needed for a long hand on a narrow strip:
- * 13 cards at 864 px or more -> step 64; at 504 px -> step 34, span 504.
+ * shrinks as far as needed for a long hand on a narrow strip: 13 cards at 864 px or more -> step
+ * 64; at 504 px -> step 34, span 504.
  */
 export function fanLayout(n: number, availW: number, cardW = CARD_W): FanLayout {
   if (n <= 0) return { step: 0, span: 0, x0: 0, xs: [] };

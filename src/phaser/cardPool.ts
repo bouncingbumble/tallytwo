@@ -1,7 +1,7 @@
 /**
- * The table's card objects, made once and handed round (docs/MOBILE_UX_PLAN.md §8): a CardView
- * is six images, and a round used to make and destroy ~80 of them (the hand, every play, the
- * leftovers) plus 56 deal backs — garbage the collector picked up mid-trick. Now the table
+ * The table's card objects, made once and handed round: a CardView is six images, and a round
+ * needs ~80 of them (the hand, every play, the leftovers) plus 56 deal backs; making and
+ * destroying them each time would leave garbage for the collector mid-trick. So the table
  * prewarms a pool when it is built, and the hand, the trick, the seats and the deal take views
  * from it and give them back. A view handed out is reset to the card asked for, at rest, with
  * no look and no tween; a view given back is hidden and leaves its container.

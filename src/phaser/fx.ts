@@ -1,5 +1,5 @@
 /**
- * The juice kit (docs/MOBILE_UX_PLAN.md §2.2): small one-call effects every scene shares, so a
+ * The juice kit: small one-call effects every scene shares, so a
  * "no" shake or a pop looks and times the same everywhere. Each one:
  *
  * - takes its duration from timing.ts MOTION and does nothing at all under reduced motion;
@@ -151,7 +151,7 @@ export function press(scene: Phaser.Scene, obj: Movable, down: boolean, amount =
 }
 
 /**
- * FLIP's last step (docs/MOBILE_UX_PLAN.md §7.3): `obj` has just been put at rest; it jumps back to
+ * FLIP's last step: `obj` has just been put at rest; it jumps back to
  * where it was on screen, (fromX, fromY) in absolute logical px, and glides home, ending exactly
  * on its rest pose. For an object whose containers are only translated (the table's layers).
  */

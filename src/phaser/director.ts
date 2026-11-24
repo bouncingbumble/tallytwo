@@ -1,16 +1,16 @@
 /**
- * Which scenes run (what App.tsx's Screens did): the crash or error sheet over everything; the
+ * Which scenes run: the crash or error sheet over everything; the
  * title when there is no game, else the table with the poster over it once the round is scored;
  * the settings or how-to sheet on top; the rotate gate over all of it on an upright phone. Also
- * the pause (a hidden tab, the shell's `pause`, the rotate gate, a lost WebGL context), the canvas size, and a rebuild
- * of every running scene when the viewport changes.
+ * the pause (a hidden tab, the shell's `pause`, the rotate gate, a lost WebGL context), the
+ * canvas size, and a rebuild of every running scene when the viewport changes.
  *
- * It also owns the moves between screens (docs/MOBILE_UX_PLAN.md §7.1), so the scenes stay
- * unaware of them: the title's own exit is its doors (the camera goes in through them and
- * darkens, Title.ts); the table then fades up out of that dark, and leaving the table for the
- * title fades the title up the same way. A rebuild for a new viewport is told it is one
- * (SceneData.resumed) and handed what the run before carried (a sheet's scroll, the cards'
- * poses), so a rotation never replays an entrance or loses where things were.
+ * It also owns the moves between screens, so the scenes stay unaware of them: the title's own exit
+ * is its doors (the camera goes in through them and darkens, Title.ts); the table then fades up out
+ * of that dark, and leaving the table for the title fades the title up the same way. A rebuild for
+ * a new viewport is told it is one (SceneData.resumed) and handed what the run before carried (a
+ * sheet's scroll, the cards' poses), so a rotation never replays an entrance or loses where things
+ * were.
  */
 import Phaser from "phaser";
 import { TRANSITION } from "../game/timing";

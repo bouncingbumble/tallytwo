@@ -31,5 +31,5 @@ export function spriteFor(v: Card): SpriteRect {
   return { x: ATLAS_COL[rank(v)] * CELL_W, y: ATLAS_ROW[suit(v)] * CELL_H, w: CELL_W, h: CELL_H };
 }
 
-/** The CSS custom properties the card rule reads: --col and --row. */
+/** The atlas column and row of card `v`. */
 export const atlasCell = (v: Card): { col: number; row: number } => ({ col: ATLAS_COL[rank(v)], row: ATLAS_ROW[suit(v)] });

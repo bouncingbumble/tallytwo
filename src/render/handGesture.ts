@@ -1,6 +1,6 @@
 /**
- * The hand's gestures, as pure functions (docs/MOBILE_UX_PLAN.md §4.2). Every press on the hand
- * becomes exactly one gesture; HandView only feeds pointer positions and times in and acts on
+ * The hand's gestures, as pure functions. Every press on the hand becomes exactly one gesture;
+ * HandView (phaser/table/Hand.ts) only feeds pointer positions and times in and acts on
  * the answer, so the arbitration is tested here without a renderer.
  *
  *   tap      released before it moved DRAG_THRESHOLD and before GESTURE.holdMs   toggles the card
@@ -8,8 +8,8 @@
  *   flick    moved, mostly upward, starting on a selected card                    drag the selection to play it
  *   hold     held still for GESTURE.holdMs                                        pick the card up to rearrange
  *
- * With Settings › Swipe to select off, a move that would paint is a rearrange drag instead (the
- * old behaviour); with Flick to play off, a move that would flick paints. Positions are logical px.
+ * With Settings › Swipe to select off, a move that would paint is a rearrange drag instead; with
+ * Flick to play off, a move that would flick paints. Positions are logical px.
  */
 import type { Card } from "../engine/cards";
 import type { FanLayout } from "./fanLayout";

@@ -1,4 +1,4 @@
-/* /assets (ui/screens/AssetsPage.tsx): a normal scrolling document. body and #root are
+/* /assets (src/assetsPage.ts): a normal scrolling document. body and #root are
    overflow: hidden for the game, so the page is its own scroll container. */
 .ap {
   height: 100dvh;

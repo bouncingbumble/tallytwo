@@ -1,9 +1,8 @@
 /**
- * One card face from the atlas (what ui/Card.tsx + cards.css drew), drawn at the card's logical
- * size, with the CSS drop shadow, the amber ring of a selected or latest card, and the dim of a
- * card that cannot complete a legal move. The container's origin is the card's CENTRE, so a
- * tween's scale and rotation turn about the middle as the CSS transforms did; place it with
- * `left + w / 2`.
+ * One card face from the atlas, drawn at the card's logical size, with a drop shadow, the amber
+ * ring of a selected or latest card, and the dim of a card that cannot complete a legal move.
+ * The container's origin is the card's CENTRE, so a tween's scale and rotation turn about the
+ * middle; place it with `left + w / 2`.
  *
  * Every layer comes from the one card sheet (cardSheet.ts): faces, shadows and rings in a single
  * POT texture, so a hand and a trick are one batch even where Phaser batches one texture per draw
@@ -86,9 +85,9 @@ function ringPainter(inset: boolean) {
   };
 }
 
-/** A card that cannot complete a legal move: about the old brightness(.62) saturate(.6) over the felt, but opaque. */
+/** A card that cannot complete a legal move: darkened and desaturated, but opaque. */
 const DIM_TINT = 0x8a8780;
-/** An earlier play in the trick: a gentler darkening than dim (was the whole group at alpha 0.72). */
+/** An earlier play in the trick: a gentler darkening than dim. */
 const RECEDE_TINT = 0xa9aba2;
 
 /**
@@ -140,7 +139,7 @@ export class CardView extends Phaser.GameObjects.Container {
     this.#ringOut.setVisible(!this.#selected && this.#lit);
     this.#glow.setVisible(this.#selected && this.#playable);
     // Darkened by tint only, never by alpha: the cards overlap, so a see-through face shows the
-    // card under it and the saloon behind (docs/MOBILE_UX_PLAN.md F1). The face stays opaque.
+    // card under it and the saloon behind. The face stays opaque.
     if (this.#dim) this.face.setTint(DIM_TINT);
     else if (this.#recede) this.face.setTint(RECEDE_TINT);
     else this.face.clearTint();

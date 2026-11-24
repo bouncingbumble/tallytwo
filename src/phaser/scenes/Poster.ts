@@ -1,5 +1,5 @@
 /**
- * The end-of-round WANTED poster (P:995-1028) and, when matchOver() says the match is done, the
+ * The end-of-round WANTED poster and, when matchOver() says the match is done, the
  * FINAL TALLY poster in the same frame: the match winner instead of the round winner, "$N over M
  * rounds" instead of the reward, New match in place of Next round. Rows sorted by tally, highest
  * first (selectors.scoreRows). Shown over the table while game.phase === "scored".
@@ -7,11 +7,11 @@
  * Wider than it is tall on a sideways phone: the heading across the top, the face, the winner and
  * the reward on the left, the table on the right, the buttons across the bottom.
  *
- * Motion (docs/MOBILE_UX_PLAN.md §6.3-6.4): the paper drops in on a spring, a little turned, and
- * settles square; the rows arrive one after another; then the round's numbers count up from 0
- * and the tallies from last round's, ticking. The buttons wake when the count is done — or at
- * once, with everything at its final value, on a tap anywhere. A button lifts the poster away
- * before it acts. The final poster has an amber rule and a few glints round the winner's frame.
+ * Motion: the paper drops in on a spring, a little turned, and settles square; the rows arrive one
+ * after another; then the round's numbers count up from 0 and the tallies from last round's,
+ * ticking. The buttons wake when the count is done — or at once, with everything at its final
+ * value, on a tap anywhere. A button lifts the poster away before it acts. The final poster has an
+ * amber rule and a few glints round the winner's frame.
  */
 import type Phaser from "phaser";
 import { COPY } from "../../game/copy";

@@ -1,4 +1,4 @@
-// The offline build gate (docs/OFFLINE_PLAN.md): reads dist/sw.js's PLAN and checks it against
+// The offline build gate: reads dist/sw.js's PLAN and checks it against
 // dist/ independently of the plugin that wrote it.
 //
 //   node scripts/check-sw.mjs [base]      base defaults to $BASE_PATH, else "/"

@@ -9,8 +9,8 @@
  * Inbound messages reach us two ways — a `message` event from the parent window (iframe) or a
  * call to `window.tallyReceive(json)` (native, from evaluateJavaScript) — and both go through
  * decode(), so junk and unknown types are dropped before any handler sees them. Replies to a
- * request are matched by id; the last `pause`/`resume` and `insets` are kept so a hook that
- * mounts after the host spoke still sees them (useBridge.ts).
+ * request are matched by id; the last `pause`/`resume` and `insets` are kept so a reader that
+ * starts after the host spoke still sees them (platform/env.ts).
  *
  * `createBridge(win)` exists so bridge.test.ts can drive the whole thing with a fake window
  * under node; the app only ever uses the `bridge` singleton below.
@@ -136,8 +136,8 @@ export function createBridge(win: HostWindow | undefined): Bridge {
 export const bridge: Bridge = createBridge(typeof window === "undefined" ? undefined : (window as unknown as HostWindow));
 
 /**
- * The tiny WEB adapter GameProvider receives as its `shell` prop (the same pattern as `audio`
- * and `storage`): the three game events a host cares about, mapped onto outbound messages.
+ * The ShellPort main.ts hands the GameStore (the same pattern as `audio` and `storage`): the
+ * three game events a host cares about, mapped onto outbound messages.
  */
 export const bridgeShell: ShellPort = {
   haptic: (kind) => bridge.send("haptic", { kind }),

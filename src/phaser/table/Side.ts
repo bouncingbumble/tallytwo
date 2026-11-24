@@ -56,7 +56,7 @@ export class SideView {
     const textW = r.w - clearR - 12;
     this.#signWho = text(scene, 0, 0, "", { size: FS_MIN, color: CSS.dust, wrap: textW, lineHeight: 1.25 });
     this.#signText = text(scene, 0, 0, "", { size: FS_BODY, color: CSS.bone, wrap: textW, lineHeight: 1.25 });
-    // the sign's box at every height it can have, painted now rather than mid-round (§8)
+    // the sign's box at every height it can have, painted now rather than mid-round
     const lines = (n: number) => Array.from({ length: n }, () => "M").join("\n");
     for (let who = 1; who <= SIGN_WHO_LINES; who++) {
       this.#signWho.setText(lines(who));

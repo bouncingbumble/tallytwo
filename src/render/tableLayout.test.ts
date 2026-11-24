@@ -1,4 +1,4 @@
-/** The table's geometry on the three device targets (what e2e/play.mjs used to measure in the DOM). */
+/** The table's geometry on the three device targets. */
 import { expect, test } from "vitest";
 import { fanLayout } from "./fanLayout";
 import { LOGICAL_H } from "./scale";

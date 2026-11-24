@@ -1,7 +1,7 @@
 /**
- * A lost WebGL context (docs/MOBILE_UX_PLAN.md §8): iOS drops it when the app is backgrounded
- * under memory pressure, and a GPU reset drops it anywhere. Phaser 4 keeps every texture's source
- * (the art images; every painted() texture, the card sheet and each Text is a canvas) and on
+ * A lost WebGL context: iOS drops it when the app is backgrounded under memory pressure, and a GPU
+ * reset drops it anywhere. Phaser 4 keeps every texture's source (the art images; every painted()
+ * texture, the card sheet and each Text is a canvas) and on
  * `webglcontextrestored` re-creates the GPU textures from them, so nothing is baked again here.
  * What the game adds:
  *

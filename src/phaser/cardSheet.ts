@@ -1,6 +1,6 @@
 /**
  * The card sheet: every texture a card is drawn from, in ONE power-of-two canvas texture, built
- * once at boot from the loaded atlas (docs/PERF_PLAN.md F7 + the mobile batching finding).
+ * once at boot from the loaded atlas.
  *
  * Why one texture. On iOS and Android Phaser batches one texture per draw (autoMobileTextures),
  * so a card drawn as shadow + face + ring from three textures cost up to three draw calls, and a
@@ -11,8 +11,8 @@
  * and the card's own edge is inside its quad, so a rotated card (a deal, a play in flight) is
  * anti-aliased by the texture filter — which is what lets the game run without MSAA.
  *
- * Why power of two. WebGL 1 only mipmaps POT textures; the 3744x1536 atlas never had mipmaps,
- * so a 72x96 play card on a dpr-1 desktop (~0.45 texels per pixel) shimmered. 4096x2048 does.
+ * Why power of two. WebGL 1 only mipmaps POT textures; the 3744x1536 atlas cannot have mipmaps,
+ * so a 72x96 play card on a dpr-1 desktop (~0.45 texels per pixel) would shimmer. 4096x2048 can.
  *
  * Frames: `face-<card>`, `back`, and per card size `shadow-WxH`, `shadow-deep-WxH`,
  * `ring-in-WxH`, `ring-out-WxH`. Every frame carries its pad: draw it with sheetImage().

@@ -74,7 +74,7 @@ function assetNotes(): Plugin {
   };
 }
 
-/** Offline precache budget: the build fails past it (docs/OFFLINE_PLAN.md). */
+/** Offline precache budget: the build fails past it. */
 const PRECACHE_BUDGET = 16 * 1024 * 1024;
 
 async function walkDist(dir: string): Promise<string[]> {
@@ -89,7 +89,7 @@ async function walkDist(dir: string): Promise<string[]> {
 
 /**
  * Build-only: once dist/ is written (public/ copied in), hash every file, ask precache.ts which
- * ones go offline, and write dist/sw.js = that plan + src/platform/sw.js. docs/OFFLINE_PLAN.md.
+ * ones go offline, and write dist/sw.js = that plan + src/platform/sw.js.
  */
 function offline(): Plugin {
   let config: ResolvedConfig;

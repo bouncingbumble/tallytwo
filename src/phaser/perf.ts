@@ -1,12 +1,12 @@
 /**
  * `?perf=1`: a frame-time instrument for the real device (it works in a production build, not only
  * DEV). A DOM overlay — not drawn on the canvas, so it never dirties a frame itself — shows the
- * last second, and `window.__perf` hands the whole run to a script (e2e/perf.mjs) or the console:
+ * last second, and `window.__perf` hands the whole run to a script or the console:
  *
  *   __perf.report()   frames, drawn frames, fps, frame interval and main-thread work per frame
  *                     (p50/p95/p99/max), draw calls and texture uploads per drawn frame, long tasks,
  *                     live tweens at the peak, and how long frames keep being drawn once the
- *                     last tween has ended (render on demand going idle; docs/MOBILE_UX_PLAN.md §8)
+ *                     last tween has ended (render on demand going idle)
  *   __perf.reset()    start a new measurement window
  *
  * "work" is the time inside one game-loop callback (update + draw submission): the part of a

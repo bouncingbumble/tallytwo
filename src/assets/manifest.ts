@@ -3,8 +3,8 @@
  * resolve error (dev and build both stop); a missing or misspelled KEY is a TS error against
  * Record<AssetName, string>. WEB bucket — PURE code names assets through assets/names.ts.
  *
- * Every image is one file at 3x the art's pixels (docs/ASSETS.md §3): the CSS that draws it
- * sets the art size in CSS px and the browser scales.
+ * Every image is one file at 3x the art's pixels (docs/ASSETS.md): the scene that draws it sets
+ * the art size in logical px (phaser/art.ts) and the GPU scales.
  *
  * Audio is AAC (.m4a): the kept pack is Ogg Vorbis, which iOS Safari cannot decode, so every
  * wired file was transcoded (docs/ASSETS.md records how). Loop lengths are in audio/sfxTable.ts.

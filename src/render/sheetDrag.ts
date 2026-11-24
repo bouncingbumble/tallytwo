@@ -1,8 +1,8 @@
 /**
- * A sheet's drag, as pure functions (docs/MOBILE_UX_PLAN.md §7.2): the body scrolls with the
- * finger and stretches past its ends (a rubber band), keeps gliding after a flick (momentum), and
- * pulled down from the top the whole sheet follows the finger and goes away past DISMISS_PX or on
- * a downward flick. SheetScene only feeds pointer positions in, in logical px.
+ * A sheet's drag, as pure functions: the body scrolls with the finger and stretches past its ends
+ * (a rubber band), keeps gliding after a flick (momentum), and pulled down from the top the whole
+ * sheet follows the finger and goes away past DISMISS_PX or on a downward flick. SheetScene only
+ * feeds pointer positions in, in logical px.
  */
 
 /** A sheet pulled down this far (logical px) and let go is dismissed... */

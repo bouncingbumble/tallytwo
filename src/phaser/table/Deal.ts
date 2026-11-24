@@ -1,9 +1,8 @@
 /**
- * The deal (docs/MOBILE_UX_PLAN.md §6.1). A short deck sits on the felt; 52 backs leave it
- * round-robin, DEAL.staggerMs apart. An opponent's back shrinks into their portrait and their
- * count ticks up as it arrives; the player's land face-down in their fan slots, left to right,
- * and once the last one is down they flip over in a wave (the hand's own cards, hidden until
- * then, grow out of the edge each back shrinks into).
+ * The deal. A short deck sits on the felt; 52 backs leave it round-robin, DEAL.staggerMs apart. An
+ * opponent's back shrinks into their portrait and their count ticks up as it arrives; the player's
+ * land face-down in their fan slots, left to right, and once the last one is down they flip over in
+ * a wave (the hand's own cards, hidden until then, grow out of the edge each back shrinks into).
  *
  * Presentation only: the store has already dealt and does not wait (timing.test.ts pins the deal
  * inside the earliest first AI move). `finish()` — on the last flip, on a tap anywhere, or from a

@@ -1,6 +1,6 @@
 /**
- * The table's geometry: what styles/table.css's grid used to compute, as whole logical px of
- * the 440-px canvas (render/scale.ts). Pure, zero DOM, unit-tested (tableLayout.test.ts).
+ * The table's geometry, as whole logical px of the 440-px canvas (render/scale.ts). Pure, zero
+ * DOM, unit-tested (tableLayout.test.ts).
  *
  *     felt    side        felt: the three opponents' badges along its top edge, the trick's four
  *     hand    side        plays staggered in three rows beneath; side: round, tally, menu, the

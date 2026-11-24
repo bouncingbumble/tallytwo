@@ -1,7 +1,7 @@
 /** The logical canvas, the scale that fits it to a viewport, and the fan constants. */
 import { describe, expect, test } from "vitest";
 import { CARD_ART_H, CARD_ART_W, LOGICAL_H, PLAY_CARD_H, PLAY_CARD_W, PLAY_SLACK_PT, fanSpanArt, fanStepArt, fitScale } from "./scale";
-import { CARD_H, CARD_W, fanLayout } from "./fanLayout";
+import { CARD_H, CARD_W } from "./fanLayout";
 
 describe("fitScale", () => {
   test("k is the viewport height over the 440-px canvas; the width follows", () => {
@@ -30,13 +30,6 @@ describe("fitScale", () => {
     }
     expect(fitScale(956, 440)).toEqual({ k: 1, logicalWidth: 956 }); // the largest iPhone sideways is 1:1
     expect(fitScale(0, 0).k).toBe(1); // a hidden window never divides by zero
-  });
-  test("a 13-card fan fits every target with a readable corner index", () => {
-    // table.css: the 16-px --edge each side (no notch clearance on these), the 136-px side column and its 6-px gap, 8 + 8 of hand gutter
-    const availW = (viewportW: number, viewportH: number) => fitScale(viewportW, viewportH).logicalWidth - 32 - 142 - 16;
-    expect(fanLayout(13, Math.floor(availW(667, 375))).step).toBe(41);
-    expect(fanLayout(13, Math.floor(availW(852, 393))).step).toBe(55);
-    expect(fanLayout(13, Math.floor(availW(1280, 800))).step).toBe(34);
   });
 });
 

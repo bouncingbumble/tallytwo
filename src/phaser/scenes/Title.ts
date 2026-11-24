@@ -1,7 +1,7 @@
 /**
- * The title (P:222-229, P:1220-1229), a saloon front: the name over the SALOON sign, the batwing
- * doors and the props around them on the left; the painting and the three buttons on the right;
- * floorboards along the bottom; sconces and a chip pile in the corners of a wide canvas.
+ * The title, a saloon front: the name over the SALOON sign, the batwing doors and the props around
+ * them on the left; the painting and the three buttons on the right; floorboards along the bottom;
+ * sconces and a chip pile in the corners of a wide canvas.
  *
  * Its buttons are the first user gesture, so all three call audio.init() fire-and-forget (Phaser
  * dispatches input inside the browser's own pointer event, which is what Safari's audio unlock
@@ -10,10 +10,10 @@
  * dark. The buttons appear only once the settings have hydrated, so a deal never starts with the
  * wrong rules.
  *
- * Idle life (docs/MOBILE_UX_PLAN.md §7.4): the glow behind the doors flickers like a lamp (one
- * step at a time, under 2 Hz: a timer, not a tween, so render on demand draws one frame per step),
- * the doors sway a degree now and then, and with no touch for a while "Deal me in" breathes a few
- * times. None of it under reduced motion.
+ * Idle life: the glow behind the doors flickers like a lamp (one step at a time, under 2 Hz: a
+ * timer, not a tween, so render on demand draws one frame per step), the doors sway a degree now
+ * and then, and with no touch for a while "Deal me in" breathes a few times. None of it under
+ * reduced motion.
  */
 import Phaser from "phaser";
 import { COPY } from "../../game/copy";
