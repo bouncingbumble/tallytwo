@@ -66,8 +66,6 @@ export const COPY = {
     tableRules: "Table rules",
     straightWrap: "Straights may wrap",
     straightWrapHint: "Allows A-2-3-4-5 and 2-3-4-5-6, ranked lowest",
-    flushSuitFirst: "Flushes ranked by suit first",
-    flushSuitFirstHint: "Off: highest card decides",
     tableFeel: "Table feel",
     difficulty: "Opponent skill",
     easy: "Greenhorn",

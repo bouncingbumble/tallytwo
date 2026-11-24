@@ -118,7 +118,6 @@ export function SettingsSheet({ onClose, onCopyLog }: SettingsSheetProps) {
 
         <h3>{t.tableRules}</h3>
         <SwitchRow id={id("straightWrap")} label={t.straightWrap} hint={t.straightWrapHint} on={rules.straightWrap} onChange={(v) => setRules({ straightWrap: v })} />
-        <SwitchRow id={id("flushSuitFirst")} label={t.flushSuitFirst} hint={t.flushSuitFirstHint} on={rules.flushSuitFirst} onChange={(v) => setRules({ flushSuitFirst: v })} />
 
         <h3>{t.tableFeel}</h3>
         <SelectRow id={id("difficulty")} label={t.difficulty} value={opts.difficulty} options={DIFFICULTY} onChange={(v) => setOpts({ difficulty: v })} />

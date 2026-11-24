@@ -40,8 +40,8 @@ test("NEW_MATCH deals 4x13 at round 1 and bumps dealId", () => {
 });
 
 test("NEW_MATCH deals with the rules it is given", () => {
-  const s = appReduce(INITIAL, { type: "NEW_MATCH", seed: 7, rules: { ...DEFAULT_RULES, straightWrap: true, flushSuitFirst: false } });
-  expect(s.game!.rules).toEqual({ ...DEFAULT_RULES, straightWrap: true, flushSuitFirst: false });
+  const s = appReduce(INITIAL, { type: "NEW_MATCH", seed: 7, rules: { ...DEFAULT_RULES, straightWrap: true } });
+  expect(s.game!.rules).toEqual({ ...DEFAULT_RULES, straightWrap: true });
 });
 
 test("SET_RULES applies to the game in progress; same rules or no game is a no-op", () => {
@@ -57,11 +57,10 @@ test("SET_RULES applies to the game in progress; same rules or no game is a no-o
 
 test("SET_RULES re-keys the combo on the table under the new rules", () => {
   const s = newMatch(INITIAL, 7);
-  const flush = classify(parseCards("4S 6S 8S 10S QS"), DEFAULT_RULES)!; // suit first: a spade flush keys high
+  const flush = classify(parseCards("4S 6S 8S 10S QS"), DEFAULT_RULES)!; // suit first, always: a spade flush keys high
   const onTable: AppState = { ...s, game: { ...s.game!, lastPlay: flush, lastBy: 1 } };
-  const next = appReduce(onTable, { type: "SET_RULES", rules: { ...DEFAULT_RULES, flushSuitFirst: false } });
-  expect(next.game!.lastPlay!.key).toBe(classify(flush.cards, { ...DEFAULT_RULES, flushSuitFirst: false })!.key);
-  expect(next.game!.lastPlay!.key).not.toBe(flush.key);
+  const next = appReduce(onTable, { type: "SET_RULES", rules: { ...DEFAULT_RULES, straightWrap: true } });
+  expect(next.game!.lastPlay).toEqual(flush); // re-classified, and a flush keys the same under any rules
   // a wrap-around straight stays on the table when wrapping is switched off
   const wrapRules = { ...DEFAULT_RULES, straightWrap: true };
   const low = classify(parseCards("AD 2C 3H 4S 5D"), wrapRules)!;

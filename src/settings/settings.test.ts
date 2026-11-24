@@ -22,7 +22,7 @@ test("garbage -> DEFAULTS, never a throw", () => {
 
 test("the prototype's blob: the retired rules and the old pace dropped, the rest kept", () => {
   const s = parseSettings(PROTOTYPE_BLOB);
-  expect(s.rules).toEqual(DEFAULT_RULES); // passLocksOut and mustLeadWith3D are no longer flags
+  expect(s.rules).toEqual(DEFAULT_RULES); // passLocksOut, mustLeadWith3D and flushSuitFirst are no longer flags
   expect(s.opts).toEqual({ ...DEFAULTS.opts, gameSpeed: "slow" }); // its "normal" pace at the old 1x -> slow
   expect(s.opts.volume).toEqual({ music: 1, sfx: 1 });
 });
@@ -31,7 +31,7 @@ test("a prototype blob with changed values keeps every one that still exists", (
   const rules = { passLocksOut: true, straightWrap: true, flushSuitFirst: false, mustLeadWith3D: false, laterRoundLead: "loser" };
   const opts = { difficulty: "hard", speed: "slow", music: false, sfx: false, reduceMotion: true }; // the prototype's autoPass and sortBy are dropped: the player is never passed for, and a fresh deal is always in value order
   const s = parseSettings(JSON.stringify({ rules, opts }));
-  expect(s.rules).toEqual({ straightWrap: true, flushSuitFirst: false }); // passLocksOut, mustLeadWith3D and laterRoundLead are no longer flags
+  expect(s.rules).toEqual({ straightWrap: true }); // passLocksOut, mustLeadWith3D, laterRoundLead and flushSuitFirst are no longer flags (flushes always rank by suit first)
   expect(s.opts).toEqual({ difficulty: "hard", gameSpeed: "slow", hints: false, sfx: false, volume: { music: 0, sfx: 1 } }); // the old piano switch off -> music volume 0; reduceMotion is no longer a setting
 });
 
@@ -91,7 +91,7 @@ test("unknown keys are dropped", () => {
 test("round-trip through memoryStorage: parseSettings(await get(KEY)) after set", async () => {
   const storage = memoryStorage();
   const s: Settings = {
-    rules: { ...DEFAULT_RULES, flushSuitFirst: false, straightWrap: true },
+    rules: { ...DEFAULT_RULES, straightWrap: true },
     opts: { ...DEFAULTS.opts, gameSpeed: "fast", hints: true, volume: { music: 0.5, sfx: 0.25 } },
   };
   expect(await storage.get(KEY)).toBeNull();

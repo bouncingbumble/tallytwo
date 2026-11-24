@@ -133,9 +133,9 @@ describe("comparison", () => {
     expect(cmp("9S 9H", "AS")).toBe(false);
     expect(cmp("AS", "9S 9H")).toBe(false);
   });
-  test("flush: suit first by default, highest card when the flag is off", () => {
+  test("flush: suit first, then highest card", () => {
     expect(cmp("3S 5S 9S JS QS", "AH KH QH JH 9H")).toBe(true);
-    expect(cmp("3S 5S 9S JS QS", "AH KH QH JH 9H", withRules({ flushSuitFirst: false }))).toBe(false);
+    expect(cmp("3S 5S 9S JS KS", "3S 5S 9S JS QS")).toBe(true);
   });
   test("the full 5x5 category matrix", () => {
     const samples = ["3D 4C 5H 6S 7D", "3H 5H 9H JH KH", "KD KC KH 4S 4D", "KD KC KH KS 4D", "3H 4H 5H 6H 7H"];

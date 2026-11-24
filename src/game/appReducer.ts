@@ -22,12 +22,11 @@ export const INITIAL: AppState = { game: null, dealId: 0 };
 
 export type AppAction = Action | { type: "NEW_MATCH"; seed: number; rules: RuleConfig } | { type: "QUIT" } | { type: "SET_RULES"; rules: RuleConfig };
 
-const sameRules = (a: RuleConfig, b: RuleConfig): boolean => a.straightWrap === b.straightWrap && a.flushSuitFirst === b.flushSuitFirst;
+const sameRules = (a: RuleConfig, b: RuleConfig): boolean => a.straightWrap === b.straightWrap;
 
 /**
  * Settings apply to the game in progress, not only the next one. The combo on the table was
- * keyed under the old rules (flushSuitFirst changes a flush's key), so it is re-classified under
- * the new ones; a play the new rules no longer recognise (a wrap-around straight with wrapping
+ * keyed under the old rules, so it is re-classified under the new ones; a play the new rules no longer recognise (a wrap-around straight with wrapping
  * turned off) stays as it was, and is still beaten by any higher straight.
  */
 export function applyRules(g: GameState, rules: RuleConfig): GameState {

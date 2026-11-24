@@ -80,7 +80,6 @@ export function parseSettings(raw: string | null | undefined): Settings {
   return {
     rules: {
       straightWrap: bool(r.straightWrap, D.rules.straightWrap),
-      flushSuitFirst: bool(r.flushSuitFirst, D.rules.flushSuitFirst),
     },
     opts: {
       difficulty: oneOf<Difficulty>(o.difficulty, ["easy", "medium", "hard"], D.opts.difficulty),

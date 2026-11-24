@@ -61,7 +61,7 @@ export function classify(cards: readonly Card[], rules: RuleConfig): Combo | nul
     if (count.get(a) === 3 || count.get(b) === 3) return mk("fullhouse", count.get(a) === 3 ? a : b);
     return null;
   }
-  if (flush) return mk("flush", rules.flushSuitFirst ? suit(cs[0]) * 16 + rank(cs[4]) : cs[4]);
+  if (flush) return mk("flush", suit(cs[0]) * 16 + rank(cs[4])); // suit first, then highest card
   if (str) return mk("straight", str.pos * 4 + suit(str.top));
   return null;
 }
