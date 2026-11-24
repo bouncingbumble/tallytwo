@@ -22,7 +22,7 @@ const walk = (dir: string): string[] => {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) out.push(...walk(p));
-    else if (/\.ts$/.test(name)) out.push(p);
+    else if (name.endsWith(".ts")) out.push(p);
   }
   return out;
 };
@@ -38,7 +38,7 @@ test("the stores are in the PURE folders", () => {
 test("only platform/offline.ts touches navigator.serviceWorker", () => {
   const offenders = walk(SRC)
     .map(rel)
-    .filter((r) => !/\.test\.ts$/.test(r) && r !== "platform/offline.ts" && /\bserviceWorker\b/.test(readFileSync(join(SRC, r), "utf8")));
+    .filter((r) => !r.endsWith(".test.ts") && r !== "platform/offline.ts" && /\bserviceWorker\b/.test(readFileSync(join(SRC, r), "utf8")));
   expect(offenders).toEqual([]);
 });
 
@@ -81,7 +81,7 @@ test("SCENES: no tween or timer duration written as a number literal (use game/t
   const offenders: string[] = [];
   for (const file of walk(join(SRC, "phaser"))) {
     const r = rel(file);
-    if (/\.test\.ts$/.test(r)) continue;
+    if (r.endsWith(".test.ts")) continue;
     readFileSync(file, "utf8")
       .split("\n")
       .forEach((line, i) => {
@@ -102,7 +102,7 @@ test("SCENES: nothing writes a card face's alpha", () => {
   const offenders: string[] = [];
   for (const file of walk(join(SRC, "phaser"))) {
     const r = rel(file);
-    if (/\.test\.ts$/.test(r)) continue;
+    if (r.endsWith(".test.ts")) continue;
     readFileSync(file, "utf8")
       .split("\n")
       .forEach((line, i) => {
