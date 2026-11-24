@@ -96,3 +96,17 @@ export function parseSettings(raw: string | null | undefined): Settings {
 }
 
 export const serializeSettings = (s: Settings): string => JSON.stringify(s);
+
+/**
+ * A first-time player: Greenhorn opponents and Hints on, so the table teaches before it bites.
+ * Saved as their settings on the first hydrate, so from then on they are an ordinary choice the
+ * player can change in Settings; a returning player is never put back on them.
+ */
+export const FIRST_TIME: Settings = { ...DEFAULTS, opts: { ...DEFAULTS.opts, difficulty: "easy", hints: true } };
+
+/**
+ * The settings for what storage returned. Nothing stored at all (`null`: this browser, or this
+ * shell install, has never saved settings) is a first-time player; anything stored, even a blob
+ * that no longer parses, is a returning one and gets parseSettings' merge over DEFAULTS.
+ */
+export const settingsFor = (raw: string | null | undefined): Settings => (raw === null || raw === undefined ? FIRST_TIME : parseSettings(raw));

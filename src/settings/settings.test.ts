@@ -3,10 +3,10 @@
  * prototype's exact localStorage blob included — and the settings store reducer hydrates and
  * merges patches. The StoragePort round-trip uses the in-memory port.
  */
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { DEFAULT_RULES } from "../engine/rules";
-import { DEFAULTS, KEY, type Settings, parseSettings, serializeSettings } from "./settings";
-import { SETTINGS_INITIAL, settingsReduce } from "./store";
+import { DEFAULTS, FIRST_TIME, KEY, type Settings, parseSettings, serializeSettings, settingsFor } from "./settings";
+import { SETTINGS_INITIAL, SettingsStore, settingsReduce } from "./store";
 import { memoryStorage } from "./storage";
 
 /** What a returning player has under KEY (P:685, saved by saveOpts). */
@@ -123,4 +123,35 @@ test("settingsReduce: SET_OPTS merges a patch over the opts, SET_RULES over the 
   expect(s3.settings.rules).toEqual({ ...DEFAULT_RULES, straightWrap: true });
   expect(s3.settings.opts).toBe(s2.settings.opts);
   expect(DEFAULTS.opts.gameSpeed).toBe("normal"); // never mutated
+});
+
+describe("the first-time player", () => {
+  test("nothing stored: Greenhorn opponents and hints on; everything else the defaults", () => {
+    expect(settingsFor(null)).toEqual({ ...DEFAULTS, opts: { ...DEFAULTS.opts, difficulty: "easy", hints: true } });
+    expect(settingsFor(null)).toBe(FIRST_TIME);
+  });
+  test("anything stored is a returning player, even an unreadable blob", () => {
+    expect(settingsFor(JSON.stringify(DEFAULTS))).toEqual(DEFAULTS);
+    expect(settingsFor("{not json")).toEqual(DEFAULTS);
+    expect(settingsFor(JSON.stringify({ opts: { difficulty: "hard" } })).opts.difficulty).toBe("hard");
+  });
+  test("the store saves the first-time settings, so the second visit keeps the player's own choices", async () => {
+    const storage = memoryStorage();
+    const first = new SettingsStore(storage);
+    await first.hydrate();
+    expect(first.opts.difficulty).toBe("easy");
+    expect(first.opts.hints).toBe(true);
+    expect(storage.data.has(KEY)).toBe(true);
+    first.setOpts({ difficulty: "hard", hints: false });
+    const second = new SettingsStore(storage);
+    await second.hydrate();
+    expect(second.opts.difficulty).toBe("hard");
+    expect(second.opts.hints).toBe(false);
+  });
+  test("a store that cannot be read is not taken for a new player", async () => {
+    const broken = { get: () => Promise.reject(new Error("no")), set: () => Promise.resolve() };
+    const s = new SettingsStore(broken);
+    await s.hydrate();
+    expect(s.settings).toEqual(DEFAULTS);
+  });
 });

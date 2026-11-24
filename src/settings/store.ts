@@ -4,7 +4,7 @@
  */
 import type { RuleConfig } from "../engine/rules";
 import { Observable } from "../game/observable";
-import { DEFAULTS, KEY, type Opts, type Settings, parseSettings, serializeSettings } from "./settings";
+import { DEFAULTS, KEY, type Opts, type Settings, serializeSettings, settingsFor } from "./settings";
 import type { StoragePort } from "./storage";
 
 export interface SettingsState {
@@ -53,11 +53,15 @@ export class SettingsStore extends Observable {
     return this.#state.loaded;
   }
 
-  /** Read the port once. A port that rejects still unlocks the title, with DEFAULTS. */
+  /**
+   * Read the port once. Nothing stored is a first-time player (settingsFor: easy, hints on), and
+   * the write that follows the hydrate saves that, so the next visit is a returning one. A port
+   * that rejects still unlocks the title, with DEFAULTS: an unreadable store is not proof of a new player.
+   */
   async hydrate(): Promise<void> {
     let settings: Settings;
     try {
-      settings = parseSettings(await this.#storage.get(KEY));
+      settings = settingsFor(await this.#storage.get(KEY));
     } catch {
       settings = DEFAULTS;
     }
