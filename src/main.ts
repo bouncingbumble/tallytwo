@@ -18,6 +18,7 @@ import { timerClock } from "./platform/clock";
 import { env, installEnv } from "./platform/env";
 import { webStorage } from "./platform/webStorage";
 import { direct } from "./phaser/director";
+import { markDirty, renderOnDemand } from "./phaser/onDemand";
 import { BootScene } from "./phaser/scenes/Boot";
 import { CrashScene } from "./phaser/scenes/Crash";
 import { HowToScene } from "./phaser/scenes/HowTo";
@@ -93,6 +94,9 @@ function boot(): void {
     sizeGame(phaser);
     phaser.scene.stop("Boot");
     direct(phaser);
+    // ?draw=always turns render-on-demand off (a comparison switch for profiling)
+    if (new URLSearchParams(location.search).get("draw") !== "always") renderOnDemand(phaser);
+    for (const src of [game, settings, sheet, fault, env.fit, env.insets, env.upright]) src.subscribe(markDirty);
     bridge.send("ready", {});
   });
 

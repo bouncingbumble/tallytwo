@@ -4,6 +4,7 @@
  */
 import Phaser from "phaser";
 import type { Observable } from "../../game/observable";
+import { markDirty } from "../onDemand";
 import { services, type Services } from "../services";
 import { fitCamera, logicalW } from "../viewport";
 
@@ -34,7 +35,10 @@ export abstract class BaseScene extends Phaser.Scene {
 
   /** A timer that dies with the scene (scene.time pauses with it too). */
   protected after(ms: number, fn: () => void): Phaser.Time.TimerEvent {
-    return this.time.delayedCall(ms, fn);
+    return this.time.delayedCall(ms, () => {
+      markDirty();
+      fn();
+    });
   }
 
   #teardown(): void {

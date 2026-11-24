@@ -7,6 +7,7 @@
 import Phaser from "phaser";
 import { dropShadow, insetStroke, painted, roundRect, text, vgrad } from "./paint";
 import { C, CSS, FS_EM, TAP } from "./theme";
+import { markDirty } from "./onDemand";
 import { zoomOf } from "./viewport";
 
 /** How far (logical px) a pointer may travel and still be a tap. */
@@ -126,6 +127,7 @@ export class Button extends Phaser.GameObjects.Container {
 
   setLabel(s: string): this {
     this.#label.setText(s);
+    markDirty(); // may come from a promise (the clipboard), outside any input or store change
     return this;
   }
 }

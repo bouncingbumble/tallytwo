@@ -8,7 +8,8 @@
 import Phaser from "phaser";
 import type { Card } from "../engine/cards";
 import { ATLAS_COLS, atlasCell } from "../render/atlas";
-import { C } from "./theme";
+import { painted, roundRect } from "./paint";
+import { CSS } from "./theme";
 
 export const ATLAS_KEY = "cards";
 export const BACK_KEY = "card_back";
@@ -19,13 +20,47 @@ export const frameOf = (v: Card): number => {
   return row * ATLAS_COLS + col;
 };
 
+/** A shadow under a w x h card, painted once per size and depth: the box itself erased, so the face's rounded corners stay clean. */
+function shadowPainter(deep: boolean) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.save();
+    ctx.shadowColor = deep ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.55)";
+    ctx.shadowBlur = deep ? 14 : 3;
+    ctx.shadowOffsetY = deep ? 8 : 2;
+    ctx.fillStyle = "#000";
+    roundRect(ctx, 0, 0, w, h, 3);
+    ctx.fill();
+    ctx.restore();
+    ctx.globalCompositeOperation = "destination-out";
+    roundRect(ctx, 0, 0, w, h, 3);
+    ctx.fill();
+  };
+}
+
+/** The amber ring: inset 2 px for a selected card, outset 2 px for the play to beat. */
+function ringPainter(inset: boolean) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.strokeStyle = inset ? CSS.amber : "rgba(232, 163, 61, 0.9)";
+    ctx.lineWidth = 2;
+    if (inset) roundRect(ctx, 1, 1, w - 2, h - 2, 3);
+    else roundRect(ctx, -1, -1, w + 2, h + 2, 4);
+    ctx.stroke();
+  };
+}
+
+/**
+ * Every layer is an Image (shadow, face, ring), so a hand of cards draws as one batch — a
+ * Graphics per card would be re-tessellated every frame and break the batch twice per card.
+ */
 export class CardView extends Phaser.GameObjects.Container {
   readonly value: Card;
   readonly face: Phaser.GameObjects.Image;
   readonly cw: number;
   readonly ch: number;
-  #shadow: Phaser.GameObjects.Graphics;
-  #ring: Phaser.GameObjects.Graphics;
+  #shadow: Phaser.GameObjects.Image;
+  #shadowDeep: Phaser.GameObjects.Image;
+  #ringIn: Phaser.GameObjects.Image;
+  #ringOut: Phaser.GameObjects.Image;
   #selected = false;
   #dim = false;
   #lit = false;
@@ -36,39 +71,24 @@ export class CardView extends Phaser.GameObjects.Container {
     this.value = value;
     this.cw = w;
     this.ch = h;
-    this.#shadow = scene.add.graphics();
-    this.face = scene.add.image(-w / 2, -h / 2, ATLAS_KEY, frameOf(value)).setOrigin(0, 0).setDisplaySize(w, h);
-    this.#ring = scene.add.graphics();
-    this.add([this.#shadow, this.face, this.#ring]);
+    const x0 = -w / 2;
+    const y0 = -h / 2;
+    this.#shadow = painted(scene, "card-shadow", x0, y0, w, h, shadowPainter(false), 8);
+    this.#shadowDeep = painted(scene, "card-shadow-deep", x0, y0, w, h, shadowPainter(true), 24).setVisible(false);
+    this.face = scene.add.image(x0, y0, ATLAS_KEY, frameOf(value)).setOrigin(0, 0).setDisplaySize(w, h);
+    this.#ringIn = painted(scene, "card-ring-in", x0, y0, w, h, ringPainter(true), 4).setVisible(false);
+    this.#ringOut = painted(scene, "card-ring-out", x0, y0, w, h, ringPainter(false), 4).setVisible(false);
+    this.add([this.#shadow, this.#shadowDeep, this.face, this.#ringIn, this.#ringOut]);
     this.setSize(w, h);
-    this.#draw();
     scene.add.existing(this);
   }
 
   #draw(): void {
-    const w = this.cw;
-    const h = this.ch;
-    const s = this.#shadow;
-    s.setPosition(-w / 2, -h / 2);
-    this.#ring.setPosition(-w / 2, -h / 2);
-    s.clear();
-    // drop-shadow(0 2px 3px rgba(0,0,0,.55)), deeper while lifted
     const deep = this.#selected || this.#lifted;
-    const dy = deep ? 8 : 2;
-    const layers = deep ? 4 : 2;
-    for (let i = layers; i >= 1; i--) {
-      s.fillStyle(0x000000, (deep ? 0.12 : 0.2) / i);
-      s.fillRoundedRect(-i, dy - i + 1, w + 2 * i, h + 2 * i - 2, 4 + i);
-    }
-    const r = this.#ring;
-    r.clear();
-    if (this.#selected) {
-      r.lineStyle(2, C.amber, 1);
-      r.strokeRoundedRect(1, 1, w - 2, h - 2, 3);
-    } else if (this.#lit) {
-      r.lineStyle(2, C.amber, 0.9);
-      r.strokeRoundedRect(-1, -1, w + 2, h + 2, 4);
-    }
+    this.#shadow.setVisible(!deep);
+    this.#shadowDeep.setVisible(deep);
+    this.#ringIn.setVisible(this.#selected);
+    this.#ringOut.setVisible(!this.#selected && this.#lit);
     // brightness(.62) saturate(.6), opacity .85
     if (this.#dim) this.face.setTint(0x9a968f);
     else this.face.clearTint();
