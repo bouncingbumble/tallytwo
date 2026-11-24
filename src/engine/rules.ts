@@ -1,6 +1,6 @@
 /**
- * Every disputed table rule is a flag. The defaults are the Hong Kong game as the
- * prototype shipped it; the settings sheet exposes exactly this one.
+ * Every disputed table rule is a flag. The defaults are the Hong Kong game; the settings sheet
+ * exposes exactly this one.
  *
  * Fixed, no longer flags: every round is led by whoever holds the 3♦ and that opening play must
  * include it, a seat that passes may play again if the trick comes back round, and flushes

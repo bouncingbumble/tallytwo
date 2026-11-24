@@ -1,6 +1,4 @@
-/**
- * The store with a fake clock: the turn loop that used to be a React effect, now driven by hand.
- */
+/** The store with a fake clock: the turn loop driven by hand. */
 import { expect, test } from "vitest";
 import { THREE_OF_DIAMONDS } from "../engine/cards";
 import { DEFAULT_RULES } from "../engine/rules";

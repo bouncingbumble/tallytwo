@@ -1,6 +1,6 @@
 /**
- * appReduce / tryReduce: the app-level no-op guards (a double-tapped button must not unmount
- * the tree), the loud PLAY/PASS path, and the crash report act() stores instead of letting an
+ * appReduce / tryReduce: the app-level no-op guards (a double-tapped button must not act
+ * twice), the loud PLAY/PASS path, and the crash report act() stores instead of letting an
  * engine throw escape a click handler.
  */
 import { expect, test } from "vitest";

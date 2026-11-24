@@ -1,7 +1,7 @@
 /**
- * Where settings persist. Async from day one because the React Native replacement
- * (@react-native-async-storage/async-storage) has an async API; on the web it is localStorage
- * wrapped in Promise.resolve (platform/webStorage.ts).
+ * Where settings persist. Async because a native shell answers over the bridge
+ * (platform/bridgeStorage.ts); in a browser it is localStorage wrapped in Promise.resolve
+ * (platform/webStorage.ts).
  */
 export interface StoragePort {
   get(key: string): Promise<string | null>;

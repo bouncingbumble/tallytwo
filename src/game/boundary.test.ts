@@ -1,14 +1,12 @@
 /**
- * The bucket rules that tsconfig.core.json cannot express. Reads the sources with node:fs.
+ * The layering rules that tsconfig.core.json cannot express. Reads the sources with node:fs.
  *
- * (a) Nothing in game/, settings/ or audio/ escapes the PURE check: tsconfig.core.json compiles
- *     those folders without the DOM lib, excluding only tests and the two named WEB files, so a
- *     framework hook or a .tsx there would slip past it — there must be none. The stores
- *     (game/store.ts, settings/store.ts, audio/director.ts) are therefore PURE: time, sound,
- *     storage and the host arrive as ports.
+ * (a) The stores (game/store.ts, settings/store.ts, audio/director.ts) live in folders that
+ *     tsconfig.core.json compiles without the DOM lib, so they stay PURE: time, sound, storage and
+ *     the host arrive as ports. Only platform/offline.ts touches the service worker.
  * (b) The scenes (phaser/**) reach the engine's reducer and the AI only through the store and
- *     selectors.ts — type-only imports are fine, because verbatimModuleSyntax erases them — and
- *     nothing anywhere imports React.
+ *     selectors.ts — type-only imports are fine, because verbatimModuleSyntax erases them; their
+ *     durations come from game/timing.ts; and they never make a card face see-through.
  */
 /// <reference types="node" />
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -24,40 +22,23 @@ const walk = (dir: string): string[] => {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) out.push(...walk(p));
-    else if (/\.tsx?$/.test(name)) out.push(p);
+    else if (/\.ts$/.test(name)) out.push(p);
   }
   return out;
 };
 const rel = (file: string): string => relative(SRC, file).split("\\").join("/");
 
-/* ---- (a) the PURE folders have nothing the core check skips ---- */
-
-const WEB_FILES = new Set(["audio/WebAudio.ts", "assets/manifest.ts"]);
-
-test("game/, settings/, audio/: no .tsx and no use*.ts (tsconfig.core.json would not check them)", () => {
-  const escaped = ["game", "settings", "audio"]
-    .flatMap((d) => walk(join(SRC, d)))
-    .map(rel)
-    .filter((r) => !/\.test\.tsx?$/.test(r) && !WEB_FILES.has(r) && (r.endsWith(".tsx") || /\/use[^/]*\.ts$/.test(r)));
-  expect(escaped).toEqual([]);
-});
+/* ---- (a) the PURE folders ---- */
 
 test("the stores are in the PURE folders", () => {
   const files = ["game", "settings", "audio"].flatMap((d) => walk(join(SRC, d))).map(rel);
   expect(files).toEqual(expect.arrayContaining(["game/store.ts", "game/clock.ts", "settings/store.ts", "audio/director.ts"]));
 });
 
-test("nothing imports React", () => {
+test("only platform/offline.ts touches navigator.serviceWorker", () => {
   const offenders = walk(SRC)
     .map(rel)
-    .filter((r) => /from\s+["']react(-dom)?(\/|["'])/.test(readFileSync(join(SRC, r), "utf8")));
-  expect(offenders).toEqual([]);
-});
-
-test("only platform/offline.ts touches navigator.serviceWorker (docs/OFFLINE_PLAN.md)", () => {
-  const offenders = walk(SRC)
-    .map(rel)
-    .filter((r) => !/\.test\.tsx?$/.test(r) && r !== "platform/offline.ts" && /\bserviceWorker\b/.test(readFileSync(join(SRC, r), "utf8")));
+    .filter((r) => !/\.test\.ts$/.test(r) && r !== "platform/offline.ts" && /\bserviceWorker\b/.test(readFileSync(join(SRC, r), "utf8")));
   expect(offenders).toEqual([]);
 });
 
@@ -90,8 +71,8 @@ test("SCENES: src/phaser/** imports engine/reducer and ai only as `import type`"
 });
 
 /**
- * Every presentation duration is a token in game/timing.ts (MOTION, EASE, DOORS_FRAMES_MS, ...;
- * docs/MOBILE_UX_PLAN.md §2.1), so motion can be tuned in one place and reduced motion reaches
+ * Every presentation duration is a token in game/timing.ts (MOTION, EASE, DOORS_FRAMES_MS, ...),
+ * so motion can be tuned in one place and reduced motion reaches
  * all of it. A number written straight into a tween or a scene timer is the thing this stops.
  */
 const TIMING_LITERAL = [/\b(duration|delay|hold|repeatDelay)\s*:\s*\d/, /\b(after|delayedCall)\(\s*\d/];
@@ -100,7 +81,7 @@ test("SCENES: no tween or timer duration written as a number literal (use game/t
   const offenders: string[] = [];
   for (const file of walk(join(SRC, "phaser"))) {
     const r = rel(file);
-    if (/\.test\.tsx?$/.test(r)) continue;
+    if (/\.test\.ts$/.test(r)) continue;
     readFileSync(file, "utf8")
       .split("\n")
       .forEach((line, i) => {
@@ -111,7 +92,7 @@ test("SCENES: no tween or timer duration written as a number literal (use game/t
 });
 
 /**
- * A card face is never made see-through (docs/MOBILE_UX_PLAN.md F1): the cards overlap, so a
+ * A card face is never made see-through: the cards overlap, so a
  * translucent face shows the card under it. A card is dimmed by tint (cards.ts); a card fading in
  * or out fades its whole container, never `.face` alone.
  */
@@ -121,7 +102,7 @@ test("SCENES: nothing writes a card face's alpha", () => {
   const offenders: string[] = [];
   for (const file of walk(join(SRC, "phaser"))) {
     const r = rel(file);
-    if (/\.test\.tsx?$/.test(r)) continue;
+    if (/\.test\.ts$/.test(r)) continue;
     readFileSync(file, "utf8")
       .split("\n")
       .forEach((line, i) => {

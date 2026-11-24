@@ -1,6 +1,6 @@
 /**
- * settings.ts: parseSettings merges any blob over DEFAULTS without ever throwing — the
- * prototype's exact localStorage blob included — and the settings store reducer hydrates and
+ * settings.ts: parseSettings merges any blob over DEFAULTS without ever throwing — blobs saved
+ * by earlier versions included — and the settings store reducer hydrates and
  * merges patches. The StoragePort round-trip uses the in-memory port.
  */
 import { describe, expect, test } from "vitest";
@@ -9,7 +9,7 @@ import { DEFAULTS, FIRST_TIME, KEY, type Settings, motionReduced, parseSettings,
 import { SETTINGS_INITIAL, SettingsStore, settingsReduce } from "./store";
 import { memoryStorage } from "./storage";
 
-/** What a returning player has under KEY (P:685, saved by saveOpts). */
+/** What a player of an earlier version has under KEY. */
 const PROTOTYPE_BLOB =
   '{"rules":{"passLocksOut":false,"straightWrap":false,"flushSuitFirst":true,"mustLeadWith3D":true,"laterRoundLead":"winner"},"opts":{"difficulty":"medium","speed":"normal","music":true,"sfx":true,"autoPass":true,"reduceMotion":false,"sortBy":"rank"}}';
 
@@ -20,16 +20,16 @@ test("garbage -> DEFAULTS, never a throw", () => {
   expect(parseSettings("{}")).not.toBe(DEFAULTS); // a fresh object every time
 });
 
-test("the prototype's blob: the retired rules and the old pace dropped, the rest kept", () => {
+test("an earlier version's blob: the retired rules and the old pace dropped, the rest kept", () => {
   const s = parseSettings(PROTOTYPE_BLOB);
   expect(s.rules).toEqual(DEFAULT_RULES); // passLocksOut, mustLeadWith3D and flushSuitFirst are no longer flags
   expect(s.opts).toEqual({ ...DEFAULTS.opts, gameSpeed: "slow" }); // its "normal" pace at the old 1x -> slow
   expect(s.opts.volume).toEqual({ music: 1, sfx: 1 });
 });
 
-test("a prototype blob with changed values keeps every one that still exists", () => {
+test("an earlier blob with changed values keeps every one that still exists", () => {
   const rules = { passLocksOut: true, straightWrap: true, flushSuitFirst: false, mustLeadWith3D: false, laterRoundLead: "loser" };
-  const opts = { difficulty: "hard", speed: "slow", music: false, sfx: false, reduceMotion: true }; // the prototype's autoPass and sortBy are dropped: the player is never passed for, and a fresh deal is always in value order
+  const opts = { difficulty: "hard", speed: "slow", music: false, sfx: false, reduceMotion: true }; // the retired autoPass and sortBy are dropped: the player is never passed for, and a fresh deal is always in value order
   const s = parseSettings(JSON.stringify({ rules, opts }));
   expect(s.rules).toEqual({ straightWrap: true }); // passLocksOut, mustLeadWith3D, laterRoundLead and flushSuitFirst are no longer flags (flushes always rank by suit first)
   expect(s.opts).toEqual({ difficulty: "hard", gameSpeed: "slow", hints: false, sfx: false, volume: { music: 0, sfx: 1 }, motion: "reduced", swipe: true, flick: true, swipeHintSeen: false }); // the old piano switch off -> music volume 0; the old reduceMotion on -> motion "reduced"

@@ -1,9 +1,10 @@
 /**
- * The one place that decides what plays (what useAudio was). It follows the game store, the
- * settings store and the open sheet, and drives the injected port: the wanted music track
- * (musicFor), the tension layer (tensionFor), the two bus gains and suspend/resume for a pause.
- * Each call is made only when its input changed, so a move never re-requests a track. PURE.
- * Cue sounds (play, dealRoll, select) are per-action and live in the store's act()/toggleCard.
+ * The one place that decides what plays. It follows the game store, the settings store and the
+ * open sheet, and drives the injected port: the wanted music track (musicFor), the tension layer
+ * (tensionFor), the two bus gains and suspend/resume for a pause. Each call is made only when its
+ * input changed, so a move never re-requests a track. PURE. Cue sounds (play, dealRoll, select)
+ * are per-action and live in the store's act()/toggleCard and the hand's gestures
+ * (phaser/table/Hand.ts).
  */
 import type { Observable } from "../game/observable";
 import { type Sheet, musicFor, tensionFor } from "../game/selectors";

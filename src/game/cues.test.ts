@@ -1,5 +1,5 @@
 /**
- * cueFor, row by row from the original build plan §3.4. Positions are real — deal(seed) + reduce — with a seed
+ * cueFor, row by row. Positions are real — deal(seed) + reduce — with a seed
  * search for who holds the 3♦ (the human for the "human" rows, an AI for the others). Barks are
  * AI-only: the human never gets one, not even for winning the round.
  */

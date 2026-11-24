@@ -1,5 +1,5 @@
 /**
- * pickVariant: a random index that is never the last one (the original build plan §3.7, P:358-360).
+ * pickVariant: a random index that is never the last one.
  */
 import { expect, test } from "vitest";
 import { pickVariant } from "./pool";

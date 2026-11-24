@@ -1,6 +1,6 @@
 /**
- * createMusicLatch: the "setMusic before decode" state machine (the original build plan §3.7), driven with
- * the commands it returns and no AudioContext.
+ * createMusicLatch: the "setMusic before decode" state machine, driven with the commands it
+ * returns and no AudioContext.
  */
 import { expect, test } from "vitest";
 import { createMusicLatch, type LatchCommand } from "./musicLatch";

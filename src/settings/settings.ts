@@ -1,7 +1,7 @@
 /**
- * The settings shape, written down once. Rules live inside GameState and GameProvider pushes
- * every change into the game in progress (appReducer SET_RULES); opts are read live. parseSettings() must accept the prototype's
- * exact localStorage blob (same KEY) and fill in the fields it never had.
+ * The settings shape, written down once. Rules live inside GameState and main.ts pushes every
+ * change into the game in progress (appReducer SET_RULES); opts are read live. parseSettings()
+ * accepts any blob an earlier version saved under KEY and fills in the fields it never had.
  */
 import { DEFAULT_RULES, type RuleConfig } from "../engine/rules";
 import type { Difficulty } from "../ai/choose";
@@ -33,7 +33,7 @@ export interface Opts {
   /** 0-1 multipliers over the sfxTable gains. */
   volume: Volume;
   motion: MotionPref;
-  /** Swipe across the hand to select several cards; off, a sideways drag rearranges at once (the old way). */
+  /** Swipe across the hand to select several cards; off, a sideways drag rearranges at once. */
   swipe: boolean;
   /** Drag the selected cards up onto the felt to play them. */
   flick: boolean;
@@ -111,7 +111,7 @@ export function parseSettings(raw: string | null | undefined): Settings {
         music: o.music === false ? 0 : unit(vol.music, D.opts.volume.music),
         sfx: unit(vol.sfx, D.opts.volume.sfx),
       },
-      // the prototype's reduceMotion switch, when it was on, is kept as an explicit "reduced"
+      // an earlier reduceMotion switch, when it was on, is kept as an explicit "reduced"
       motion: oneOf<MotionPref>(o.motion, MOTION_PREFS, o.reduceMotion === true ? "reduced" : D.opts.motion),
       swipe: bool(o.swipe, D.opts.swipe),
       flick: bool(o.flick, D.opts.flick),

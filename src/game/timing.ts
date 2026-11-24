@@ -1,41 +1,38 @@
 /**
- * Every millisecond in the game, in one place. All values are the prototype's (P line refs
- * in the original build plan §3.5). Nothing else in src/ may hold a timing number.
+ * Every duration in the game, in one place. Scenes may not write a tween or timer duration as a
+ * number literal (boundary.test.ts).
  */
 /**
- * Game speed: ONE setting (it used to be two — Game speed 1x-4x and Opponent pace). Each tier
- * is the AI's think-time range in the prototype's ms plus the multiplier every table wait (AI
- * think, first step, round over) is scaled by.
+ * Game speed. Each tier is an AI think-time range plus the multipliers the table's waits are
+ * scaled by: `thinkScale` for the AI's think, `scale` for every other wait (the first step, the
+ * round over).
  *
- *   slow    the old default: Normal pace at 1x — the unhurried table (prototype ms × 4)
- *   normal  Normal pace at 2x (× 2)
- *   fast    the old Fast pace at 4x (× 1), its speed then cut by 30% (FAST_SPEED: every
- *           wait ÷ 0.7) and then made 1.5x slower again (FAST_SLOWDOWN), so the fastest table
- *           is brisk but still easy to follow; the AI's think time alone is × FAST_THINK_SCALE (2.5)
+ *   slow    base ms × 4
+ *   normal  base ms × 2
+ *   fast    the short think range × FAST_THINK_SCALE; every other wait × FAST_SLOWDOWN / FAST_SPEED
  */
 export type GameSpeed = "slow" | "normal" | "fast";
 export const GAME_SPEEDS: readonly GameSpeed[] = ["slow", "normal", "fast"];
 
-/** The prototype's AI think delay ranges, ms, uniform (P:917). */
+/** The AI's base think delay ranges, ms, uniform. */
 export const THINK = {
   normal: [650, 1250],
   fast: [280, 520],
 } as const;
 
-/** Fast runs at 70% of the old fastest table's speed (Fast pace at 4x): speed down 30%, waits ÷ 0.7. */
+/** Fast's waits are base ms ÷ FAST_SPEED × FAST_SLOWDOWN. */
 export const FAST_SPEED = 0.7;
-/** ...and then 1.5x slower again (2026: "Fast game speed is too fast, should be 1.5x slower"). */
 export const FAST_SLOWDOWN = 1.5;
 
-/** Fast's AI think time alone is scaled by this (2026: "opponent think time for fast should be 2.5"). */
+/** Fast's AI think time is scaled by this. */
 export const FAST_THINK_SCALE = 2.5;
 
 export interface SpeedTier {
-  /** AI think range in prototype ms, before `thinkScale`. */
+  /** AI think range in base ms, before `thinkScale`. */
   think: readonly [number, number];
   /** The AI think range is multiplied by this. */
   thinkScale: number;
-  /** Every other prototype wait at the table is multiplied by this. */
+  /** Every other wait at the table is multiplied by this. */
   scale: number;
 }
 
@@ -45,13 +42,13 @@ export const SPEED: Record<GameSpeed, SpeedTier> = {
   fast: { think: THINK.fast, thinkScale: FAST_THINK_SCALE, scale: FAST_SLOWDOWN / FAST_SPEED },
 };
 
-/** r is a uniform random in [0, 1) — Math.random in the game, a fixed value in tests. Prototype ms, before paced(). */
+/** r is a uniform random in [0, 1) — Math.random in the game, a fixed value in tests. Base ms, before pacedThink(). */
 export const thinkMs = (speed: GameSpeed, r: number): number => {
   const [lo, hi] = SPEED[speed].think;
   return lo + r * (hi - lo);
 };
 
-/** A prototype wait at the table, scaled by the Game speed tier, whole ms. */
+/** A base wait at the table, scaled by the Game speed tier, whole ms. */
 export const paced = (ms: number, speed: GameSpeed): number => Math.round(ms * SPEED[speed].scale);
 
 /** An AI think wait at the table: thinkMs() scaled by the tier's thinkScale, whole ms. */
@@ -65,10 +62,10 @@ export const FIRST_STEP_MS = 700;
 /** The saloon doors swing before the table appears. */
 export const DOORS_MS = 620;
 /**
- * A play's flight (styles/motion.css `fly`, ui/Pile.tsx): each card leaves from behind its
- * player's portrait (from behind the hand for the human), flies to the middle of its slot with
- * the others as a stack, then spreads into place. Fixed, not paced by Game speed: it is how
- * long the eye needs, whatever the table's tempo. The prototype's slap was 280 ms.
+ * A play's flight (phaser/table/Trick.ts): each card leaves from behind its player's portrait
+ * (from behind the hand for the human), flies to the middle of its slot with the others as a
+ * stack, then spreads into place. Fixed, not paced by Game speed: it is how long the eye needs,
+ * whatever the table's tempo.
  */
 export const PLAY_FLY_MS = 700;
 /** Each card leaves this long after the one before it. */
@@ -83,7 +80,7 @@ export const SELECT_MS = 160;
 /** How long the "Final round" banner stays over the felt at the start of the last round. */
 export const FINAL_ROUND_MS = 3200;
 
-/* ---- Presentation motion (docs/MOBILE_UX_PLAN.md §1.5, §2.1) ----
+/* ---- Presentation motion ----
  *
  * How long things take to *look* like they happen, as opposed to the table's pace above. Not
  * paced by Game speed. Bands: feedback 80-150 ms, UI transitions 180-350 ms, emphasis 400-700 ms;
@@ -98,7 +95,7 @@ export const MOTION = {
   micro: 120,
   /** A "no" shake: a disabled control or a card that cannot be played, tapped. */
   shake: 260,
-  /** The select lift and the hand's slide (table.css: 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.2)). */
+  /** The select lift and the hand's slide. */
   slide: 160,
   /** A switch's knob. */
   knob: 150,
@@ -106,7 +103,7 @@ export const MOTION = {
   uiIn: 260,
   /** An overlay or sheet going away. */
   uiOut: 180,
-  /** One card's fly-in at the deal (motion.css `deal`, 0.38s ease). */
+  /** One card's fly-in at the deal. */
   dealIn: 380,
   /** Something that should be noticed: a turn arriving, a trick won. */
   emphasis: 450,
@@ -119,14 +116,14 @@ export const MOTION = {
   /** A won trick stays put this long so the winning play is read, then sweeps to its winner. */
   trickHold: 250,
   trickSweep: 420,
-  /** The bark bubble's run (motion.css barkin 1.9s): in over the first 10 %, out over the last 15 %. */
+  /** The bark bubble's run: in over the first 10 %, out over the last 15 %. */
   bark: 1900,
-  /** The final-round banner's run (motion.css announce 3.2s). */
+  /** The final-round banner's run. */
   announce: 3200,
 } as const;
 
 /**
- * Whose turn it is (docs/MOBILE_UX_PLAN.md §5). The thinking dots step instead of tweening, so a
+ * Whose turn it is. The thinking dots step instead of tweening, so a
  * long AI think draws a few frames a second instead of every frame (render on demand).
  */
 export const TURN = {
@@ -137,7 +134,7 @@ export const TURN = {
 } as const;
 
 /**
- * Moving between screens (docs/MOBILE_UX_PLAN.md §7.1): the title's camera goes in through the
+ * Moving between screens: the title's camera goes in through the
  * opened doors and darkens, then the table fades up out of the dark; leaving the table, the title
  * fades up out of the same dark (C.oakDeep).
  */
@@ -151,7 +148,7 @@ export const TRANSITION = {
 } as const;
 
 /**
- * The sheets (Settings, How to play; §7.2): they slide up over a dim that fades in, and go back
+ * The sheets (Settings, How to play): they slide up over a dim that fades in, and go back
  * down the same way. The body scrolls with momentum and rubber-band ends; pulled down from the
  * top, the whole sheet follows the finger and is dismissed past a distance or a flick. The
  * distances and the drag maths are render/sheetDrag.ts.
@@ -164,8 +161,8 @@ export const SHEET = {
 } as const;
 
 /**
- * The title's idle life (§7.4): the doors' glow flickers like a lamp (one change every
- * flicker[0]-flicker[1] ms: under 2 Hz, so nothing flashes, principle 1.7), the doors sway a
+ * The title's idle life: the doors' glow flickers like a lamp (one change every
+ * flickerMs[0]-flickerMs[1] ms: under 2 Hz, so nothing flashes), the doors sway a
  * degree now and then, and after a while with no touch "Deal me in" breathes a few times.
  */
 export const TITLE = {
@@ -179,7 +176,7 @@ export const TITLE = {
 } as const;
 
 /**
- * Performance guards (docs/MOBILE_UX_PLAN.md §8): from this long into a round, a texture painted
+ * Performance guard: from this long into a round, a texture painted
  * for the first time is a DEV warning (phaser/paint.ts paintStrict).
  */
 export const PERF_GUARD = { paintGraceMs: 2000 } as const;
@@ -190,7 +187,7 @@ export const DOORS_FRAMES_MS = { ajar: 200, open: 420 } as const;
 export const COPIED_MS = 1500;
 
 /**
- * The hand's gestures (render/handGesture.ts, docs/MOBILE_UX_PLAN.md §4.2). Input timings, not
+ * The hand's gestures (render/handGesture.ts). Input timings, not
  * motion: reduced motion does not change them.
  */
 export const GESTURE = {
@@ -205,7 +202,7 @@ export const GESTURE = {
 } as const;
 
 /**
- * The deal (docs/MOBILE_UX_PLAN.md §6.1): 52 backs leave a deck on the felt round-robin, the
+ * The deal: 52 backs leave a deck on the felt round-robin, the
  * opponents' shrink into their portraits, the player's land face-down in the fan, then flip over
  * in a wave. Presentation only: the store does not wait for it, so it must be over before the
  * earliest first AI move (timing.test.ts pins that), and a tap finishes it at once.
@@ -224,7 +221,7 @@ export const DEAL = {
 export const dealTotalMs = (cards = 52, hand = 13): number => (cards - 1) * DEAL.staggerMs + DEAL.flyMs + (hand - 1) * DEAL.flipStaggerMs + DEAL.flipMs;
 
 /**
- * The round's end (§6.2): the winning card lands, holds, and slaps down; then, on Greenhorn, the
+ * The round's end: the winning card lands, holds, and slaps down; then, on Greenhorn, the
  * losers' leftover cards fan out face-up over their badges until the poster.
  */
 export const ROUND_END = {
@@ -241,7 +238,7 @@ export const ROUND_END = {
   revealHoldMs: 1500,
 } as const;
 
-/** The poster (§6.3): rows arrive one after another, then the numbers count up. */
+/** The poster: rows arrive one after another, then the numbers count up. */
 export const POSTER = {
   rowStaggerMs: 60,
   countMs: 700,
@@ -251,8 +248,8 @@ export const POSTER = {
 
 /**
  * Named easings (Phaser ease names). Enter decelerates, exit accelerates, `land` overshoots a
- * little and is only for short moves (<= 300 ms: a long overshoot reads as a wobble, PERF_PLAN
- * 2.5), `settle` glides in without one.
+ * little and is only for short moves (<= 300 ms: a long overshoot reads as a wobble), `settle`
+ * glides in without one.
  */
 export const EASE = {
   enter: "Cubic.Out",

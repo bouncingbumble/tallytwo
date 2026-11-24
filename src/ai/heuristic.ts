@@ -53,7 +53,7 @@ export function rankMoves(pub: PublicView, hand: readonly Card[], moves: readonl
     if (unseen && unbeatable(m, unseen)) cost -= WEIGHTS.safeBonus; // card counting
     out.push({ move: m, cost, after });
   }
-  // a stable sort: equal costs keep the order they were found in, as the old strict-< scan did
+  // a stable sort: equal costs keep the order they were found in
   return out.sort((a, b) => a.cost - b.cost);
 }
 

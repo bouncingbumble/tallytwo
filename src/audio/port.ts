@@ -1,10 +1,10 @@
 /**
- * What the game needs from a sound system. The web implementation is WebAudio.ts; the React
- * Native port writes ExpoAudio.ts against the same interface. Platform objects arrive as
- * props to the providers, never as imports, so nothing in game/ knows which one it has.
+ * What the game needs from a sound system. The web implementation is WebAudio.ts; it is
+ * created in main.ts and handed to the stores, never imported, so nothing in game/ knows which
+ * one it has.
  *
- * Failure contract: init() NEVER rejects and is never awaited by the UI — the Deal handler
- * calls it fire-and-forget and deals regardless. A file that cannot be decoded gives a silent
+ * Failure contract: init() NEVER rejects and is never awaited by the UI — the title's buttons
+ * call it fire-and-forget and carry on regardless. A file that cannot be decoded gives a silent
  * event and one console warning, never a stalled deal. play() on an event whose pool is empty,
  * or before init() resolved, is a no-op.
  *
@@ -34,7 +34,7 @@ export interface AudioPort {
   resume(): void;
 }
 
-/** A port that does nothing: the M1a stub, and what tests pass in. */
+/** A port that does nothing, for tests. */
 export const silentAudio: AudioPort = {
   init: () => Promise.resolve(),
   play: () => {},

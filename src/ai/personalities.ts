@@ -14,7 +14,7 @@ export interface Barks {
 export interface Personality {
   key: PersonalityKey;
   name: string;
-  /** Sprite name of the 64x64 portrait: "p_marshal" | "p_outlaw" | "p_gambler". */
+  /** Sprite name of the portrait: "p_marshal" | "p_outlaw" | "p_gambler". */
   portrait: string;
   /** How dearly control cards are held outside the endgame (Medium only; Hard uses WEIGHTS.hardControl). */
   control: number;

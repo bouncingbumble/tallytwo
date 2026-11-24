@@ -1,10 +1,9 @@
 /**
- * The store: what React's GameProvider + useTurnLoop + useBarks used to be, with no framework.
- * One AppState over appReduce, the selection, the crash report, a seeded rng per deal for the AI,
- * the cosmetic layer (sounds, barks, shell events) inside act(), and the turn loop: ONE pending
- * timer, re-armed only when something it reads changed (the game object, paused, crash, the
- * Game speed / difficulty settings) — a card tap or a bark expiring never re-arms it, so the AI
- * never "hesitates".
+ * The game store, with no framework. One AppState over appReduce, the selection, the crash
+ * report, a seeded rng per deal for the AI, the cosmetic layer (sounds, barks, shell events)
+ * inside act(), and the turn loop: ONE pending timer, re-armed only when something it reads
+ * changed (the game object, paused, crash, the Game speed / difficulty settings) — a card tap or
+ * a bark expiring never re-arms it, so the AI never "hesitates".
  *
  * PURE: time arrives as a ClockPort, sound as an AudioPort, the host as a ShellPort. The Phaser
  * scenes are subscribers; they read `view` and call the methods.

@@ -1,7 +1,4 @@
-/**
- * Every user-facing string. The prototype's words, verbatim (P line refs in the original build plan §3.3,
- * §5 M4), so the two can be compared side by side.
- */
+/** Every user-facing string, in one place. */
 export const COPY = {
   title: {
     name: "Tally Two",

@@ -1,7 +1,7 @@
 /**
- * One AI turn as an Action. The recipe from ENGINE.md: build the seat's public view, look up
- * its personality, ask chooseMove, and wrap the answer as PLAY or PASS. Pure; the rng is the
- * caller's (the provider keeps a seeded one per deal).
+ * One AI turn as an Action: build the seat's public view, look up its personality, ask
+ * chooseMove, and wrap the answer as PLAY or PASS. Pure; the rng is the caller's (the store
+ * keeps a seeded one per deal).
  */
 import type { Rng } from "../engine/cards";
 import type { Action } from "../engine/reducer";

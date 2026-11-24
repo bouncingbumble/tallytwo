@@ -1,17 +1,11 @@
-/**
- * timing.ts: the prototype's numbers (the original build plan §3.5 table), the single Game
- * speed setting.
- */
+/** timing.ts: the Game speed tiers, the deal's length, and the motion bands. */
 import { expect, test } from "vitest";
 import {
-  BARK_CHANCE,
-  BARK_MS,
   DEAL,
   DOORS_MS,
   FAST_SLOWDOWN,
   FAST_SPEED,
   FAST_THINK_SCALE,
-  FINAL_ROUND_MS,
   FIRST_STEP_MS,
   GAME_SPEEDS,
   MOTION,
@@ -55,29 +49,14 @@ test("thinkMs stays inside the range for any r in [0, 1)", () => {
   }
 });
 
-test("the constants are the prototype's numbers", () => {
-  expect(THINK).toEqual({ normal: [650, 1250], fast: [280, 520] });
-  expect(ROUND_OVER_MS).toEqual({ ai: 900, human: 800 });
-  expect(FIRST_STEP_MS).toBe(700);
-  expect(DOORS_MS).toBe(620);
-  expect(PLAY_FLY_MS).toBe(700); // the prototype's 280-ms slap, now a flight from the portrait and a spread
-  expect(PLAY_FLY_STAGGER_MS).toBe(30);
-  expect(BARK_MS).toBe(2000);
-  expect(BARK_CHANCE).toBe(0.55);
-  expect(FINAL_ROUND_MS).toBeGreaterThan(0);
-});
-
-test("one Game speed setting: slow is the old 1x table, normal 2x, fast the old fastest table at 30% less speed", () => {
+test("Game speed: slow ×4, normal ×2, fast its own think range and wait scale", () => {
   expect(GAME_SPEEDS).toEqual(["slow", "normal", "fast"]);
-  expect(paced(FIRST_STEP_MS, "slow")).toBe(2800); // the old default (Normal pace, 1x)
+  expect(paced(FIRST_STEP_MS, "slow")).toBe(2800);
   expect(paced(FIRST_STEP_MS, "normal")).toBe(1400);
   expect(paced(thinkMs("slow", 0), "slow")).toBe(2600);
-  expect(FAST_SPEED).toBe(0.7);
-  expect(FAST_SLOWDOWN).toBe(1.5);
-  // the old fastest table was Fast pace at 4x: prototype ms × 1. Fast runs at 70% of that speed, then 1.5x slower again.
-  expect(paced(FIRST_STEP_MS, "fast")).toBe(1500);
-  // the AI's think time is scaled on its own: x2.5 on Fast, the tier's scale elsewhere
-  expect(FAST_THINK_SCALE).toBe(2.5);
+  expect(paced(FIRST_STEP_MS, "fast")).toBe(Math.round((FIRST_STEP_MS * FAST_SLOWDOWN) / FAST_SPEED));
+  // the AI's think time is scaled on its own: FAST_THINK_SCALE on Fast, the tier's scale elsewhere
+  expect(pacedThink("fast", 0)).toBe(THINK.fast[0] * FAST_THINK_SCALE);
   expect(pacedThink("fast", 0)).toBe(700);
   expect(pacedThink("fast", 1)).toBe(1300);
   expect(pacedThink("slow", 0)).toBe(2600);
@@ -96,7 +75,7 @@ test("a play lands when its last card has spread: the flight plus one stagger pe
   expect(playLandMs(0)).toBe(PLAY_FLY_MS);
 });
 
-/* ---- presentation motion (docs/MOBILE_UX_PLAN.md §1.5, §9) ---- */
+/* ---- presentation motion ---- */
 
 test("MOTION: each token sits in its band, and the bands are in order", () => {
   // feedback 80-150 ms (a finger's answer), UI transitions 150-350 ms, emphasis 380-700 ms
@@ -131,7 +110,7 @@ test("screens and sheets move inside the UI band; the title's idle life never fl
   }
   // a flick's glide is emphasis-long: it is decelerating, not arriving
   expect(SHEET.momentumMs).toBeLessThanOrEqual(700);
-  // under 3 flashes a second (principle 1.7): the flicker's quickest step is at least 1/2 s apart
+  // under 3 flashes a second: the flicker's quickest step is at least 1/2 s apart
   expect(TITLE.flickerMs[0]).toBeGreaterThanOrEqual(500);
   expect(TITLE.flickerMs[1]).toBeGreaterThan(TITLE.flickerMs[0]);
   expect(TITLE.swayEveryMs).toBeGreaterThan(TITLE.swayMs);

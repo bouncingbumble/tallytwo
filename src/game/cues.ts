@@ -1,6 +1,6 @@
 /**
  * cueFor(before, action, next): the sounds and the bark one action causes. Pure and tested row
- * by row (the original build plan §3.4). Barks are AI-only: seat 0 has no personality and no lines.
+ * by row (cues.test.ts). Barks are AI-only: seat 0 has no personality and no lines.
  */
 import type { GameState } from "../engine/state";
 import type { SfxEvent } from "../audio/sfxTable";

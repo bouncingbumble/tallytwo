@@ -1,7 +1,6 @@
 /**
  * The engine suite: encoding, the classification table, the full comparison matrix, properties
  * over random hands, scoring, deal, the reducer's legality rules, and replay determinism.
- * The port of the handoff's 65-assertion suite, extended.
  */
 import { describe, expect, test } from "vitest";
 import { aiRngFor } from "../game/seeds";

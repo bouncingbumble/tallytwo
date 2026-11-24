@@ -1,7 +1,7 @@
 /**
  * The app's reducer wraps the engine's. game === null is the title screen. App-level actions
  * (NEW_MATCH, NEXT_ROUND, SCORE_ROUND, QUIT, SET_RULES) get no-op guards because a button can be
- * double-tapped and must not unmount the tree; PLAY/PASS stay loud — they are gated by
+ * double-tapped and must not act twice; PLAY/PASS stay loud — they are gated by
  * legalMoves() and canPass(), so an engine throw there is a real bug and tryReduce() turns it
  * into a CrashReport with everything needed to replay it.
  */
@@ -26,8 +26,9 @@ const sameRules = (a: RuleConfig, b: RuleConfig): boolean => a.straightWrap === 
 
 /**
  * Settings apply to the game in progress, not only the next one. The combo on the table was
- * keyed under the old rules, so it is re-classified under the new ones; a play the new rules no longer recognise (a wrap-around straight with wrapping
- * turned off) stays as it was, and is still beaten by any higher straight.
+ * keyed under the previous rules, so it is re-classified under the new ones; a play the new
+ * rules no longer recognise (a wrap-around straight with wrapping turned off) stays as it was,
+ * and is still beaten by any higher straight.
  */
 export function applyRules(g: GameState, rules: RuleConfig): GameState {
   if (sameRules(g.rules, rules)) return g;

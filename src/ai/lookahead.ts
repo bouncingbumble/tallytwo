@@ -32,7 +32,7 @@ export const LOOKAHEAD = {
   maxTurns: 240,
 } as const;
 
-/** How every seat plays inside a rollout: Card sharp's old fixed tuning, without the counting. */
+/** How every seat plays inside a rollout: Card sharp's control and pass weights, without the counting. */
 export const ROLLOUT: Tuning = { control: WEIGHTS.hardControl, passBias: WEIGHTS.hardPass, count: false };
 
 interface Table {

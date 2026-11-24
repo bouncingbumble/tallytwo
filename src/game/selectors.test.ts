@@ -144,7 +144,7 @@ test("legalFor: [] off turn, every opening lead includes the 3♦ on turn", () =
   expect(legal.every((m) => m.cards.includes(THREE_OF_DIAMONDS))).toBe(true);
 });
 
-/* ---- the status line, one test per string (P:836-842) ---- */
+/* ---- the status line, one test per string ---- */
 
 test("status: no game -> empty, neutral", () => {
   expect(statusFor(null, [], [])).toEqual({ text: "", tone: "neutral" });

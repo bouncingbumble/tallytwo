@@ -2,8 +2,8 @@
  * An AI move as a request and a result, so it can be computed off the main thread. Card sharp
  * looks ahead by playing rounds out (ai/lookahead.ts): ~10 ms a move, 80+ ms at worst — long
  * enough to drop frames while the previous play is still flying in. The web shell answers
- * through a Worker (platform/think.ts); tests, the sim and a browser without workers answer with
- * thinkNow() on the spot.
+ * through a Worker (platform/think.ts); tests and a browser without workers answer with thinkNow() on
+ * the spot.
  *
  * Determinism: the AI's random stream travels as its state (engine/cards seededRng) and comes
  * back advanced, so a worker's answer is the answer aiTurn would have given on the main thread,

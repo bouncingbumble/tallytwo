@@ -1,6 +1,6 @@
 /**
- * Every `if` about the rules of the game that a component would otherwise contain. Pure
- * functions over GameState (+ the selection, + a setting); the provider memoises them.
+ * Every `if` about the rules of the game that a scene would otherwise contain. Pure functions
+ * over GameState (+ the selection, + a setting); the store memoises them in its view.
  */
 import { type Card, type Rng, THREE_OF_DIAMONDS, rank } from "../engine/cards";
 import { type Combo, classify, describe } from "../engine/combos";
@@ -59,13 +59,13 @@ export function liveCards(legal: readonly Combo[], selection: readonly Card[]): 
   return live;
 }
 
-/** Passing on your own lead throws in the engine, so it is never offered (P:831). */
+/** Passing on your own lead throws in the engine, so it is never offered. */
 export const canPass = (g: GameState | null, legal: readonly Combo[]): boolean => !!g && humanTurn(g) && (g.lastPlay !== null || legal.length === 0);
 
 /**
- * Which control wears the primary (amber) look: the one move the player is being asked for
- * (docs/MOBILE_UX_PLAN.md F3). Play once the selection is a legal play; Pass when nothing in hand
- * can beat the table; otherwise neither, so a disabled Play never reads as the call to action.
+ * Which control wears the primary (amber) look: the one move the player is being asked for.
+ * Play once the selection is a legal play; Pass when nothing in hand can beat the table;
+ * otherwise neither, so a disabled Play never reads as the call to action.
  */
 export function primaryAction(exact: Combo | null, canPassNow: boolean, legal: readonly Combo[]): "play" | "pass" | null {
   if (exact) return "play";
@@ -74,7 +74,7 @@ export function primaryAction(exact: Combo | null, canPassNow: boolean, legal: r
 }
 
 /**
- * The status line under the hand (P:836-842). With Hints off, a table nothing in hand can beat
+ * The status line under the hand. With Hints off, a table nothing in hand can beat
  * reads like any other ("Pick cards that beat it, or pass.") instead of giving it away.
  */
 export function statusFor(g: GameState | null, legal: readonly Combo[], selection: readonly Card[], hints = true): Status {
@@ -91,7 +91,7 @@ export function statusFor(g: GameState | null, legal: readonly Combo[], selectio
   return { text: COPY.status.doesntBeat(describe(combo)), tone: "bad" };
 }
 
-/** The wooden sign on the felt (P:872-886). */
+/** The wooden sign on the felt. */
 export function signFor(g: GameState | null): Sign {
   if (!g) return { who: COPY.sign.table, text: "" };
   if (!g.lastPlay || g.lastBy === null) return { who: COPY.sign.table, text: g.history.length ? COPY.sign.freshLead : COPY.sign.waitingOpening };
@@ -126,13 +126,13 @@ export function suitSortRuns(hand: readonly Card[]): Card[] {
   return out;
 }
 
-/** The Hint button: what the Marshal would play at Regular, else the cheapest legal move (P:1236-1243). */
+/** The Hint button: what the Marshal would play at Regular, else the cheapest legal move. */
 export function hintFor(g: GameState | null, legal: readonly Combo[], rand: Rng): Combo | null {
   if (!g || !humanTurn(g) || !legal.length) return null;
   return chooseMove(publicView(g, HUMAN), g.players[HUMAN].hand, PERSONALITIES.marshal, g.rules, rand, "medium") ?? legal[0];
 }
 
-/** The portrait sprite for an AI seat; null for the human (who has no personality). ui/ reads this, never ai/. */
+/** The portrait sprite for an AI seat; null for the human (who has no personality). The scenes read this, never ai/. */
 export const portraitFor = (p: Player): PortraitKey | null => (p.kind === "ai" ? getPersonality(p.personality).portrait : null);
 
 /** An AI seat's bark lines for a kind; [] for the human. */
@@ -162,7 +162,7 @@ export function trickPlays(g: GameState): TrickPlay[] {
   return [...bySeat.values()].sort((a, b) => a.seat - b.seat);
 }
 
-/** What one state change means at the table, for the cues that explain it (docs/MOBILE_UX_PLAN.md §5). */
+/** What one state change means at the table, for the cues that explain it. */
 export interface TableEvents {
   /** The seat whose turn just began, or null. */
   turnStarted: number | null;
@@ -209,14 +209,13 @@ export const roundDeltas = (g: GameState | null): number[] | null => (g && g.pha
 export const roundWinner = (g: GameState | null): number | null => (g && g.phase !== "playing" ? g.turn : null);
 
 /**
- * The opponents whose leftover cards are turned face-up when a round ends (docs/MOBILE_UX_PLAN.md
- * §6.2): on Greenhorn only, the AI seats still holding cards, so a learner sees what the penalty
- * was made of. Regular and Card sharp keep their hands hidden. Empty while the round is live.
+ * The opponents whose leftover cards are turned face-up when a round ends: on Greenhorn only,
+ * the AI seats still holding cards, so a learner sees what the penalty was made of. Regular and Card sharp keep their hands hidden. Empty while the round is live.
  */
 export const revealLeftovers = (g: GameState | null, difficulty: Difficulty): number[] =>
   g && g.phase === "roundover" && difficulty === "easy" ? g.players.flatMap((p, i) => (p.kind === "ai" && p.hand.length > 0 ? [i] : [])) : [];
 
-/** A match is exactly this many rounds — no setting (2026-10-07: "8 rounds per match no more, no less"). */
+/** A match is exactly this many rounds; there is no setting for it. */
 export const ROUNDS_PER_MATCH = 8;
 
 /** The engine has no match concept; the match ends when round ROUNDS_PER_MATCH has been scored. */

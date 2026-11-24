@@ -1,7 +1,7 @@
 /**
  * Seeds. A deal's seed fixes the shuffle AND the AI's random stream, so a round replays from
- * its seed alone (and from seed + history). The URL's ?seed= is parsed in App.tsx, not here —
- * URLSearchParams is a DOM type and this file copies to React Native unchanged.
+ * its seed alone (and from seed + history). The URL's ?seed= is parsed in main.ts, not here:
+ * URLSearchParams is a DOM type and game/ is compiled without the DOM lib.
  */
 import { type Rng, mulberry32 } from "../engine/cards";
 

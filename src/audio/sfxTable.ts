@@ -3,7 +3,7 @@
  * plus the music cues and the handful of audio constants. PURE: it names assets through
  * assets/names.ts and never touches a URL or the Web Audio API (that is WebAudio.ts).
  *
- * Gains are the prototype's (P:343); the files are the kept pack (docs/ASSETS.md).
+ * The files are listed in docs/ASSETS.md.
  */
 import type { AssetName, SfxAssetName } from "../assets/names";
 
@@ -31,7 +31,7 @@ export interface SfxSpec {
   ducks: boolean;
 }
 
-/* Gains are the prototype's x SFX_BOOST (2026-10-07: "card sound effects 20% louder"), capped at 1. */
+/* Each gain is a base level x SFX_BOOST, capped at 1. */
 export const SFX_BOOST = 1.2;
 const boost = (g: number): number => Math.min(1, Math.round(g * SFX_BOOST * 100) / 100);
 
@@ -114,8 +114,8 @@ export const MUSIC: Record<MusicLayer, LoopSpec> = {
   matchWon: { file: "music_ost_5", gain: 0.3, loopEnd: 4_980_706 / 44_100 },
 };
 
-/** Music steps back under a slap: to 0.12 within 20 ms, back to 0.30 after 300 ms unless re-ducked within 280 ms (P:368-373). */
-export const DUCK = { to: 0.12, from: 0.3, attackS: 0.02, holdMs: 300, rearmMs: 280 } as const;
+/** Music steps back under a slap: from 0.30 to 0.12 within 20 ms, and back holdMs after the last slap. */
+export const DUCK = { to: 0.12, from: 0.3, attackS: 0.02, holdMs: 300 } as const;
 /** True pitch jitter per SFX play, ±4 %. */
 export const JITTER = 0.04;
 /** Level jitter per SFX play, ±1.5 dB, so a run of the same sound (the deal roll) is not a machine gun. */
@@ -134,7 +134,7 @@ export const SEATED: ReadonlySet<SfxEvent> = new Set<SfxEvent>(["playSmall", "pl
  * landing on the deal roll over the music never crackles.
  */
 export const LIMIT = { knee: 0.8, ceiling: 1, headroom: 2 } as const;
-/** A deal: one shuffle at 0, then `ticks` deal sounds at first + k * every ms (P:386-390). */
+/** A deal: one shuffle at 0, then `ticks` deal sounds at first + k * every ms. */
 export const DEAL_ROLL = { first: 260, every: 110, ticks: 4 } as const;
 /** The tension track takes over from the table track when any seat is down to this many cards. */
 export const TENSION_THRESHOLD = 3;

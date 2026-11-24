@@ -111,8 +111,8 @@ type MainTrack = MusicLayer;
 const FADE_OUT_S = FADE.outMs / 1000;
 const FADE_IN_S = FADE.inMs / 1000;
 /**
- * DUCK is written in the prototype's absolute terms (.30 -> .12, where .30 was the music
- * element's volume). Here each loop's own gain holds the .30, so the duck node carries the ratio.
+ * DUCK is written in absolute terms (.30 -> .12). Each loop's own gain holds the .30, so the duck
+ * node carries the ratio.
  */
 const DUCK_RATIO = DUCK.to / DUCK.from;
 const swallow = (): void => {};
@@ -232,10 +232,10 @@ export class WebAudio implements AudioPort {
   }
 
   /**
-   * The music steps back under a slap and returns after the hold (P:368-373). Both moves are
-   * scheduled on the audio clock at once; a re-duck before the lift cancels the pending lift
+   * The music steps back under a slap and returns after the hold. Both moves are scheduled on
+   * the audio clock at once; a re-duck before the lift cancels the pending lift
    * (cancelScheduledValues from its own start) and schedules its own, so the music comes back
-   * DUCK.holdMs after the LAST slap — what the prototype's re-arm window did with timers.
+   * DUCK.holdMs after the LAST slap.
    */
   duck(delay = 0): void {
     const ctx = this.ctx;
@@ -264,9 +264,8 @@ export class WebAudio implements AudioPort {
     const ctx = this.createContext();
     this.ctx = ctx;
     if (import.meta.env.DEV && typeof window !== "undefined") {
-      // Installed here, not in the constructor: under StrictMode useMemo builds a second, discarded
-      // instance, and the probe must belong to the one that owns the context. M5 gate 4 watches
-      // `duck` step .30 -> .12 -> .30. The shape is platform/globals.d.ts's.
+      // A dev probe for the console: the instance that owns the context installs it. The shape
+      // is platform/globals.d.ts's.
       const probe = () => this.probe();
       window.__music = {
         get gain() {
@@ -498,7 +497,7 @@ export class WebAudio implements AudioPort {
     this.fadingUntil = Math.max(this.fadingUntil, end);
   }
 
-  /** DEV probe: the music bus, the duck envelope in the prototype's terms (.30 at rest, .12 under a slap), what plays. */
+  /** DEV probe: the music bus, the duck envelope (.30 at rest, .12 under a slap), what plays. */
   private probe(): { bus: number; duck: number; track: string | null; playing: string[] } {
     return {
       bus: this.buses?.music.gain.value ?? this.busLevels.music,
