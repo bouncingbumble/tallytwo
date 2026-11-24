@@ -73,9 +73,11 @@ Round-robin without an immediate repeat (`pool.ts` `pickVariant`), ±4 % true-pi
 
 | loop | file | gain | `loopEnd` (s) |
 | --- | --- | --- |
-| `table` | `music_ost_1` | 0.30 | 119.081 |
-| `tension` | `music_ost_3` | 0.30 | 107.714 |
-| `results` | `music_ost_4` | 0.30 | 103.109 |
+| `table` | `music_ost_1` | 0.30 | 121.081088 |
+| `tension` | `music_ost_3` | 0.30 | 109.714286 |
+| `results` | `music_ost_4` | 0.30 | 105.109478 |
+| `roundWon` | `music_ost_2` | 0.30 | 112.207800 |
+| `matchWon` | `music_ost_5` | 0.30 | 112.941179 |
 | `ambience` | `sfx_CardsMovingLoop03` | −14 dB (0.1995) | 10.069 |
 
 ## 3. The pipeline
@@ -89,6 +91,18 @@ Round-robin without an immediate repeat (`pool.ts` `pickVariant`), ±4 % true-pi
 7. Vite emits hashed URLs; `.png`/`.m4a` are static assets by default. `dist/` is a static site plus `sw.js`, the offline service worker that `vite.config.ts` (`tally-offline`) writes after the build: it precaches every file except the `.woff` twins and the dev `/assets` page, with the music in a second, best-effort cache (`docs/OFFLINE_PLAN.md`). `public/manifest.webmanifest` makes the site installable.
 
 ## 4. Audio format: AAC, not Ogg
+
+> **Music, from the masters (2026-11-24).** The five `ost_*.m4a` are now encoded straight from the composer's 16-bit / 44.1 kHz WAV masters ("Wild West Music Volume 1", the `(Loopable).wav` of each track; the archive is not in this repo), not transcoded from Ogg:
+>
+> ```sh
+> afconvert -f m4af -d aac -b 160000 -s 2 -q 127 "OST 1 - Saloon Stare Down (Loopable).wav" ost_1.m4a   # likewise 2-5
+> ```
+>
+> `-s 2` is constrained VBR at a 160 kb/s average (164-175 kb/s as encoded), so the five stay ~11.8 MB and inside the offline precache budget. Against the WAV the new files measure 3-4 dB higher SNR than the Ogg-sourced ones at the same size (no second lossy generation). Every file's `afinfo` valid frames equal the WAV's frame count exactly (2,112 priming recorded), so `loopEnd` is frames / 44100 (`sfxTable.ts`).
+>
+> **The loop points were 2 s short.** The old Ogg "loop" files were the masters with their last 2.000 s cut (cross-correlation 0.99 at zero offset), so every loop jumped back to its start mid-beat. Each master is a whole number of beats — OST 1 224 at 111 bpm, OST 2 144 at 77, OST 3 192 at 105, OST 4 240 at 137, OST 5 160 at 85 — and the cuts were not (e.g. OST 3 at 188.5 beats); the last 2 s is new music, not a repeat of the first 2 s. The loops now run the full master.
+>
+> The SFX are unchanged (still from the Ogg pack): their masters were not in the archive. The rest of this section is the original SFX/music transcode, kept as the record.
 
 **Decision.** The kept pack is Ogg Vorbis only (46 SFX + 3 loops after the triage; no `.mp3`/`.m4a` survived). iOS Safari cannot decode Vorbis in Web Audio (`decodeAudioData` rejects it) and the target is iPhone Safari, so every wired file was transcoded to AAC in an `.m4a` container before any audio name was written — `names.ts`, `sfxTable.ts` and `manifest.ts` say `.m4a` from their first line and nothing was renamed later. The plan's step −1 probe (`probe.html`) was therefore never needed; the plan's fallback (`ffmpeg … -c:a aac -b:a 160k`) could not be used either because ffmpeg is not installed on the build machine.
 
@@ -118,9 +132,9 @@ afinfo m4a/music/ost_1.m4a | grep -E "valid frames|estimated duration"
 
 | file | valid frames | priming | duration (s) | AAC bytes | Ogg source bytes |
 | --- | --- | --- | --- | --- |
-| `music/ost_1.m4a` | 5,251,476 | 2,112 | 119.081088 | 2,407,749 | 3,023,451 |
-| `music/ost_3.m4a` | 4,750,200 | 2,112 | 107.714286 | 2,179,995 | 2,334,758 |
-| `music/ost_4.m4a` | 4,547,128 | 2,112 | 103.109478 | 2,084,274 | 2,250,129 |
+| `music/ost_1.m4a` (superseded, see above) | 5,251,476 | 2,112 | 119.081088 | 2,407,749 | 3,023,451 |
+| `music/ost_3.m4a` (superseded) | 4,750,200 | 2,112 | 107.714286 | 2,179,995 | 2,334,758 |
+| `music/ost_4.m4a` (superseded) | 4,547,128 | 2,112 | 103.109478 | 2,084,274 | 2,250,129 |
 | `sfx/SFX_CardsMovingLoop03.m4a` | 444,049 | 2,112 | 10.069138 | 166,087 | ~119 KB |
 
 The 2,112-frame priming (encoder delay) is recorded in the file and Web Audio's `decodeAudioData` trims it, so a decoded buffer starts on the first real sample and `loopEnd` can be the measured duration. Budget: the 34 SFX together are about 0.66 MB (0.5 MB without the ambience loop); the three loops are about 6.7 MB, fetched on demand by the game. The service worker precaches all of them at install (the five `ost_*` files in `dist/` are about 11 MB), so music plays offline too (`docs/OFFLINE_PLAN.md`).
@@ -129,14 +143,15 @@ The 2,112-frame priming (encoder delay) is recorded in the file and Web Audio's 
 
 ## 5. Loop lengths
 
-Sample-accurate loop points (`src/audio/sfxTable.ts` `MUSIC[*].loopEnd`), from the asset manifest's measured durations and confirmed by `afinfo` on the AAC files:
+Sample-accurate loop points (`src/audio/sfxTable.ts` `MUSIC[*].loopEnd` = frames / 44100), the WAV masters' frame counts, equal to `afinfo`'s valid frames on the AAC files:
 
-| loop | `loopEnd` | frames at 44.1 kHz | channels | bit rate |
-| --- | --- | --- | --- |
-| ost_1 — Saloon Stare Down (table) | 119.081 s | 5,251,476 | 2 | 160 kb/s |
-| ost_3 — Ghost Town Blues (tension) | 107.714 s | 4,750,200 | 2 | 160 kb/s |
-| ost_4 — Dusty Trails (results, how-to) | 103.109 s | 4,547,128 | 2 | 160 kb/s |
-| CardsMovingLoop03 (ambience) | 10.069 s | 444,049 | 1 | 128 kb/s |
+| loop | `loopEnd` | frames at 44.1 kHz | beats | channels | bit rate |
+| --- | --- | --- | --- | --- | --- |
+| ost_1 — Saloon Stare Down (table) | 121.081088 s | 5,339,676 | 224 at 111 bpm | 2 | 160 kb/s VBR |
+| ost_2 — Sundown in the Prairie (round won) | 112.207800 s | 4,948,364 | 144 at 77 bpm | 2 | 160 kb/s VBR |
+| ost_3 — Ghost Town Blues (tension) | 109.714286 s | 4,838,400 | 192 at 105 bpm | 2 | 160 kb/s VBR |
+| ost_4 — Dusty Trails (results, how-to) | 105.109478 s | 4,635,328 | 240 at 137 bpm | 2 | 160 kb/s VBR |
+| ost_5 — Lonesome Rider (match won) | 112.941179 s | 4,980,706 | 160 at 85 bpm | 2 | 160 kb/s VBR |
 
 The web port plays each with `source.loop = true; source.loopEnd = loopEnd`. A player that cannot set a loop end would need the loop files trimmed to these lengths offline.
 

@@ -97,16 +97,21 @@ export type MusicLayer = MusicTrack | "tension";
 export interface LoopSpec {
   file: AssetName;
   gain: number;
-  /** Seconds; sample-accurate loop points from the asset manifest. */
+  /**
+   * Seconds: the whole composed loop, as frames / 44100 from the WAV master (afinfo "valid
+   * frames" of the AAC is the same count), so the loop lands on the sample. Each is a whole
+   * number of beats (OST 1 224 at 111 bpm, OST 2 144 at 77, OST 3 192 at 105, OST 4 240 at 137,
+   * OST 5 160 at 85). docs/ASSETS.md §4-5.
+   */
   loopEnd: number;
 }
 
 export const MUSIC: Record<MusicLayer, LoopSpec> = {
-  table: { file: "music_ost_1", gain: 0.3, loopEnd: 119.081 },
-  tension: { file: "music_ost_3", gain: 0.3, loopEnd: 107.714 },
-  results: { file: "music_ost_4", gain: 0.3, loopEnd: 103.109 },
-  roundWon: { file: "music_ost_2", gain: 0.3, loopEnd: 110.208 },
-  matchWon: { file: "music_ost_5", gain: 0.3, loopEnd: 110.941 },
+  table: { file: "music_ost_1", gain: 0.3, loopEnd: 5_339_676 / 44_100 },
+  tension: { file: "music_ost_3", gain: 0.3, loopEnd: 4_838_400 / 44_100 },
+  results: { file: "music_ost_4", gain: 0.3, loopEnd: 4_635_328 / 44_100 },
+  roundWon: { file: "music_ost_2", gain: 0.3, loopEnd: 4_948_364 / 44_100 },
+  matchWon: { file: "music_ost_5", gain: 0.3, loopEnd: 4_980_706 / 44_100 },
 };
 
 /** Music steps back under a slap: to 0.12 within 20 ms, back to 0.30 after 300 ms unless re-ducked within 280 ms (P:368-373). */
