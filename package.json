@@ -16,9 +16,7 @@
     "typecheck": "tsc -b --noEmit && tsc -p tsconfig.core.json --noEmit",
     "sim": "node --experimental-strip-types --import ./scripts/register-resolver.mjs scripts/sim.mjs",
     "check:sw": "node scripts/check-sw.mjs",
-    "e2e:offline": "VITE_E2E=1 npm run build && (npx vite preview --port 4180 --strictPort & PID=$!; sleep 2; OFFLINE=1 DEVICES=desktop node e2e/play.mjs http://localhost:4180 1; S=$?; kill $PID; exit $S)",
-    "e2e:update": "node e2e/update.mjs",
-    "e2e:visual": "node e2e/visual.mjs http://localhost:5180",
+    "e2e": "node e2e/play.mjs",
     "check": "npm run typecheck && npm run lint && npm test && npm run sim -- 300 && vite build && npm run check:sw"
   },
   "dependencies": {

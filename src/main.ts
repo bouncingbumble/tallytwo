@@ -125,8 +125,8 @@ function boot(): void {
     bridge.send("ready", {});
   });
 
-  // the e2e hook: always in dev; in a build only with VITE_E2E=1 (e2e/play.mjs OFFLINE=1 tests a real build)
-  if (import.meta.env.DEV || import.meta.env.VITE_E2E === "1") {
+  // the e2e hook (e2e/play.mjs), dev builds only
+  if (import.meta.env.DEV) {
     window.__tally = {
       act: (a) => game.act(a),
       get game() {
