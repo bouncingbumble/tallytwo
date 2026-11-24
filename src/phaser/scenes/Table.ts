@@ -201,6 +201,8 @@ export class TableScene extends BaseScene {
     this.#prewarmCoach();
     paintStrict(this, performance.now() + PERF_GUARD.paintGraceMs);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => paintStrict(null));
+    // on a fresh deal the felt stays bare until the cards are out (#afterDeal)
+    if (this.#animate) this.#trick.setDealing(true);
     this.watch(game, () => this.#render());
     this.watch(this.app.settings, () => this.#render(true));
     this.#render();
@@ -251,6 +253,7 @@ export class TableScene extends BaseScene {
 
   /** The cards are all out: the opening turn gets its cue, and a newcomer the swipe coach mark. */
   #afterDeal(): void {
+    this.#trick.setDealing(false);
     const v = this.app.game.view;
     if (!v.game || !this.scene.isActive()) return;
     this.#turnCue({ turnStarted: v.game.turn, played: null, passed: null, trickWonBy: null }, v);

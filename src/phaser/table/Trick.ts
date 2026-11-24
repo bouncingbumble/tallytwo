@@ -63,6 +63,8 @@ export class TrickView {
   /** Where a won trick sweeps to (absolute logical px), and who to tell when it gets there. */
   #sweepTo: ((seat: number) => { x: number; y: number }) | null = null;
   #onWon: ((seat: number) => void) | null = null;
+  /** True while the deal is flying out: the felt's caption ("Cards are down.") waits for it. */
+  #dealing = false;
 
   constructor(scene: Phaser.Scene, t: TableLayout, origin: (seat: number, card: number) => FlyOrigin | null) {
     this.scene = scene;
@@ -71,6 +73,12 @@ export class TrickView {
     this.layer = scene.add.container(0, 0);
     this.#empty = text(scene, t.plays.x + t.plays.w / 2, t.plays.y + t.plays.h / 2, "", { size: FS_BODY, color: CSS.feltText, align: "center", wrap: Math.max(40, t.plays.w - 48) }).setOrigin(0.5);
     this.layer.add(this.#empty);
+  }
+
+  /** Hold the empty felt's caption back while the cards are being dealt; show it again once they are down. */
+  setDealing(dealing: boolean): void {
+    this.#dealing = dealing;
+    this.#empty.setVisible(!dealing && this.#groups.size === 0 && this.#empty.text !== "");
   }
 
   /** Give the trick a layer drawn above the hand, for the human's cards in flight. */
@@ -103,9 +111,9 @@ export class TrickView {
       for (const c of grp.cards) c.setLook({ lit: latest, recede: !latest });
     }
     this.#restack();
-    this.#empty.setText(plays.length === 0 ? emptyFeltText(g) : "").setVisible(plays.length === 0 && !swept);
+    this.#empty.setText(plays.length === 0 ? emptyFeltText(g) : "").setVisible(plays.length === 0 && !swept && !this.#dealing);
     // "<name> leads" appears once the won cards have gone
-    if (swept && plays.length === 0) this.scene.time.delayedCall(ms(MOTION.trickHold + MOTION.trickSweep), () => this.#empty.setVisible(this.#groups.size === 0));
+    if (swept && plays.length === 0) this.scene.time.delayedCall(ms(MOTION.trickHold + MOTION.trickSweep), () => this.#empty.setVisible(this.#groups.size === 0 && !this.#dealing));
   }
 
   /**
