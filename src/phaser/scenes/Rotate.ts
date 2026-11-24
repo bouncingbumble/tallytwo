@@ -41,7 +41,24 @@ export class RotateScene extends BaseScene {
         ],
       });
     } else phone.setAngle(-90);
-    text(this, cx, H / 2 + 6, "Turn your phone sideways", { size: 26, font: WESTERN, color: CSS.amber, align: "center", wrap: W - 40 }).setOrigin(0.5, 0);
-    text(this, cx, H / 2 + 80, "Tally Two is played with your phone held horizontally.", { size: 16, color: CSS.dust, align: "center", wrap: Math.min(280, W - 40) }).setOrigin(0.5, 0);
+    // the title wraps on a narrow upright phone, so stack each line under the real height of the one above
+    const title = text(this, cx, 0, "Turn your phone sideways", { size: 26, font: WESTERN, color: CSS.amber, align: "center", wrap: W - 40 }).setOrigin(0.5, 0);
+    const body = text(this, cx, 0, "Tally Two is played with your phone held horizontally.", { size: 16, color: CSS.dust, align: "center", wrap: Math.min(280, W - 40) }).setOrigin(0.5, 0);
+    const phoneH = 120;
+    const gap = 16;
+    const layout = (): void => {
+      const total = phoneH + gap + title.height + gap / 2 + body.height;
+      const top = Math.max(20, (H - total) / 2);
+      phone.setY(top + phoneH / 2);
+      title.setY(top + phoneH + gap);
+      body.setY(title.y + title.height + gap / 2);
+    };
+    layout();
+    // the western face can land after this scene is built; measure again once it has
+    void document.fonts?.ready.then(() => {
+      if (!title.active) return;
+      title.updateText();
+      layout();
+    });
   }
 }
