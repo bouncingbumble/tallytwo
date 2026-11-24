@@ -18,10 +18,13 @@ import { CSS, FS_BODY, TAP, WESTERN } from "../theme";
 import { target } from "../probe";
 import { Button } from "../widgets";
 import { BaseScene } from "./base";
+import { TableScene } from "./Table";
 
 const SCENE_W = 340;
 const SCENE_H = 226;
 const FLOOR_H = 28;
+/** The title has settled (its first frames drawn, nothing animating) by then. */
+const PREWARM_AFTER_MS = 400;
 
 export class TitleScene extends BaseScene {
   #dealing = false;
@@ -183,5 +186,10 @@ export class TitleScene extends BaseScene {
     show();
     this.watch(update.ready, show);
     this.watch(install.mode, show);
+
+    // while nothing moves here, paint the table's textures so the first deal does not (TableScene.prewarm)
+    this.after(PREWARM_AFTER_MS, () => {
+      if (!this.#dealing) TableScene.prewarm(this);
+    });
   }
 }

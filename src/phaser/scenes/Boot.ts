@@ -7,7 +7,8 @@
 import { MANIFEST } from "../../assets/manifest";
 import type { AssetName } from "../../assets/names";
 import { CELL_H, CELL_W } from "../../render/atlas";
-import { ATLAS_KEY, BACK_KEY } from "../cards";
+import { ATLAS_KEY, BACK_KEY, cardFrames } from "../cards";
+import { SHEET_KEY, buildCardSheet } from "../cardSheet";
 import { C } from "../theme";
 import { BaseScene } from "./base";
 
@@ -17,8 +18,8 @@ export const ART_SCALE = 3;
 /** Every image asset except the atlas and the back, by manifest name. */
 export const IMAGE_NAMES = (Object.keys(MANIFEST) as AssetName[]).filter((n) => !n.startsWith("sfx_") && !n.startsWith("music_") && n !== "cards_atlas" && n !== "card_back");
 
-/** Every texture key the art filter applies to. */
-export const ART_KEYS: readonly string[] = [ATLAS_KEY, BACK_KEY, ...IMAGE_NAMES];
+/** Every texture key the art filter applies to (the card sheet holds the atlas and the back). */
+export const ART_KEYS: readonly string[] = [SHEET_KEY, ...IMAGE_NAMES];
 
 export class BootScene extends BaseScene {
   constructor() {
@@ -36,6 +37,12 @@ export class BootScene extends BaseScene {
   }
 
   async create(): Promise<void> {
+    // the card sheet (cardSheet.ts); once built, the raw atlas and back are not drawn from again,
+    // so their GPU copies go (~23 MB at 3744x1536)
+    if (buildCardSheet(this, ATLAS_KEY, BACK_KEY, cardFrames())) {
+      this.textures.remove(ATLAS_KEY);
+      this.textures.remove(BACK_KEY);
+    }
     try {
       await Promise.all([document.fonts.load('26px "Rye"'), document.fonts.load('15px "Rye"')]);
     } catch {

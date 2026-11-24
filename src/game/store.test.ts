@@ -8,6 +8,7 @@ import { recordingAudio, silentAudio } from "../audio/port";
 import { manualClock } from "./clock";
 import { HUMAN } from "./selectors";
 import { GameStore } from "./store";
+import { SEAT_PAN } from "../audio/sfxTable";
 
 const make = () => {
   const clock = manualClock();
@@ -99,4 +100,117 @@ test("the view keeps its identity until something changes; sounds come from act(
   store.toggleCard(store.game!.players[HUMAN].hand[0]);
   expect(n).toBe(1);
   expect(audio.calls.at(-1)).toBe("play:select");
+});
+
+/* ---------------- the think port (an AI move computed off the main thread) ---------------- */
+
+import type { ThinkPort, ThinkRequest, ThinkResult } from "./think";
+import { thinkNow } from "./think";
+
+/** A ThinkPort the test answers by hand (as a worker would, later). */
+const manualThink = () => {
+  const asked: { req: ThinkRequest; resolve: (r: ThinkResult) => void; reject: (e: Error) => void }[] = [];
+  const port: ThinkPort = { think: (req) => new Promise((resolve, reject) => void asked.push({ req, resolve, reject })) };
+  return { port, asked };
+};
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
+test("with a ThinkPort, a round plays the same moves as on the spot, move for move", async () => {
+  const seed = seedWhere(false);
+  const inline = make();
+  inline.store.act({ type: "NEW_MATCH", seed, rules: DEFAULT_RULES });
+  const clock = manualClock();
+  const think: ThinkPort = { think: (req) => Promise.resolve(thinkNow(structuredClone(req))) };
+  const worker = new GameStore({ audio: silentAudio, clock, random: () => 0.5, think });
+  worker.act({ type: "NEW_MATCH", seed, rules: DEFAULT_RULES });
+  /** Run a store's AIs until the human is to act or the round is scored (one tick can hold several AI moves). */
+  const settle = async (s: GameStore, c: ReturnType<typeof manualClock>) => {
+    for (let i = 0; i < 200; i++) {
+      const g = s.game!;
+      if (g.phase === "scored" || (g.phase === "playing" && g.turn === HUMAN)) return;
+      c.tick(30_000);
+      await flush();
+    }
+  };
+  for (let i = 0; i < 100; i++) {
+    await settle(inline.store, inline.clock);
+    await settle(worker, clock);
+    expect(worker.game!.history).toEqual(inline.store.game!.history);
+    const v = inline.store.view;
+    if (v.game!.phase === "scored") break;
+    const a = v.canPass ? ({ type: "PASS", player: HUMAN } as const) : ({ type: "PLAY", player: HUMAN, cards: v.legal[0].cards } as const);
+    inline.store.act(a);
+    worker.act(a);
+  }
+  expect(worker.game!.phase).toBe("scored");
+  expect(worker.view.crash).toBeNull();
+});
+
+test("the move plays when BOTH the delay and the answer are in, whichever is later", async () => {
+  const { port, asked } = manualThink();
+  const clock = manualClock();
+  const store = new GameStore({ audio: silentAudio, clock, random: () => 0.5, think: port });
+  store.act({ type: "NEW_MATCH", seed: seedWhere(false), rules: DEFAULT_RULES });
+  expect(asked.length).toBe(1); // asked at once, while the delay runs
+  const before = store.game!.history.length;
+  // the answer lands early: nothing plays until the delay is over
+  asked[0].resolve(thinkNow(asked[0].req));
+  await flush();
+  expect(store.game!.history.length).toBe(before);
+  clock.tick(60_000);
+  expect(store.game!.history.length).toBe(before + 1);
+  // the next AI: the delay runs out first, the answer lands later and plays at once
+  if (store.game!.turn !== HUMAN && store.game!.phase === "playing") {
+    expect(asked.length).toBe(2);
+    clock.tick(60_000);
+    expect(store.game!.history.length).toBe(before + 1);
+    asked[1].resolve(thinkNow(asked[1].req));
+    await flush();
+    expect(store.game!.history.length).toBe(before + 2);
+  }
+});
+
+test("a stale answer (paused while thinking) plays nothing and consumes no randomness", async () => {
+  const { port, asked } = manualThink();
+  const clock = manualClock();
+  const store = new GameStore({ audio: silentAudio, clock, random: () => 0.5, think: port });
+  store.act({ type: "NEW_MATCH", seed: seedWhere(false), rules: DEFAULT_RULES });
+  const first = asked[0];
+  store.setPaused(true);
+  first.resolve({ action: { type: "PASS", player: first.req.seat }, rngState: 12345 });
+  clock.tick(60_000);
+  await flush();
+  expect(store.game!.history.length).toBe(0);
+  store.setPaused(false);
+  expect(asked.length).toBe(2);
+  expect(asked[1].req.rngState).toBe(first.req.rngState); // the stale answer's state was not taken
+});
+
+test("a think that rejects becomes a crash report, not a frozen table", async () => {
+  const { port, asked } = manualThink();
+  const clock = manualClock();
+  const store = new GameStore({ audio: silentAudio, clock, random: () => 0.5, think: port });
+  store.act({ type: "NEW_MATCH", seed: seedWhere(false), rules: DEFAULT_RULES });
+  asked[0].reject(new Error("boom"));
+  clock.tick(60_000);
+  await flush();
+  expect(store.view.crash?.error.message).toBe("boom");
+  expect(store.waiting).toBe(false);
+});
+
+test("a seat's own cards are panned to where it sits; other sounds are centred", () => {
+  const plays: { e: string; pan?: number }[] = [];
+  const audio = { ...silentAudio, play: (e: string, o?: { pan?: number }) => void plays.push({ e, pan: o?.pan }) };
+  const clock = manualClock();
+  const store = new GameStore({ audio, clock, random: () => 0.5 });
+  store.act({ type: "NEW_MATCH", seed: seedWhere(true), rules: DEFAULT_RULES });
+  store.toggleCard(THREE_OF_DIAMONDS);
+  expect(plays.at(-1)).toEqual({ e: "select", pan: undefined });
+  store.act({ type: "PLAY", player: HUMAN, cards: [THREE_OF_DIAMONDS] });
+  expect(plays.find((p) => p.e === "playSmall")?.pan).toBe(0); // the player sits in the middle
+  plays.length = 0;
+  const seat = store.game!.turn;
+  clock.tick(60_000);
+  const own = plays.find((p) => p.e === "playSmall" || p.e === "pass");
+  expect(own?.pan).toBe(SEAT_PAN[seat]);
 });

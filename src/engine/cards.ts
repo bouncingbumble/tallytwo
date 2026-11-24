@@ -55,12 +55,32 @@ export function cardName(v: Card): string {
  * a game reproducible from its seed. Not for anything that needs real randomness.
  */
 export function mulberry32(seed: number): Rng {
-  let a = seed | 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  return seededRng(seed).next;
+}
+
+/**
+ * mulberry32 with its state readable: `seededRng(s).next` is exactly `mulberry32(s)`, and
+ * `seededRng(r.state)` carries on the same stream from wherever `r` has got to. That is what lets
+ * a stream cross a thread boundary (the AI worker) as one number and come back advanced.
+ */
+export interface SeededRng {
+  readonly next: Rng;
+  /** The 32-bit state after the draws so far. */
+  readonly state: number;
+}
+
+export function seededRng(state: number): SeededRng {
+  let a = state | 0;
+  return {
+    next: () => {
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    },
+    get state() {
+      return a;
+    },
   };
 }
 

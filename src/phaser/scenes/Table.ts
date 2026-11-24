@@ -13,7 +13,7 @@ import { HUMAN } from "../../game/selectors";
 import { env } from "../../platform/env";
 import { type TableLayout, clearFor, tableLayout } from "../../render/tableLayout";
 import { ANNOUNCE_ANIM_MS, ms } from "../motion";
-import { insetStroke, painted, roundRect, text } from "../paint";
+import { artPattern, insetStroke, painted, roundRect, text } from "../paint";
 import { CSS, WESTERN } from "../theme";
 import { fit } from "../viewport";
 import { HandView } from "../table/Hand";
@@ -22,14 +22,6 @@ import { SeatView } from "../table/Seat";
 import { SideView } from "../table/Side";
 import { TrickView } from "../table/Trick";
 import { BaseScene } from "./base";
-
-/** A tiled pattern of a loaded 3x texture, drawn at its art size (tile px logical). */
-function pattern(scene: Phaser.Scene, ctx: CanvasRenderingContext2D, key: string, tile: number): CanvasPattern | null {
-  const src = scene.textures.get(key).getSourceImage() as CanvasImageSource & { width: number };
-  const p = ctx.createPattern(src, "repeat");
-  if (p) p.setTransform(new DOMMatrix().scale(tile / src.width));
-  return p;
-}
 
 export class TableScene extends BaseScene {
   #t!: TableLayout;
@@ -40,14 +32,29 @@ export class TableScene extends BaseScene {
   #announce: Phaser.GameObjects.Container | null = null;
   #announceId = 0;
   #animate = false;
+  #prewarm = false;
   #last: GameView | null = null;
 
   constructor() {
     super("Table");
   }
 
-  init(data: { animate?: boolean }): void {
+  init(data: { animate?: boolean; prewarm?: boolean }): void {
     this.#animate = !!data?.animate;
+    this.#prewarm = !!data?.prewarm;
+  }
+
+  /**
+   * Build the table once, hidden, and stop: every painted texture it draws (the wood, the felt,
+   * the saloon strip, the badges, the buttons — ~25 MB of canvas at dpr 3) is cached by key, so
+   * the first deal only creates objects instead of painting them (138 -> ~40 ms on WebKit). The
+   * title calls this while it is idle. A deal during the prewarm frame simply restarts the scene
+   * for real (init clears the flag, so the pending stop below does nothing).
+   */
+  static prewarm(from: Phaser.Scene): void {
+    const mgr = from.scene.manager;
+    if (mgr.isActive("Table") || mgr.isPaused("Table")) return;
+    mgr.start("Table", { prewarm: true });
   }
 
   create(): void {
@@ -57,16 +64,14 @@ export class TableScene extends BaseScene {
     const ins = env.insets.get();
     const { clearL, clearR } = clearFor(ins.left / f.k, ins.right / f.k, env.notch.get());
     const t = (this.#t = tableLayout({ width: W, clearL, clearR, insetBottom: ins.bottom / f.k }));
-    const smooth = f.k < 1;
     this.#seats = [];
     this.#last = null;
     this.#announce = null;
     this.#announceId = 0;
 
     // the wood around everything, darkened
-    painted(this, `table-bg-${smooth}`, 0, 0, W, H, (ctx, w, h) => {
-      ctx.imageSmoothingEnabled = smooth;
-      ctx.fillStyle = pattern(this, ctx, "wood", 96) ?? CSS.oakDeep;
+    painted(this, "table-bg", 0, 0, W, H, (ctx, w, h) => {
+      ctx.fillStyle = artPattern(this, ctx, "wood", 96) ?? CSS.oakDeep;
       ctx.fillRect(0, 0, w, h);
       const g = ctx.createLinearGradient(0, 0, 0, h);
       g.addColorStop(0, "rgba(42, 26, 15, 0.92)");
@@ -75,14 +80,13 @@ export class TableScene extends BaseScene {
       ctx.fillRect(0, 0, w, h);
     });
     // the felt: the tile under a lamp-lit vignette, a dark rim and an inner shadow
-    painted(this, `felt-${smooth}`, t.felt.x, t.felt.y, t.felt.w, t.felt.h, (ctx, w, h) => {
-      ctx.imageSmoothingEnabled = smooth;
+    painted(this, "felt", t.felt.x, t.felt.y, t.felt.w, t.felt.h, (ctx, w, h) => {
       roundRect(ctx, 0, 0, w, h, 8);
       ctx.save();
       ctx.clip();
       ctx.fillStyle = CSS.felt;
       ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = pattern(this, ctx, "felt", 32) ?? CSS.felt;
+      ctx.fillStyle = artPattern(this, ctx, "felt", 32) ?? CSS.felt;
       ctx.fillRect(0, 0, w, h);
       ctx.save();
       ctx.translate(w / 2, h * 0.38);
@@ -114,6 +118,16 @@ export class TableScene extends BaseScene {
     this.#hand = new HandView(this, t.fan, game);
     this.#side = new SideView(this, t.side, t.sideClearR, game, () => sheet.set("settings"));
 
+    if (this.#prewarm) {
+      this.cameras.main.setVisible(false);
+      this.input.enabled = false;
+      this.events.once(Phaser.Scenes.Events.UPDATE, () => {
+        if (this.#prewarm) this.scene.stop();
+      });
+      return;
+    }
+    this.input.enabled = true;
+    this.cameras.main.setVisible(true);
     this.watch(game, () => this.#render());
     this.watch(this.app.settings, () => this.#render(true));
     this.#render();

@@ -1,6 +1,8 @@
 # Architecture
 
-> **Phaser port.** This document was written for the React build. The engine, AI, selectors, timing, audio and shell sections (§1-2, §4, §7-8, §11) still hold. What changed: React's `GameProvider` + `useTurnLoop` + `useBarks` are now one framework-free `GameStore` (`src/game/store.ts`) with a `ClockPort`, so §3's data flow and §6's reference-stability rules now live in that class (the loop re-arms only when the game, pause, crash or speed/difficulty change); §5's ErrorBoundary is a `window` error listener feeding the same crash sheet; §9-10's DOM/CSS rendering is Phaser scenes (`src/phaser/`) — the backing canvas is the viewport × devicePixelRatio, every camera zooms by k × dpr from its top-left so scenes lay out in the same 440-px logical px, the table grid is `render/tableLayout.ts`, art textures switch to NEAREST at k ≥ 1, and text is rasterised at that zoom. See `docs/PHASER_MIGRATION.md`.
+> **Phaser port.** This document was written for the React build. The engine, AI, selectors, timing, audio and shell sections (§1-2, §4, §7-8, §11) still hold. What changed: React's `GameProvider` + `useTurnLoop` + `useBarks` are now one framework-free `GameStore` (`src/game/store.ts`) with a `ClockPort`, so §3's data flow and §6's reference-stability rules now live in that class (the loop re-arms only when the game, pause, crash or speed/difficulty change); §5's ErrorBoundary is a `window` error listener feeding the same crash sheet; §9-10's DOM/CSS rendering is Phaser scenes (`src/phaser/`) — the backing canvas is the viewport × devicePixelRatio, every camera zooms by k × dpr from its top-left so scenes lay out in the same 440-px logical px, the table grid is `render/tableLayout.ts`, and text is rasterised at that zoom. See `docs/PHASER_MIGRATION.md`.
+>
+> **Performance pass** (`docs/PERF_PLAN.md`, with measured before/after numbers): Card sharp's moves are computed in a Web Worker (`game/think.ts` `ThinkPort`, `platform/aiWorker.ts`) while the think delay runs, with the AI's random stream carried as a state number (`engine/cards.ts` `seededRng`) so a worker's move is the main thread's move, draw for draw; the store's timers fire at the start of a frame (`platform/clock.ts` `frameClock`, pumped from the Phaser loop); every card layer comes from one 4096x2048 runtime card sheet (`phaser/cardSheet.ts`: padded faces, shadows, rings — one batch, mipmapped, no MSAA); the saloon strip is one baked texture; the title prewarms the table's painted textures; art is LINEAR while shrunk from 3x and Phaser's smoothPixelArt shader once enlarged (Z > 3), with unrotated quads snapped to device px (`phaser/viewport.ts`); sound runs through a master soft clipper, pans a seat's own cards to its side, schedules the deal roll and the duck on the audio clock, and releases poster loops it no longer needs. `?perf=1` shows a frame-time overlay and `e2e/perf.mjs` is the benchmark.
 
 How Tally Two is put together and why. This is the long version of the README, and it records what the device checks found. `P:<line>` in doc comments cites a line of the original browser prototype the behaviour was copied from; that file is not in this repo, so read those as provenance, not links.
 
@@ -112,7 +114,7 @@ One effect, one timer, keyed on the `game` object. Every branch returns `clearTi
 - AI's turn → `actAi(seat, opts.difficulty)` after `thinkMs(opts.gameSpeed, Math.random()) + (history.length === 0 ? FIRST_STEP_MS : 0)`, paced. `chooseMove` runs **inside** the timeout, inside the provider, so StrictMode's mount/cleanup/mount never consumes the AI rng twice.
 - `paused` (a hidden tab, or a shell's `pause` — §11) → no timer at all; the effect re-runs when `paused` flips back.
 
-`chooseMove` is synchronous, worst case under a millisecond, so there is no worker. A crash inside `actAi` leaves `game` unchanged, so no timer is re-armed and the crash screen is the only thing that happens.
+`chooseMove` is synchronous. In the React build it was worst case under a millisecond, so there was no worker; Card sharp's lookahead (~10 ms a move, 80-120 ms at worst) changed that — the Phaser build computes AI moves in a Worker (see the performance note at the top). A crash inside `actAi` leaves `game` unchanged, so no timer is re-armed and the crash screen is the only thing that happens.
 
 ## 4. Timing
 
@@ -131,7 +133,7 @@ Every millisecond lives in `src/game/timing.ts`; nothing else in `src/` may hold
 | `BARK_MS` / `BARK_CHANCE` | 2000 / 0.55 | P:894-899 |
 | `SELECT_MS` | 160 (the select lift) | P:151 |
 
-Audio timings live next to the sounds in `src/audio/sfxTable.ts`: `DUCK` (to 0.12 within 20 ms, back to 0.30 after 300 ms unless re-ducked within 280 ms; P:369-374), `DEAL_ROLL` (shuffle at 0, four deal ticks at 260 + k·110 ms; P:388-391), `FADE` (a track switch is a 1.5-s fade-out, then a 2-s fade-in — never a crossfade), `JITTER` (±4 % true pitch).
+Audio timings live next to the sounds in `src/audio/sfxTable.ts`: `DUCK` (to 0.12 within 20 ms, back to 0.30 300 ms after the last slap; P:369-374 — both moves scheduled on the audio clock), `DEAL_ROLL` (shuffle at 0, four deal ticks at 260 + k·110 ms, scheduled on the audio clock at once; P:388-391), `FADE` (a track switch is a 1.5-s fade-out, then a 2-s fade-in — never a crossfade), `JITTER` (±4 % true pitch).
 
 ## 5. How a crash becomes a screen
 

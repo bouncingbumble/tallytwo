@@ -105,6 +105,8 @@ func sendInsets() {
 // viewSafeAreaInsetsDidChange() -> sendInsets();  sceneWillResignActive -> send("pause");  sceneDidBecomeActive -> send("resume")
 ```
 
+**120 Hz.** The game's motion is tween- and delta-driven, so it runs at whatever rate the display gives it. On a ProMotion iPhone a WKWebView is held to 60 Hz unless the app's Info.plist sets `CADisableMinimumFrameDurationOnPhone` to `YES`; in Safari itself the 120-Hz cap is the user's (Settings › Apps › Safari › Advanced › Feature Flags › "Prefer Page Rendering Updates near 60fps" off). Render-on-demand means an idle table draws nothing either way.
+
 `JSONSerialization` turns a Swift `nil` into JSON `null`, which is what the app expects for "nothing stored". Serve the web content over https, or bundle it for offline play (§7). Do **not** use `loadFileURL(_:allowingReadAccessTo:)`: WKWebView refuses `fetch()` of `file://` URLs, so every SFX and music file would fail and the game would be silent.
 
 ### Android WebView

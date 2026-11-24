@@ -14,13 +14,15 @@ import type { Sheet } from "./game/selectors";
 import { GameStore } from "./game/store";
 import { bridge, bridgeShell } from "./platform/bridge";
 import { bridgeStorage } from "./platform/bridgeStorage";
-import { timerClock } from "./platform/clock";
+import { frameClock } from "./platform/clock";
+import { workerThink } from "./platform/think";
 import { env, installEnv } from "./platform/env";
 import { install, watchInstall } from "./platform/install";
 import { registerOffline, updates } from "./platform/offline";
 import { webStorage } from "./platform/webStorage";
 import { direct } from "./phaser/director";
 import { markDirty, renderOnDemand } from "./phaser/onDemand";
+import { installPerf, perfEnabled } from "./phaser/perf";
 import { BootScene } from "./phaser/scenes/Boot";
 import { CrashScene } from "./phaser/scenes/Crash";
 import { HowToScene } from "./phaser/scenes/HowTo";
@@ -32,7 +34,7 @@ import { TitleScene } from "./phaser/scenes/Title";
 import { readTargets, readTexts } from "./phaser/probe";
 import { provide } from "./phaser/services";
 import { C } from "./phaser/theme";
-import { sizeGame } from "./phaser/viewport";
+import { installCrispVertices, sizeGame } from "./phaser/viewport";
 import { SettingsStore } from "./settings/store";
 
 // The one non-game path: /assets lists every asset (a plain DOM page, dev tooling).
@@ -45,11 +47,20 @@ function readSeed(): number | undefined {
 }
 
 function boot(): void {
+  // start the Rye download now, alongside the image loads, not after them (BootScene waits for it)
+  void document.fonts.load('26px "Rye"').catch(() => {});
   installEnv();
   const audio = new WebAudio();
+  audio.preload(); // the card sounds' bytes, before the first tap makes a context (WebAudio.ts)
+  // iOS 17+: Web Audio as "ambient" — the ring/silent switch mutes it and the player's own music
+  // keeps playing under it, which is what a card game should do (and what iOS did by default)
+  const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+  if (session) session.type = "ambient";
   const settings = new SettingsStore(bridge.host ? bridgeStorage : webStorage); // a shell owns durable storage (docs/SHELL.md)
   const pick = () => ({ gameSpeed: settings.opts.gameSpeed, difficulty: settings.opts.difficulty, hints: settings.opts.hints });
-  const game = new GameStore({ audio, clock: timerClock, shell: bridgeShell, opts: pick() });
+  // game timers fire at the start of a frame (platform/clock.ts), pumped from the Phaser loop below
+  const clock = frameClock();
+  const game = new GameStore({ audio, clock, shell: bridgeShell, opts: pick(), think: workerThink() });
   // settings flow into the game: rules apply to the game in progress, opts to the turn loop
   settings.subscribe(() => {
     game.setRules(settings.rules);
@@ -78,6 +89,7 @@ function boot(): void {
     if (live.textContent !== say) live.textContent = say;
   });
 
+  installCrispVertices();
   const f = env.fit.get();
   const phaser = new Phaser.Game({
     type: Phaser.WEBGL,
@@ -86,7 +98,10 @@ function boot(): void {
     width: Math.round(f.vw * f.dpr),
     height: Math.round(f.vh * f.dpr),
     scale: { mode: Phaser.Scale.NONE, zoom: 1 / f.dpr },
-    render: { antialias: true, roundPixels: false, mipmapFilter: "LINEAR_MIPMAP_LINEAR" },
+    // No MSAA (antialiasGL): everything drawn is a textured quad whose edges the texture filter
+    // already smooths (the card sheet pads every face), and MSAA on a dpr-3 backbuffer costs fill
+    // rate for nothing. Mipmaps apply to power-of-two textures only (WebGL 1): the card sheet.
+    render: { antialias: true, antialiasGL: false, roundPixels: false, mipmapFilter: "LINEAR_MIPMAP_LINEAR" },
     input: { activePointers: 2 },
     banner: false,
     disableContextMenu: true,
@@ -94,12 +109,14 @@ function boot(): void {
   });
   // A throw inside a scene carries no CrashReport: show it on the error sheet instead of a frozen canvas.
   window.addEventListener("error", (e) => fault.set(e.error instanceof Error ? e.error : new Error(String(e.message))));
+  phaser.events.on(Phaser.Core.Events.PRE_STEP, () => clock.pump(performance.now()));
   phaser.events.once("booted", () => {
     sizeGame(phaser);
     phaser.scene.stop("Boot");
     direct(phaser);
     // ?draw=always turns render-on-demand off (a comparison switch for profiling)
     if (new URLSearchParams(location.search).get("draw") !== "always") renderOnDemand(phaser);
+    if (perfEnabled()) installPerf(phaser, { store: game });
     for (const src of [game, settings, sheet, fault, env.fit, env.insets, env.upright]) src.subscribe(markDirty);
     bridge.send("ready", {});
   });

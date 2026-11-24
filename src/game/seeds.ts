@@ -10,4 +10,7 @@ export const newSeed = (round: number, now: number = Date.now(), r: number = Mat
   ((now ^ Math.floor(r * 0x7fffffff)) ^ Math.imul(round, 2654435761)) >>> 0;
 
 /** The AI's stream for a deal: a second stream off the same seed (sim.mjs uses the same constant). */
-export const aiRngFor = (seed: number): Rng => mulberry32(seed ^ 0x9e3779b9);
+export const aiRngFor = (seed: number): Rng => mulberry32(aiRngState(seed));
+
+/** The same stream as a state number (engine/cards seededRng), so it can travel to the AI worker and back. */
+export const aiRngState = (seed: number): number => (seed ^ 0x9e3779b9) | 0;

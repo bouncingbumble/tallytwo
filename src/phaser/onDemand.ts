@@ -9,8 +9,12 @@
  */
 import Phaser from "phaser";
 
-/** How long after a change frames keep being drawn (covers a scene start and a text re-raster). */
-const DIRTY_MS = 300;
+/**
+ * How long after a change frames keep being drawn. A text re-raster is synchronous and a queued
+ * scene start creates on the next step (and marks dirty again on CREATE), so a few frames cover
+ * both; 300 ms kept a 120-Hz display drawing 36 frames after every event.
+ */
+const DIRTY_MS = 150;
 
 let dirtyUntil = 0;
 
@@ -57,8 +61,16 @@ export function renderOnDemand(game: Phaser.Game): void {
   };
   // the loop holds the step it was started with (bound at boot); point it at ours
   game.loop.callback = (time: number, delta: number) => game.step(time, delta);
-  // any input may press, drag or hover something
-  for (const type of ["pointerdown", "pointermove", "pointerup", "pointercancel", "wheel", "keydown"]) window.addEventListener(type, markDirty, { passive: true, capture: true });
+  // any input may press or drag something; nothing in the game changes on hover, so a mouse
+  // moving with no button down (a desktop pointer idling over the canvas) draws nothing
+  for (const type of ["pointerdown", "pointerup", "pointercancel", "wheel", "keydown"]) window.addEventListener(type, markDirty, { passive: true, capture: true });
+  window.addEventListener(
+    "pointermove",
+    (e: PointerEvent) => {
+      if (e.buttons !== 0 || e.pointerType !== "mouse") markDirty();
+    },
+    { passive: true, capture: true },
+  );
   // a scene starting or stopping
   game.scene.scenes.forEach((s) => {
     s.events.on(Phaser.Scenes.Events.CREATE, markDirty);

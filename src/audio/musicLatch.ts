@@ -18,6 +18,8 @@ export interface MusicLatch<T extends string> {
   /** This track's buffer is now available. */
   decoded(track: T): LatchCommand<T>[];
   isDecoded(track: T): boolean;
+  /** This track's buffer was released (memory): a later want decodes it again. Ignored while it is wanted or playing. */
+  forget(track: T): void;
 }
 
 export function createMusicLatch<T extends string>(): MusicLatch<T> {
@@ -54,5 +56,8 @@ export function createMusicLatch<T extends string>(): MusicLatch<T> {
       return settle();
     },
     isDecoded: (track) => ready.has(track),
+    forget(track) {
+      if (track !== wanted && track !== playing) ready.delete(track);
+    },
   };
 }

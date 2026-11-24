@@ -65,3 +65,16 @@ test("a decoded track wanted again after silence starts at once", () => {
   expect(l.want(null)).toEqual([stop("table")]);
   expect(l.want("table")).toEqual([start("table")]);
 });
+
+test("a forgotten track starts only after it is decoded again; a wanted or playing track cannot be forgotten", () => {
+  const m = createMusicLatch<"a" | "b">();
+  m.want("a");
+  expect(m.decoded("a")).toEqual([{ op: "start", track: "a" }]);
+  m.forget("a"); // playing: ignored
+  expect(m.isDecoded("a")).toBe(true);
+  expect(m.want("b")).toEqual([{ op: "stop", track: "a" }]);
+  m.forget("a");
+  expect(m.isDecoded("a")).toBe(false);
+  expect(m.want("a")).toEqual([]); // nothing to start until it lands again
+  expect(m.decoded("a")).toEqual([{ op: "start", track: "a" }]);
+});

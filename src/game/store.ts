@@ -10,20 +10,28 @@
  * scenes are subscribers; they read `view` and call the methods.
  *
  * Math.random is for cosmetics only (bark chance, which line, think-time jitter). The AI draws
- * from aiRng, reseeded on every deal and consumed by nothing else, so a round replays from its seed.
+ * from its own stream, reseeded on every deal and consumed by nothing else, so a round replays
+ * from its seed. The stream is kept as a state number (engine/cards seededRng) so a ThinkPort can
+ * take it to a worker and bring it back advanced.
+ *
+ * With a ThinkPort the AI's move is computed WHILE its think delay runs (off the main thread on
+ * the web), and played when both the delay and the answer are in; a stale answer (the game moved
+ * on, a pause, a quit) is dropped and consumes nothing. Without one, actAi computes it on the spot.
  */
-import type { Card, Rng } from "../engine/cards";
+import { type Card, seededRng } from "../engine/cards";
 import type { Combo } from "../engine/combos";
 import type { RuleConfig } from "../engine/rules";
 import type { GameState } from "../engine/state";
 import { aiTurn } from "../ai/aiTurn";
 import type { Difficulty } from "../ai/choose";
 import type { AudioPort } from "../audio/port";
+import { SEATED, SEAT_PAN } from "../audio/sfxTable";
 import { type AppAction, type AppState, type CrashReport, INITIAL, tryReduce } from "./appReducer";
 import type { ClockPort } from "./clock";
 import { cueFor } from "./cues";
 import { Observable } from "./observable";
-import { aiRngFor } from "./seeds";
+import { aiRngState } from "./seeds";
+import type { ThinkPort, ThinkResult } from "./think";
 import {
   HUMAN,
   type Sign,
@@ -108,6 +116,8 @@ export interface GameStoreDeps {
   opts?: LoopOpts;
   /** Uniform [0, 1): Math.random in the game, fixed in tests. Cosmetics and think-time only. */
   random?: () => number;
+  /** Where AI moves are computed; absent = on the spot, in the timer callback. */
+  think?: ThinkPort;
 }
 
 export class GameStore extends Observable {
@@ -115,6 +125,7 @@ export class GameStore extends Observable {
   readonly #clock: ClockPort;
   readonly #shell: ShellPort;
   readonly #random: () => number;
+  readonly #think: ThinkPort | null;
   #opts: LoopOpts;
 
   #state: AppState = INITIAL;
@@ -127,7 +138,9 @@ export class GameStore extends Observable {
   #announcement: Announcement | null = null;
   #announceId = 0;
   #announceCancel: (() => void) | null = null;
-  #aiRng: Rng = aiRngFor(0);
+  #aiRngState: number = aiRngState(0);
+  /** Identifies the think request the loop is waiting on; anything else that answers is stale. */
+  #thinkToken: object | null = null;
 
   // derived, cached by identity of their inputs
   #legalFor: GameState | null | undefined = undefined;
@@ -138,13 +151,14 @@ export class GameStore extends Observable {
   #loopCancel: (() => void) | null = null;
   #loopKey: readonly unknown[] = [];
 
-  constructor({ audio, clock, shell = NO_SHELL, opts = { gameSpeed: "normal", difficulty: "medium", hints: false }, random = Math.random }: GameStoreDeps) {
+  constructor({ audio, clock, shell = NO_SHELL, opts = { gameSpeed: "normal", difficulty: "medium", hints: false }, random = Math.random, think }: GameStoreDeps) {
     super();
     this.audio = audio;
     this.#clock = clock;
     this.#shell = shell;
     this.#opts = opts;
     this.#random = random;
+    this.#think = think ?? null;
   }
 
   get state(): AppState {
@@ -209,7 +223,7 @@ export class GameStore extends Observable {
     }
     // Reseed per deal, and only for a deal that actually happened, so the AI's stream always
     // matches the deal's own seed and a round replays from its log.
-    if (r.next.dealId !== state.dealId && (a.type === "NEW_MATCH" || a.type === "NEXT_ROUND")) this.#aiRng = aiRngFor(a.seed);
+    if (r.next.dealId !== state.dealId && (a.type === "NEW_MATCH" || a.type === "NEXT_ROUND")) this.#aiRngState = aiRngState(a.seed);
     this.#state = r.next;
     // The selection survives the regulars' moves (it can be lined up off turn); the human's own
     // play or pass, a deal and a quit clear it.
@@ -221,7 +235,9 @@ export class GameStore extends Observable {
     try {
       const cue = cueFor(before, a, r.next.game);
       if (cue.dealRoll) this.audio.dealRoll();
-      for (const e of cue.sfx) this.audio.play(e);
+      // a seat's own cards sound from where that seat sits; everything else from the middle
+      const seat = a.type === "PLAY" || a.type === "PASS" ? a.player : null;
+      for (const e of cue.sfx) this.audio.play(e, seat !== null && SEATED.has(e) ? { pan: SEAT_PAN[seat] ?? 0 } : undefined);
       if (cue.finalRound && r.next.game) this.#setAnnouncement({ id: ++this.#announceId, text: finalRoundText(r.next.game) });
       if (cue.bark && before && this.#random() < BARK_CHANCE) {
         const lines = barkLinesFor(before, cue.bark.seat, cue.bark.kind);
@@ -247,15 +263,66 @@ export class GameStore extends Observable {
     if (!game) return;
     let action: AppAction;
     try {
-      action = aiTurn(game, seat, this.#aiRng, difficulty);
+      const rng = seededRng(this.#aiRngState);
+      action = aiTurn(game, seat, rng.next, difficulty);
+      this.#aiRngState = rng.state;
     } catch (e) {
-      // without this an AI-side bug would freeze the table on "X is thinking…"
-      this.#crash = { error: toError(e), action: { type: "PASS", player: seat }, ...gameLog(game) };
-      this.#changed();
+      this.#aiCrash(game, seat, e);
       return;
     }
     this.act(action);
   };
+
+  /** Without this an AI-side bug would freeze the table on "X is thinking…". */
+  #aiCrash(game: GameState, seat: number, e: unknown): void {
+    this.#crash = { error: toError(e), action: { type: "PASS", player: seat }, ...gameLog(game) };
+    this.#changed();
+  }
+
+  /** A worker's answer for `game`: played only if the table is still where it was asked. */
+  #applyThink(game: GameState, r: ThinkResult): void {
+    if (this.#state.game !== game || this.#crash) return;
+    this.#aiRngState = r.rngState;
+    this.act(r.action);
+  }
+
+  /**
+   * Ask the ThinkPort now and arm the think delay beside it; whichever lands second plays the move.
+   * The returned cancel drops both (a late answer then finds a different token and is ignored).
+   */
+  #thinkAhead(game: GameState, seat: number, difficulty: Difficulty, delay: number): () => void {
+    const think = this.#think!;
+    const token = {};
+    this.#thinkToken = token;
+    let result: ThinkResult | null = null;
+    let failure: unknown = null;
+    let due = false;
+    const settle = () => {
+      // both halves in: the delay has run AND the answer (or its failure) has landed
+      if (this.#thinkToken !== token || !due || (result === null && failure === null)) return;
+      this.#thinkToken = null;
+      if (result) this.#applyThink(game, result);
+      else this.#aiCrash(game, seat, failure);
+    };
+    think.think({ game, seat, rngState: this.#aiRngState, difficulty }).then(
+      (r) => {
+        result = r;
+        settle();
+      },
+      (e: unknown) => {
+        failure = e ?? new Error("ai: think failed");
+        settle();
+      },
+    );
+    const cancelTimer = this.#clock.after(delay, () => {
+      due = true;
+      settle();
+    });
+    return () => {
+      cancelTimer();
+      if (this.#thinkToken === token) this.#thinkToken = null;
+    };
+  }
 
   toggleCard = (v: Card): void => {
     if (!canToggle(this.#state.game)) return; // taps after the round is over do nothing, no sound
@@ -331,7 +398,8 @@ export class GameStore extends Observable {
     if (game.players[seat].kind === "human") return;
     const extra = game.history.length === 0 ? FIRST_STEP_MS : 0;
     const difficulty = this.#opts.difficulty;
-    this.#loopCancel = this.#clock.after(landing + pacedThink(speed, this.#random()) + paced(extra, speed), () => this.actAi(seat, difficulty));
+    const delay = landing + pacedThink(speed, this.#random()) + paced(extra, speed);
+    this.#loopCancel = this.#think ? this.#thinkAhead(game, seat, difficulty, delay) : this.#clock.after(delay, () => this.actAi(seat, difficulty));
   }
 
   /** Whether the loop has a timer armed (tests). */

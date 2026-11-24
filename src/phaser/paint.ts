@@ -35,6 +35,73 @@ export function painted(scene: Phaser.Scene, key: string, x: number, y: number, 
     .setDisplaySize(W + 2 * pad, H + 2 * pad);
 }
 
+/* ---------------- art inside a painted texture ---------------- */
+
+/** Nearest-neighbour enlargements of a source image by a whole factor, made once each. */
+const prescaled = new Map<string, HTMLCanvasElement>();
+
+function prescale(key: string, src: CanvasImageSource & { width: number; height: number }, n: number): CanvasImageSource {
+  if (n <= 1) return src;
+  const id = `${key}@${n}`;
+  let c = prescaled.get(id);
+  if (!c) {
+    c = document.createElement("canvas");
+    c.width = src.width * n;
+    c.height = src.height * n;
+    const g = c.getContext("2d")!;
+    g.imageSmoothingEnabled = false;
+    g.drawImage(src, 0, 0, c.width, c.height);
+    prescaled.set(id, c);
+  }
+  return c;
+}
+
+/** The current device px per texel of `ctx` along x (painted() scales the context by R). */
+const ctxScale = (ctx: CanvasRenderingContext2D): number => Math.hypot(ctx.getTransform().a, ctx.getTransform().b);
+
+/**
+ * Draw loaded art texture `key` into a painted texture, "sharp bilinear": shrinking is a plain
+ * smoothed resample of the 3x file; enlarging first scales it up by a whole factor with
+ * nearest-neighbour, then smooth-shrinks the rest of the way — every art pixel the same size,
+ * edges anti-aliased by under a pixel (the canvas twin of the smoothPixelArt shader).
+ * (dx, dy, dw, dh) are logical px; `crop` is the source rect in texels (default: all of it).
+ */
+export function drawArt(
+  scene: Phaser.Scene,
+  ctx: CanvasRenderingContext2D,
+  key: string,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
+  crop?: { x: number; y: number; w: number; h: number },
+): void {
+  if (!scene.textures.exists(key)) return;
+  const src = scene.textures.get(key).getSourceImage() as CanvasImageSource & { width: number; height: number };
+  const c = crop ?? { x: 0, y: 0, w: src.width, h: src.height };
+  const q = (dw * ctxScale(ctx)) / c.w; // device px per texel
+  const n = q > 1 ? Math.ceil(q) : 1;
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(prescale(key, src, n), c.x * n, c.y * n, c.w * n, c.h * n, dx, dy, dw, dh);
+  ctx.restore();
+}
+
+/** A repeating pattern of art texture `key`, one tile `tile` logical px wide, drawn sharp (see drawArt). */
+export function artPattern(scene: Phaser.Scene, ctx: CanvasRenderingContext2D, key: string, tile: number): CanvasPattern | null {
+  if (!scene.textures.exists(key)) return null;
+  const src = scene.textures.get(key).getSourceImage() as CanvasImageSource & { width: number; height: number };
+  const q = (tile * ctxScale(ctx)) / src.width;
+  const n = q > 1 ? Math.ceil(q) : 1;
+  const img = prescale(key, src, n);
+  const p = ctx.createPattern(img, "repeat");
+  if (p) p.setTransform(new DOMMatrix().scale(tile / (src.width * n)));
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  return p;
+}
+
 export function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, r);
@@ -103,6 +170,20 @@ export function text(scene: Phaser.Scene, x: number, y: number, str: string, o: 
   });
   if (o.shadow) t.setShadow(o.shadow.x, o.shadow.y, o.shadow.color, o.shadow.blur ?? 0, false, true);
   if (o.letterSpacing) t.setLetterSpacing(o.letterSpacing);
+  return t;
+}
+
+/**
+ * Text and colour in one re-raster. Phaser's setColor() re-rasterises (and re-uploads) the text
+ * every time, even to the colour it already has, and setText() then does it again: two canvas
+ * draws and two GPU uploads per update for a count that changed by one. This writes the colour
+ * into the style without drawing, then draws once — and not at all when neither changed.
+ */
+export function setTextColor(t: Phaser.GameObjects.Text, str: string, color: string): Phaser.GameObjects.Text {
+  const recolor = t.style.color !== color;
+  if (recolor) t.style.color = color;
+  if (t.text !== str) t.setText(str);
+  else if (recolor) t.updateText();
   return t;
 }
 

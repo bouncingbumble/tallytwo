@@ -7,7 +7,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { MANIFEST } from "../assets/manifest";
 import type { AssetName } from "../assets/names";
-import { DEAL_ROLL, DUCK, FADE, JITTER, MUSIC, SFX, SFX_EVENTS } from "./sfxTable";
+import { DEAL_ROLL, DUCK, FADE, GAIN_JITTER_DB, JITTER, LIMIT, MUSIC, SFX, SFX_EVENTS } from "./sfxTable";
 import {
   type AudioContextLike,
   type AudioParamLike,
@@ -15,6 +15,8 @@ import {
   type FetchLike,
   type FetchResponseLike,
   type GainNodeLike,
+  type StereoPannerLike,
+  type WaveShaperLike,
   WebAudio,
 } from "./WebAudio";
 
@@ -22,6 +24,10 @@ import {
 
 interface FakeParam extends AudioParamLike {
   targets: number[];
+  /** The start time of each setTargetAtTime, in order. */
+  targetTimes: number[];
+  /** Every cancelScheduledValues time, in order. */
+  cancels: number[];
   ramps: number[];
   /** Every setValueAtTime value, in order. */
   sets: number[];
@@ -55,6 +61,8 @@ function fakeParam(value: number): FakeParam {
   const p: FakeParam = {
     value,
     targets: [],
+    targetTimes: [],
+    cancels: [],
     ramps: [],
     sets: [],
     setValueAtTime(v) {
@@ -65,11 +73,14 @@ function fakeParam(value: number): FakeParam {
       p.ramps.push(v);
       p.value = v;
     },
-    setTargetAtTime(t) {
+    setTargetAtTime(t, at) {
       p.targets.push(t);
+      p.targetTimes.push(at);
       p.value = t;
     },
-    cancelScheduledValues() {},
+    cancelScheduledValues(at) {
+      p.cancels.push(at);
+    },
   };
   return p;
 }
@@ -166,6 +177,12 @@ async function flush(): Promise<void> {
 
 const sourcesOf = (ctx: FakeContext, name: AssetName): FakeSource[] => ctx.sources.filter((s) => s.buffer?.url === urlOf(name));
 const gainOf = (s: FakeSource): FakeGain => s.into as FakeGain;
+/** An SFX play goes source -> per-play level -> [panner] -> the event's gain. */
+const eventGainOf = (s: FakeSource): FakeGain => {
+  let node = (s.into as FakeGain).into as FakeGain & { pan?: unknown };
+  if (node.pan) node = node.into as FakeGain & { pan?: unknown };
+  return node;
+};
 const targetsOf = (ctx: FakeContext): number[] => ctx.gains.flatMap((g) => g.gain.targets);
 const SFX_FILES = [...new Set(SFX_EVENTS.flatMap((e) => SFX[e].files))];
 
@@ -200,7 +217,11 @@ test("init resolves when one file fails; that event is silent, the others play, 
   const played = ctx.sources[ctx.sources.length - 1];
   expect(played.starts).toBe(1);
   expect((SFX.playSmall.files as readonly string[]).includes(played.buffer!.url.replace("/fake/", ""))).toBe(true);
-  expect(gainOf(played).gain.value).toBe(SFX.playSmall.gain);
+  expect(eventGainOf(played).gain.value).toBe(SFX.playSmall.gain);
+  // the per-play level jitter stays inside ±GAIN_JITTER_DB
+  const jitter = gainOf(played).gain.value;
+  expect(jitter).toBeGreaterThanOrEqual(10 ** (-GAIN_JITTER_DB / 20));
+  expect(jitter).toBeLessThanOrEqual(10 ** (GAIN_JITTER_DB / 20));
 });
 
 test("init twice is one decode pass and the same promise", async () => {
@@ -524,44 +545,114 @@ test("a tension file that will not decode hands the table back instead of leavin
 
 /* ---- duck and deal roll ---- */
 
-test("playSmall ducks the music and deal does not; the duck lifts after the hold unless re-armed", async () => {
-  vi.useFakeTimers();
+test("playSmall ducks the music and deal does not; the lift is scheduled on the audio clock and a re-duck moves it", async () => {
   const { ctx, audio } = setup();
   await audio.init();
   audio.play("deal");
   expect(targetsOf(ctx)).toEqual([]);
+  ctx.currentTime = 10;
   audio.play("playSmall");
-  expect(targetsOf(ctx)).toEqual([DUCK.to / DUCK.from]);
-  vi.advanceTimersByTime(DUCK.holdMs - 1);
-  expect(targetsOf(ctx)).toEqual([DUCK.to / DUCK.from]);
-  vi.advanceTimersByTime(1);
+  // down now, back up after the hold — both on the audio clock, no timer
   expect(targetsOf(ctx)).toEqual([DUCK.to / DUCK.from, 1]);
-
-  // Re-duck within the rearm window: the first hold expires without lifting, the second lifts.
-  audio.play("playSmall");
-  vi.advanceTimersByTime(100);
+  const node = ctx.gains.find((g) => g.gain.targets.length > 0)!;
+  expect(node.gain.targetTimes).toEqual([10, 10 + DUCK.holdMs / 1000]);
+  // a second slap before the lift: the pending lift is cancelled from now and a new one scheduled
+  ctx.currentTime = 10.1;
   audio.play("roundWin");
-  vi.advanceTimersByTime(200);
-  expect(targetsOf(ctx).slice(2)).toEqual([DUCK.to / DUCK.from, DUCK.to / DUCK.from]);
-  vi.advanceTimersByTime(100);
-  expect(targetsOf(ctx).slice(2)).toEqual([DUCK.to / DUCK.from, DUCK.to / DUCK.from, 1]);
+  expect(node.gain.cancels.at(-1)).toBe(10.1);
+  expect(node.gain.targets.slice(2)).toEqual([DUCK.to / DUCK.from, 1]);
+  expect(node.gain.targetTimes.slice(2)).toEqual([10.1, 10.1 + DUCK.holdMs / 1000]);
 });
 
-test("dealRoll plays a shuffle now and the deal ticks on the prototype's schedule", async () => {
-  vi.useFakeTimers();
+test("dealRoll plays a shuffle now and schedules the deal ticks on the audio clock at the prototype's offsets", async () => {
   const { ctx, audio } = setup();
   await audio.init();
+  ctx.currentTime = 3;
   const before = ctx.sources.length;
   audio.dealRoll();
-  expect(ctx.sources.length - before).toBe(1);
-  expect((SFX.shuffle.files as readonly string[]).includes(ctx.sources[before].buffer!.url.replace("/fake/", ""))).toBe(true);
-  vi.advanceTimersByTime(DEAL_ROLL.first - 1);
-  expect(ctx.sources.length - before).toBe(1);
-  vi.advanceTimersByTime(1);
-  expect(ctx.sources.length - before).toBe(2);
-  vi.advanceTimersByTime((DEAL_ROLL.ticks - 1) * DEAL_ROLL.every);
-  expect(ctx.sources.length - before).toBe(1 + DEAL_ROLL.ticks);
-  for (const s of ctx.sources.slice(before + 1)) expect((SFX.deal.files as readonly string[]).includes(s.buffer!.url.replace("/fake/", ""))).toBe(true);
-  vi.runAllTimers();
-  expect(ctx.sources.length - before).toBe(1 + DEAL_ROLL.ticks);
+  const made = ctx.sources.slice(before);
+  expect(made).toHaveLength(1 + DEAL_ROLL.ticks); // all at once: no timers
+  expect((SFX.shuffle.files as readonly string[]).includes(made[0].buffer!.url.replace("/fake/", ""))).toBe(true);
+  expect(made[0].startAts).toEqual([0]); // start() with no time: now
+  made.slice(1).forEach((s, k) => {
+    expect((SFX.deal.files as readonly string[]).includes(s.buffer!.url.replace("/fake/", ""))).toBe(true);
+    expect(s.startAts[0]).toBeCloseTo(3 + (DEAL_ROLL.first + k * DEAL_ROLL.every) / 1000, 9);
+  });
+});
+
+test("a seat's own sound is panned when the context can pan; without a panner it is centred", async () => {
+  const { ctx, audio } = setup();
+  const pans: (StereoPannerLike & { into: unknown })[] = [];
+  ctx.createStereoPanner = () => {
+    const p: StereoPannerLike & { into: unknown } = {
+      pan: fakeParam(0),
+      into: null,
+      connect(d) {
+        p.into = d;
+      },
+    };
+    pans.push(p);
+    return p;
+  };
+  await audio.init();
+  audio.play("playSmall", { pan: -0.35 });
+  expect(pans).toHaveLength(1);
+  expect(pans[0].pan.value).toBe(-0.35);
+  expect(eventGainOf(ctx.sources.at(-1)!).gain.value).toBe(SFX.playSmall.gain);
+  audio.play("select");
+  expect(pans).toHaveLength(1); // no pan asked: no panner
+});
+
+test("the master soft clipper is exactly linear below the knee and never exceeds the ceiling", async () => {
+  const { ctx, audio } = setup();
+  const shapers: WaveShaperLike[] = [];
+  ctx.createWaveShaper = () => {
+    const shaper: WaveShaperLike = { curve: null, oversample: "", connect() {} };
+    shapers.push(shaper);
+    return shaper;
+  };
+  await audio.init();
+  expect(shapers).toHaveLength(1);
+  expect(shapers[0].oversample).toBe("none");
+  const curve = shapers[0].curve!;
+  const n = curve.length;
+  // the curve's input i covers ±headroom; the shaper is fed signal / headroom
+  const at = (signal: number) => curve[Math.round(((signal / LIMIT.headroom + 1) / 2) * (n - 1))];
+  for (const x of [0, 0.1, -0.3, 0.5, 0.79, -0.79]) expect(at(x)).toBeCloseTo(x, 3);
+  for (const x of [0.9, 1, 1.5, 2, -2]) {
+    expect(Math.abs(at(x))).toBeLessThanOrEqual(LIMIT.ceiling);
+    expect(Math.abs(at(x))).toBeGreaterThan(LIMIT.knee);
+  }
+});
+
+test("preload fetches every sfx file before init; init then decodes those bytes without fetching them again", async () => {
+  const { fetch, audio } = setup();
+  audio.preload();
+  const files = new Set(fetch.calls);
+  for (const f of SFX_FILES) expect(files.has(urlOf(f))).toBe(true);
+  const n = fetch.calls.length;
+  await audio.init();
+  expect(fetch.calls.length).toBe(n); // nothing fetched twice
+});
+
+test("a poster loop is released once it is no longer wanted, and decoded again when it is", async () => {
+  const { ctx, fetch, audio } = setup();
+  await audio.init();
+  audio.setMusic("results");
+  await flush();
+  expect(sourcesOf(ctx, "music_ost_4")).toHaveLength(1);
+  const fetched = () => fetch.calls.filter((u) => u === urlOf("music_ost_4")).length;
+  expect(fetched()).toBe(1);
+  audio.setMusic("table");
+  await flush();
+  audio.setMusic("results");
+  await flush();
+  expect(fetched()).toBe(2); // released, so fetched and decoded again
+  expect(sourcesOf(ctx, "music_ost_4")).toHaveLength(2);
+  // the table loop is kept: wanting it again does not fetch it again
+  const table = () => fetch.calls.filter((u) => u === urlOf("music_ost_1")).length;
+  const t0 = table();
+  audio.setMusic("table");
+  await flush();
+  expect(table()).toBe(t0);
 });

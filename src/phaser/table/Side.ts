@@ -9,7 +9,7 @@ import { COPY } from "../../game/copy";
 import { HUMAN, hintFor, humanTurn } from "../../game/selectors";
 import type { GameStore, GameView } from "../../game/store";
 import type { Rect } from "../../render/tableLayout";
-import { maxLines, painted, roundRect, text } from "../paint";
+import { maxLines, painted, roundRect, setTextColor, text } from "../paint";
 import { CSS, FS_BODY, FS_EM, FS_MIN, TAP } from "../theme";
 import { target } from "../probe";
 import { Button, IconButton } from "../widgets";
@@ -125,7 +125,7 @@ export class SideView {
     if (statusKey !== this.#statusKey) {
       this.#statusKey = statusKey;
       const color = v.status.tone === "bad" ? CSS.bad : v.status.tone === "good" ? CSS.good : CSS.dust;
-      this.#status.setText(v.status.text).setColor(color).setPosition(r.x + (r.w - this.#clearR) / 2, statusY);
+      setTextColor(this.#status, v.status.text, color).setPosition(r.x + (r.w - this.#clearR) / 2, statusY);
       const lines = Math.max(0, Math.floor((controlsTop - GAP - statusY) / (FS_MIN * 1.3)));
       if (lines === 0) this.#status.setText("");
       else maxLines(this.#status, lines);

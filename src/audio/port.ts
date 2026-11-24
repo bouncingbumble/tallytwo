@@ -15,9 +15,15 @@ import type { MusicTrack, SfxEvent } from "./sfxTable";
 
 export type Bus = "music" | "sfx";
 
+/** Optional per-play placement: a stereo pan (-1 left .. 1 right) and a delay in seconds on the audio clock. */
+export interface PlayOpts {
+  pan?: number;
+  delay?: number;
+}
+
 export interface AudioPort {
   init(): Promise<void>;
-  play(event: SfxEvent): void;
+  play(event: SfxEvent, opts?: PlayOpts): void;
   /** One shuffle then four deal ticks (DEAL_ROLL). */
   dealRoll(): void;
   setMusic(track: MusicTrack | null): void;

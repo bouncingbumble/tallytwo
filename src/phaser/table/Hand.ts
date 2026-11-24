@@ -17,7 +17,7 @@ import type { GameStore, GameView } from "../../game/store";
 import { DEAL_STAGGER_MS } from "../../game/timing";
 import { CARD_H, CARD_W, SELECT_LIFT, fanLayout } from "../../render/fanLayout";
 import type { Rect } from "../../render/tableLayout";
-import { CardView } from "../cards";
+import { CardView, faceHitArea } from "../cards";
 import { DEAL_IN_MS, SETTLE_MS, SLIDE_MS, ms } from "../motion";
 
 /** A pointer that travels this far (logical px) is dragging, not tapping. */
@@ -109,7 +109,7 @@ export class HandView {
     hand.forEach((card, i) => {
       if (this.#views.has(card)) return;
       const c = new CardView(this.scene, 0, CARD_H / 2, card, CARD_W, CARD_H);
-      c.face.setInteractive({ useHandCursor: true });
+      c.face.setInteractive({ hitArea: faceHitArea(), hitAreaCallback: Phaser.Geom.Rectangle.Contains, useHandCursor: true });
       c.face.on("pointerdown", (p: Phaser.Input.Pointer) => this.#press(card, p));
       this.layer.add(c);
       this.#views.set(card, c);
@@ -156,7 +156,10 @@ export class HandView {
       this.scene.tweens.killTweensOf(view);
       view.setAngle(0).setScale(1).setAlpha(1);
       if (dragging) view.setPosition(cx, cy);
-      else this.scene.tweens.add({ targets: view, x: cx, y: cy, duration: ms(this.#settle ? SETTLE_MS : SLIDE_MS), ease: "Back.Out", easeParams: [1.2] });
+      // the quick slide keeps the CSS curve's little overshoot; the slow settle after a play
+      // glides in without one (a 640-ms overshoot reads as a wobble)
+      else if (this.#settle) this.scene.tweens.add({ targets: view, x: cx, y: cy, duration: ms(SETTLE_MS), ease: "Cubic.Out" });
+      else this.scene.tweens.add({ targets: view, x: cx, y: cy, duration: ms(SLIDE_MS), ease: "Back.Out", easeParams: [1.2] });
     }
     // drawing order = fan order (so the topmost card under a finger is the one it sees), the dragged card above all
     for (const view of ordered) if (view) this.layer.bringToTop(view);

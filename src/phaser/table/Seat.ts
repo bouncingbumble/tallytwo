@@ -11,7 +11,7 @@ import { portraitFor } from "../../game/selectors";
 import type { Bark } from "../../game/store";
 import { FACE_H, FACE_W, type Rect } from "../../render/tableLayout";
 import { BARK_ANIM_MS, ms } from "../motion";
-import { insetStroke, maxLines, painted, roundRect, text, vgrad } from "../paint";
+import { insetStroke, maxLines, painted, roundRect, setTextColor, text, vgrad } from "../paint";
 import { CSS, FS_EM, FS_MIN } from "../theme";
 
 /** "+3" / "0" / "-7", as the top bar and the poster show a tally. */
@@ -19,6 +19,18 @@ export const signed = (n: number): string => (n > 0 ? `+${n}` : String(n));
 
 /** At most this many back chips are drawn, whatever the count says (P:859). */
 const MAX_CHIPS = 5;
+/** One back chip: a dark 10x12 edge around a 8x10 red back with four darker stripes. */
+const CHIP_W = 10;
+const CHIP_H = 12;
+function paintChip(ctx: CanvasRenderingContext2D): void {
+  ctx.fillStyle = "#120a04";
+  ctx.fillRect(0, 0, CHIP_W, CHIP_H);
+  ctx.fillStyle = "#7a2b24";
+  ctx.fillRect(1, 1, 8, 10);
+  ctx.fillStyle = "#5e1f1a";
+  for (let s = 0; s < 4; s++) ctx.fillRect(1 + s * 2, 1 + ((s * 3) % 10), 1, 3);
+}
+
 /** Portrait 82 px + gap 6 px + padding 4 px: where the info column (and the bark) starts. */
 const INFO_X = 4 + FACE_W + 6;
 
@@ -29,7 +41,8 @@ export class SeatView extends Phaser.GameObjects.Container {
   #face: Phaser.GameObjects.Image | null = null;
   #faceKey: string | null = null;
   #name: Phaser.GameObjects.Text;
-  #chips: Phaser.GameObjects.Graphics;
+  /** MAX_CHIPS images of one painted chip: a card back seen edge-on (no Graphics, so nothing re-tessellates per frame). */
+  #chips: Phaser.GameObjects.Image[];
   #count: Phaser.GameObjects.Text;
   #tallyLabel: Phaser.GameObjects.Text;
   #tally: Phaser.GameObjects.Text;
@@ -72,11 +85,11 @@ export class SeatView extends Phaser.GameObjects.Container {
     ).setVisible(false);
     const infoW = w - INFO_X - 4;
     this.#name = text(scene, 0, 0, "", { size: FS_MIN, color: CSS.dust, wrap: infoW, lineHeight: 1.15 });
-    this.#chips = scene.add.graphics();
+    this.#chips = Array.from({ length: MAX_CHIPS }, () => painted(scene, "chip", 0, 0, CHIP_W, CHIP_H, paintChip).setVisible(false));
     this.#count = text(scene, 0, 0, "", { size: FS_EM, color: CSS.amber, bold: true });
     this.#tallyLabel = text(scene, 0, 0, COPY.seat.tally + " ", { size: FS_MIN, color: CSS.dust });
     this.#tally = text(scene, 0, 0, "", { size: FS_MIN, color: CSS.bone, bold: true });
-    this.#info = scene.add.container(INFO_X, 0, [this.#name, this.#chips, this.#count, this.#tallyLabel, this.#tally]);
+    this.#info = scene.add.container(INFO_X, 0, [this.#name, ...this.#chips, this.#count, this.#tallyLabel, this.#tally]);
     // "passed" is stamped across the foot of the portrait, clear of the info column
     const stamp = text(scene, 37, 0, COPY.seat.passed, { size: FS_MIN, align: "center" }).setOrigin(0.5, 0);
     const sh = Math.ceil(stamp.height);
@@ -115,20 +128,10 @@ export class SeatView extends Phaser.GameObjects.Container {
     }
     const nameH = Math.round(this.#name.height) - 4;
     const rowY = nameH + 4;
-    const chips = this.#chips;
-    chips.clear();
     const shown = Math.min(MAX_CHIPS, n);
-    for (let i = 0; i < shown; i++) {
-      const x = i * 4;
-      chips.fillStyle(0x120a04, 1);
-      chips.fillRect(x - 1, rowY + 5, 10, 12);
-      chips.fillStyle(0x7a2b24, 1);
-      chips.fillRect(x, rowY + 6, 8, 10);
-      chips.fillStyle(0x5e1f1a, 1);
-      for (let s = 0; s < 4; s++) chips.fillRect(x + s * 2, rowY + 6 + ((s * 3) % 10), 1, 3);
-    }
+    this.#chips.forEach((chip, i) => chip.setVisible(i < shown).setPosition(i * 4 - 1, rowY + 5));
     const chipsW = shown ? 8 + (shown - 1) * 4 + 4 : 0;
-    this.#count.setText(String(n)).setColor(n <= 3 ? CSS.low : CSS.amber);
+    setTextColor(this.#count, String(n), n <= 3 ? CSS.low : CSS.amber);
     this.#count.setPosition(chipsW, rowY);
     const rowH = Math.round(this.#count.height) - 4;
     const tallyY = rowY + rowH + 4;

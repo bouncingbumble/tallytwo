@@ -1,0 +1,96 @@
+{
+  "chromium-desktop": {
+    "seconds": 43,
+    "frames": 679,
+    "drawn": 329,
+    "fps": 15.8,
+    "interval": {
+      "p50": 17.4,
+      "p95": 133.1,
+      "p99": 207.5,
+      "max": 319.3,
+      "mean": 63.45
+    },
+    "work": {
+      "p50": 0.1,
+      "p95": 0.6,
+      "p99": 117.8,
+      "max": 318.7,
+      "mean": 2.77
+    },
+    "drawCalls": {
+      "p50": 10,
+      "p95": 10,
+      "p99": 10,
+      "max": 20,
+      "mean": 9.98
+    },
+    "uploads": {
+      "total": 523,
+      "bytes": 98828620,
+      "maxPerFrame": 0,
+      "inFramesOver16ms": 0
+    },
+    "longTasks": {
+      "count": 11,
+      "maxMs": 319,
+      "totalMs": 1999
+    },
+    "hitches": 325,
+    "ai": {
+      "p50": 7.8,
+      "p95": 69.6,
+      "p99": 84.6,
+      "max": 84.6,
+      "mean": 16.74,
+      "count": 28
+    }
+  },
+  "webkit-i15": {
+    "seconds": 44.2,
+    "frames": 2625,
+    "drawn": 1807,
+    "fps": 59.4,
+    "interval": {
+      "p50": 17,
+      "p95": 18,
+      "p99": 24,
+      "max": 139,
+      "mean": 16.89
+    },
+    "work": {
+      "p50": 0,
+      "p95": 2,
+      "p99": 3,
+      "max": 3,
+      "mean": 0.65
+    },
+    "drawCalls": {
+      "p50": 82,
+      "p95": 92,
+      "p99": 100,
+      "max": 103,
+      "mean": 80.09
+    },
+    "uploads": {
+      "total": 524,
+      "bytes": 51869688,
+      "maxPerFrame": 0,
+      "inFramesOver16ms": 0
+    },
+    "longTasks": {
+      "count": 10,
+      "maxMs": 139,
+      "totalMs": 855
+    },
+    "hitches": 21,
+    "ai": {
+      "p50": 14,
+      "p95": 90,
+      "p99": 124,
+      "max": 124,
+      "mean": 28.39,
+      "count": 28
+    }
+  }
+}

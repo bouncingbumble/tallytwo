@@ -113,6 +113,22 @@ export const MUSIC: Record<MusicLayer, LoopSpec> = {
 export const DUCK = { to: 0.12, from: 0.3, attackS: 0.02, holdMs: 300, rearmMs: 280 } as const;
 /** True pitch jitter per SFX play, ±4 %. */
 export const JITTER = 0.04;
+/** Level jitter per SFX play, ±1.5 dB, so a run of the same sound (the deal roll) is not a machine gun. */
+export const GAIN_JITTER_DB = 1.5;
+/**
+ * Where each seat sits, as a stereo pan: the opponents' badges run left to right along the top
+ * of the felt (render/tableLayout.ts badges 1, 2, 3), the player is at the bottom centre. Subtle
+ * on purpose: a card played by the left seat comes from a little left of centre.
+ */
+export const SEAT_PAN: readonly number[] = [0, -0.35, 0, 0.35];
+/** The events a seat makes with its own cards, panned to that seat; everything else is centred. */
+export const SEATED: ReadonlySet<SfxEvent> = new Set<SfxEvent>(["playSmall", "playFive", "pass", "lastCard", "roundWin"]);
+/**
+ * The master soft clipper: below `knee` the signal passes untouched (exactly linear, so the mix
+ * is unchanged); above it, peaks bend smoothly towards `ceiling` instead of clipping, so a slap
+ * landing on the deal roll over the music never crackles.
+ */
+export const LIMIT = { knee: 0.8, ceiling: 1, headroom: 2 } as const;
 /** A deal: one shuffle at 0, then `ticks` deal sounds at first + k * every ms (P:386-390). */
 export const DEAL_ROLL = { first: 260, every: 110, ticks: 4 } as const;
 /** The tension track takes over from the table track when any seat is down to this many cards. */
