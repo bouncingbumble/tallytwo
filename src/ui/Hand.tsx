@@ -84,6 +84,13 @@ export function Hand() {
   const inHand = new Set(raw);
   const hand = cards.filter((v) => inHand.has(v));
 
+  // After a play the remaining cards close the gap at a slower pace (table.css .hand.settle); the
+  // next press puts the fan back on the quick select-lift timing.
+  const [played, setPlayed] = useState(() => ({ dealId, count: raw.length, settle: false }));
+  if (played.dealId !== dealId || played.count !== raw.length) {
+    setPlayed({ dealId, count: raw.length, settle: played.dealId === dealId && raw.length < played.count });
+  }
+
   const [drag, setDrag] = useState<Drag | null>(null);
   // True from the moment a press becomes a drag until the next press: the click that follows
   // a drag must not toggle the card.
@@ -104,6 +111,7 @@ export function Hand() {
   const press = (card: CardValue, e: ReactPointerEvent<HTMLButtonElement>) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     dragged.current = false;
+    if (played.settle) setPlayed({ ...played, settle: false });
     const origin = (ref.current?.getBoundingClientRect().left ?? 0) / k;
     const px = e.clientX / k - origin;
     const x = xs[resting.get(card) ?? 0] ?? 0;
@@ -133,7 +141,7 @@ export function Hand() {
   };
 
   return (
-    <div className="hand" ref={ref} onPointerMove={move} onPointerUp={release} onPointerCancel={release}>
+    <div className={played.settle ? "hand settle" : "hand"} ref={ref} onPointerMove={move} onPointerUp={release} onPointerCancel={release}>
       {raw.map((v) => {
         const i = at.get(v) ?? 0;
         const selected = selection.includes(v);

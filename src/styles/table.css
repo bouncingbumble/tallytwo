@@ -537,6 +537,10 @@
     filter 0.16s ease,
     opacity 0.16s ease;
 }
+/* after a play, the remaining cards close the gap 4x slower than the select lift (ui/Hand.tsx) */
+.hand.settle .card {
+  transition-duration: 0.64s, 0.16s, 0.16s;
+}
 /* the card under the finger follows it without easing; the others slide into the gap */
 .hand .card.drag {
   transition: none;
