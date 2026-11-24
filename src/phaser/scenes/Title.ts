@@ -5,17 +5,26 @@
  *
  * Its buttons are the first user gesture, so all three call audio.init() fire-and-forget (Phaser
  * dispatches input inside the browser's own pointer event, which is what Safari's audio unlock
- * wants). Deal me in swings the doors and deals after DOORS_MS. The buttons appear only once
- * the settings have hydrated, so a deal never starts with the wrong rules.
+ * wants). Deal me in swings the doors, then the camera goes in through them and darkens
+ * (TRANSITION.throughDoorsMs) and the deal starts; the director fades the table up out of the same
+ * dark. The buttons appear only once the settings have hydrated, so a deal never starts with the
+ * wrong rules.
+ *
+ * Idle life (docs/MOBILE_UX_PLAN.md §7.4): the glow behind the doors flickers like a lamp (one
+ * step at a time, under 2 Hz: a timer, not a tween, so render on demand draws one frame per step),
+ * the doors sway a degree now and then, and with no touch for a while "Deal me in" breathes a few
+ * times. None of it under reduced motion.
  */
+import Phaser from "phaser";
 import { COPY } from "../../game/copy";
 import { newSeed } from "../../game/seeds";
-import { DOORS_FRAMES_MS, DOORS_MS, EASE, MOTION } from "../../game/timing";
+import { DOORS_FRAMES_MS, DOORS_MS, EASE, MOTION, TITLE, TRANSITION } from "../../game/timing";
 import { WIDE_W } from "../../platform/env";
 import { art, standing } from "../art";
-import { ms } from "../motion";
+import type { FxHandle } from "../fx";
+import { ms, reducedMotion } from "../motion";
 import { painted, text } from "../paint";
-import { CSS, FS_BODY, TAP, WESTERN } from "../theme";
+import { C, CSS, FS_BODY, TAP, WESTERN } from "../theme";
 import { target } from "../probe";
 import { Button } from "../widgets";
 import { BaseScene } from "./base";
@@ -29,6 +38,11 @@ const PREWARM_AFTER_MS = 400;
 
 export class TitleScene extends BaseScene {
   #dealing = false;
+  /** The idle life's timers and the breathing, stopped by a deal or a touch. */
+  #life: Phaser.Time.TimerEvent[] = [];
+  #breath: FxHandle | null = null;
+  #idle: Phaser.Time.TimerEvent | null = null;
+  #flick: Phaser.Time.TimerEvent | null = null;
 
   constructor() {
     super("Title");
@@ -114,6 +128,8 @@ export class TitleScene extends BaseScene {
       ctx.restore();
     }).setAlpha(0.35);
     const closed = art(this, doorsX, doorsY, "doors_closed");
+    // hung from the middle of its top edge, so the sway turns it about the lintel
+    closed.setOrigin(0.5, 0).setX(doorsX + closed.displayWidth / 2);
     const ajar = art(this, doorsX, doorsY, "doors_ajar").setVisible(false);
     const open = art(this, doorsX, doorsY, "doors_open").setVisible(false);
     standing(this, sx + 10, floor, "barrel");
@@ -135,6 +151,9 @@ export class TitleScene extends BaseScene {
     const deal = () => {
       if (this.#dealing) return; // the doors are already swinging: a double tap deals once
       this.#dealing = true;
+      this.#quiet();
+      this.tweens.killTweensOf(closed);
+      closed.setAngle(0);
       void game.audio.init();
       if (ms(MOTION.doorsGlow)) this.tweens.add({ targets: glow, alpha: 0.95, duration: ms(MOTION.doorsGlow), ease: EASE.inOut });
       else glow.setAlpha(0.95);
@@ -146,7 +165,8 @@ export class TitleScene extends BaseScene {
         ajar.setVisible(false);
         open.setVisible(true);
       });
-      this.after(DOORS_MS, () => game.act({ type: "NEW_MATCH", seed: this.app.seed ?? newSeed(1), rules: settings.rules }));
+      const go = () => game.act({ type: "NEW_MATCH", seed: this.app.seed ?? newSeed(1), rules: settings.rules });
+      this.after(DOORS_MS, () => this.#throughDoors(doorsX + 93, doorsY + 79, go));
     };
     const openSheet = (s: "howto" | "settings") => {
       void game.audio.init();
@@ -189,9 +209,99 @@ export class TitleScene extends BaseScene {
     this.watch(update.ready, show);
     this.watch(install.mode, show);
 
+    this.#idleLife(glow, closed, bDeal);
+
     // while nothing moves here, paint the table's textures so the first deal does not (TableScene.prewarm)
     this.after(PREWARM_AFTER_MS, () => {
       if (!this.#dealing) TableScene.prewarm(this);
     });
+  }
+
+  /**
+   * Through the doors: the camera pushes in on the open doors (keeping their middle where it is
+   * on screen) and fades to the dark the table fades up from, then `then` deals.
+   */
+  #throughDoors(cx: number, cy: number, then: () => void): void {
+    const d = ms(TRANSITION.throughDoorsMs);
+    if (!d) {
+      then();
+      return;
+    }
+    const cam = this.cameras.main;
+    const z0 = cam.zoom;
+    const sx = (cx - cam.scrollX) * z0; // where the doors' middle is on the canvas, device px
+    const sy = (cy - cam.scrollY) * z0;
+    const p = { z: z0 };
+    this.tweens.add({
+      targets: p,
+      z: z0 * TRANSITION.throughDoorsZoom,
+      duration: d,
+      ease: EASE.enter, // the push is seen at once; the fade does the leaving
+      onUpdate: () => cam.setZoom(p.z).setScroll(cx - sx / p.z, cy - sy / p.z),
+    });
+    const c = Phaser.Display.Color.IntegerToRGB(C.oakDeep);
+    cam.fadeOut(d, c.r, c.g, c.b);
+    this.after(d, then);
+  }
+
+  /** The lamp flicker, the doors' sway and the idle breathing of Deal me in (see the file comment). */
+  #idleLife(glow: Phaser.GameObjects.Image, doors: Phaser.GameObjects.Image, dealBtn: Button): void {
+    this.#life = [];
+    this.#breath = null;
+    this.#idle = null;
+    if (reducedMotion()) return;
+    const base = glow.alpha;
+    const [lo, hi] = TITLE.flickerMs;
+    // one step at a time, each after a new random wait (after() marks the frame dirty)
+    const flicker = () => {
+      if (this.#dealing) return;
+      glow.setAlpha(base * (0.8 + Math.random() * 0.4));
+      this.#flick = this.after(lo + Math.random() * (hi - lo), flicker);
+    };
+    this.#flick = this.after(lo, flicker);
+    const sway = () => {
+      if (this.#dealing || reducedMotion()) return;
+      const dir = Math.random() < 0.5 ? -1 : 1;
+      this.tweens.chain({
+        targets: doors,
+        tweens: [
+          { angle: dir, duration: TITLE.swayMs / 4, ease: EASE.inOut },
+          { angle: -dir * 0.6, duration: TITLE.swayMs / 2, ease: EASE.inOut },
+          { angle: 0, duration: TITLE.swayMs / 4, ease: EASE.inOut },
+        ],
+      });
+    };
+    this.#life.push(this.time.addEvent({ delay: TITLE.swayEveryMs, loop: true, callback: sway }));
+    // breathe after a while untouched; a touch stops it and starts the wait again
+    const arm = () => {
+      this.#idle?.remove(false);
+      this.#idle = this.after(TITLE.idlePulseMs, () => {
+        if (this.#dealing || !dealBtn.visible || !dealBtn.parentContainer?.visible) return arm();
+        this.#breath = dealBtn.breathe();
+        this.#idle = this.after(TITLE.pulseCycles * MOTION.pulse, () => {
+          this.#breath?.skip();
+          this.#breath = null;
+          arm();
+        });
+      });
+    };
+    arm();
+    this.input.on("pointerdown", () => {
+      this.#breath?.skip();
+      this.#breath = null;
+      if (!this.#dealing) arm();
+    });
+  }
+
+  /** Stop every idle motion (a deal). */
+  #quiet(): void {
+    for (const t of this.#life) t.remove(false);
+    this.#life = [];
+    this.#flick?.remove(false);
+    this.#flick = null;
+    this.#idle?.remove(false);
+    this.#idle = null;
+    this.#breath?.skip();
+    this.#breath = null;
   }
 }

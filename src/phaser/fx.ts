@@ -144,3 +144,30 @@ export function press(scene: Phaser.Scene, obj: Movable, down: boolean, amount =
   }
   scene.tweens.add({ targets: obj, scale: down ? amount : 1, duration: d, ease: down ? EASE.enter : EASE.land });
 }
+
+/**
+ * FLIP's last step (docs/MOBILE_UX_PLAN.md §7.3): `obj` has just been put at rest; it jumps back to
+ * where it was on screen, (fromX, fromY) in absolute logical px, and glides home, ending exactly
+ * on its rest pose. For an object whose containers are only translated (the table's layers).
+ */
+export function flipFrom(scene: Phaser.Scene, obj: Movable, fromX: number, fromY: number, duration: number = MOTION.uiIn): FxHandle {
+  const d = ms(duration);
+  const m = obj.getWorldTransformMatrix();
+  const dx = fromX - m.tx;
+  const dy = fromY - m.ty;
+  if (!d || (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5)) return NONE;
+  running.get(obj)?.get("flip")?.skip();
+  const x = obj.x;
+  const y = obj.y;
+  obj.setPosition(x + dx, y + dy);
+  const t = scene.tweens.add({ targets: obj, x, y, duration: d, ease: EASE.settle });
+  const h: FxHandle = {
+    skip() {
+      t.stop();
+      obj.setPosition(x, y);
+      release(obj, "flip", h);
+    },
+  };
+  t.once("complete", () => release(obj, "flip", h));
+  return claim(obj, "flip", h);
+}

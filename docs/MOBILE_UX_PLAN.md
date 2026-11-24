@@ -325,3 +325,23 @@ Not done in Phase 2:
 - **Perf gate:** on the iPhone profile, 3 hitches, ≤ 53 draws, worst frame 90 ms. Uploads rose 344 → 408 from the poster counters and the deal's backs. e2e 121/121 on all four devices.
 - **F2 again:** in headless Chromium, rotated backs and the turned poster show the same torn triangles; WebKit captures of the same frames are clean.
 - **Not done:** skipping the Greenhorn leftover reveal by tap. It is covered by the poster when the store's timer runs out, so a skip would save nothing.
+
+**Phase 5, done.**
+- **Transitions** (`director.ts` `transition()`, `TRANSITION` in `timing.ts`):
+  - Title → Table: the doors swing open (as before), then the title's camera pushes in on them (×1.6, 300 ms) while it fades to `oakDeep`, and the deal starts. The director fades the table up out of the same dark (260 ms).
+  - Table → Title (Saddle up, or Quit from Settings): the poster lifts away (as before) and the title fades up out of `oakDeep`.
+  - Render on demand counts a running camera effect (fade, shake) as animating. It also ignores a tween whose target is hidden, so a pulse on something off screen draws nothing (§8).
+- **Sheets** (`scenes/sheet.ts`, maths in `render/sheetDrag.ts`, 8 tests):
+  - They slide up from below the canvas, and the dim fades in with them. They close by sliding back down.
+  - Three ways to close: tap the dim; pull the sheet down from the top of its body, where it follows the finger and goes past 90 px or on a downward flick (short of that it springs back); or the ✕. The ✕ is TAP-sized, top right, and stays put while the body scrolls under it.
+  - The body scrolls with momentum and stretches past its ends (rubber band).
+  - The drag starts anywhere on the panel's body rather than only on a header strip: pulling down at scroll 0 is the dismiss, as on iOS.
+- **Resize without amnesia:** a viewport change still rebuilds the scenes, but each scene is told it is a rebuild (`SceneData.resumed`) and is handed what its `carry()` recorded just before. The table slides every card from where it was on screen to its new place (`fx.flipFrom`), a sheet keeps its scroll and does not slide in again, and the poster comes back already counted.
+  - **Deviation:** this is not an in-place `relayout()` with tweens on every view. The felt, wood, saloon strip and badges are painted textures keyed by their size, so a new width repaints them anyway. Carrying the moving things (cards, scroll, counted poster) gives the same result on screen with one code path. A deal that is mid-flight when the phone rotates finishes at once.
+- **Title life** (`TITLE` in `timing.ts`):
+  - The glow behind the doors flickers like a lamp: one random step every 0.5–1.1 s (under 2 Hz), on a timer rather than a tween.
+  - The doors sway ±1° every 5.2 s, hung from the lintel.
+  - After 3 s with no touch, "Deal me in" breathes three times, then rests 3 s and repeats. Any touch stops it.
+  - None of this runs under reduced motion.
+- **Settings:** Motion, Swipe to select and Flick to play were already in place (Phases 0 and 2).
+- **Fix:** the hand's first render after a rebuild places its cards directly instead of sliding them in from the layer's corner.

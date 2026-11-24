@@ -8,7 +8,7 @@ import Phaser from "phaser";
 import { dropShadow, insetStroke, painted, roundRect, text, vgrad } from "./paint";
 import { C, CSS, FS_EM, TAP } from "./theme";
 import { EASE, MOTION } from "../game/timing";
-import { pop, press, shake } from "./fx";
+import { type FxHandle, pop, press, pulse, shake } from "./fx";
 import { ms } from "./motion";
 import { markDirty } from "./onDemand";
 import { zoomOf } from "./viewport";
@@ -198,6 +198,11 @@ export class Button extends Phaser.GameObjects.Container {
     pop(this.scene, this.#face, 1.08, MOTION.emphasis);
   }
 
+  /** A slow breathing loop, an idle "start here" (the title's Deal me in); skip() the handle to stop it. */
+  breathe(): FxHandle {
+    return pulse(this.scene, this.#face, 1.05);
+  }
+
   get enabled(): boolean {
     return this.#enabled;
   }
@@ -218,6 +223,12 @@ export class IconButton extends Phaser.GameObjects.Container {
     if (glyph === "menu") {
       g.fillStyle(C.dust, 1);
       for (let i = 0; i < 3; i++) g.fillRoundedRect(TAP / 2 - 11, TAP / 2 - 8 + i * 7, 22, 3, 1);
+      this.add(g);
+    } else if (glyph === "close") {
+      // the ✕ as two strokes, for the same reason
+      g.lineStyle(3, C.dust, 1);
+      g.lineBetween(TAP / 2 - 8, TAP / 2 - 8, TAP / 2 + 8, TAP / 2 + 8);
+      g.lineBetween(TAP / 2 + 8, TAP / 2 - 8, TAP / 2 - 8, TAP / 2 + 8);
       this.add(g);
     } else this.add(text(scene, TAP / 2, TAP / 2, glyph, { size, color: CSS.dust }).setOrigin(0.5));
     this.add(tapZone(scene, TAP, TAP, onClick, (down) => this.setAlpha(down ? 0.6 : 1)));

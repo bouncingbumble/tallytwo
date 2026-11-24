@@ -10,14 +10,38 @@ import { fitCamera, logicalW } from "../viewport";
 
 export const LOGICAL_HEIGHT = 440;
 
+/**
+ * What a scene is started with. `resumed`: the director rebuilt it for a new viewport (a rotation,
+ * Safari's toolbar), so it comes back as it was instead of making its entrance again, and `carry`
+ * is what its carry() handed over from the run before (a sheet's scroll, the cards' poses).
+ */
+export interface SceneData {
+  resumed?: boolean;
+  carry?: Record<string, unknown>;
+}
+
 export abstract class BaseScene extends Phaser.Scene {
   /** The canvas width in logical px at create(). */
   W = 0;
   readonly H = LOGICAL_HEIGHT;
   #offs: (() => void)[] = [];
+  /** This run is a rebuild for a new viewport (SceneData). */
+  resumed = false;
+  /** What the run before handed over (SceneData.carry). */
+  carried: Record<string, unknown> = {};
 
   get app(): Services {
     return services();
+  }
+
+  init(data?: SceneData): void {
+    this.resumed = !!data?.resumed;
+    this.carried = data?.carry ?? {};
+  }
+
+  /** What a rebuild of this scene for a new viewport should start from (read just before the restart). */
+  carry(): Record<string, unknown> {
+    return {};
   }
 
   /** Call first in create(): fits the camera and arms the cleanup. */

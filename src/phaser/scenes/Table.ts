@@ -16,6 +16,8 @@ import { SELECT_LIFT, fanLayout } from "../../render/fanLayout";
 import { shouldCoach } from "../../render/handGesture";
 import { env } from "../../platform/env";
 import { type TableLayout, clearFor, tableLayout } from "../../render/tableLayout";
+import { CardView } from "../cards";
+import { flipFrom } from "../fx";
 import { ANNOUNCE_ANIM_MS, ms } from "../motion";
 import { artPattern, insetStroke, painted, roundRect, text } from "../paint";
 import { C, CSS, FS_BODY, WESTERN } from "../theme";
@@ -26,7 +28,7 @@ import { drawSaloon } from "../table/Saloon";
 import { SeatView } from "../table/Seat";
 import { SideView } from "../table/Side";
 import { TrickView } from "../table/Trick";
-import { BaseScene } from "./base";
+import { BaseScene, type SceneData } from "./base";
 
 /** The your-turn glow's height above the hand row (logical px). */
 const TURN_GLOW_H = 26;
@@ -56,7 +58,8 @@ export class TableScene extends BaseScene {
     super("Table");
   }
 
-  init(data: { animate?: boolean; prewarm?: boolean }): void {
+  init(data: SceneData & { animate?: boolean; prewarm?: boolean }): void {
+    super.init(data);
     this.#animate = !!data?.animate;
     this.#prewarm = !!data?.prewarm;
   }
@@ -180,8 +183,49 @@ export class TableScene extends BaseScene {
     this.watch(game, () => this.#render());
     this.watch(this.app.settings, () => this.#render(true));
     this.#render();
+    if (this.resumed) this.#flipFromCarried();
     // a fresh deal (not a rebuild) is dealt out from a deck in the middle of the felt
     if (this.#animate) this.#deal.start(t.plays.x + Math.round(t.plays.w / 2), t.plays.y + Math.round(t.plays.h / 2));
+  }
+
+  /**
+   * A rebuild for a new viewport (a rotation, Safari's toolbar) starts from where every card was
+   * on screen: carry() records each card's centre, and the new table slides them from there to
+   * their new places (fx.flipFrom), so nothing jumps.
+   */
+  carry(): Record<string, unknown> {
+    const poses: [number, number, number][] = [];
+    for (const c of this.#cards()) {
+      const m = c.getWorldTransformMatrix();
+      poses.push([c.value, m.tx, m.ty]);
+    }
+    return { poses };
+  }
+
+  /** Every card face on the table, visible, anywhere in the display list. */
+  #cards(): CardView[] {
+    const out: CardView[] = [];
+    const visit = (o: Phaser.GameObjects.GameObject) => {
+      if (o instanceof CardView) {
+        if (o.visible) out.push(o);
+        return;
+      }
+      if (o instanceof Phaser.GameObjects.Container && o.visible) for (const c of o.list) visit(c);
+    };
+    for (const o of this.children.list) visit(o);
+    return out;
+  }
+
+  /** The other half of carry(): each card the old table showed glides from its old place. */
+  #flipFromCarried(): void {
+    const poses = this.carried.poses;
+    if (!Array.isArray(poses)) return;
+    const at = new Map<number, [number, number]>();
+    for (const p of poses as [number, number, number][]) at.set(p[0], [p[1], p[2]]);
+    for (const c of this.#cards()) {
+      const from = at.get(c.value);
+      if (from) flipFrom(this, c, from[0], from[1]);
+    }
   }
 
   /** The cards are all out: the opening turn gets its cue, and a newcomer the swipe coach mark. */

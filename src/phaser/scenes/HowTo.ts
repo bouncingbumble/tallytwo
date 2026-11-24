@@ -57,7 +57,7 @@ export class HowToScene extends SheetScene {
     heading(h.payTitle);
     para(h.pay);
     y += 4;
-    const got = new Button(this, 0, y, w, TAP, h.gotIt, { kind: "primary", onClick: () => this.app.sheet.set("none") });
+    const got = new Button(this, 0, y, w, TAP, h.gotIt, { kind: "primary", onClick: () => this.close() });
     c.add(got);
     target(this, "howto.gotIt", got, { w, h: TAP });
     return y + TAP;

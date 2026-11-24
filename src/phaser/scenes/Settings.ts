@@ -44,11 +44,11 @@ export class SettingsScene extends SheetScene {
   }
 
   protected build(): number {
-    const { settings, game, sheet } = this.app;
+    const { settings, game } = this.app;
     const c = this.content;
     const w = this.innerW;
     let y = this.top;
-    const close = () => sheet.set("none");
+    const close = () => this.close();
 
     c.add(text(this, 0, y, t.title, { size: 26, font: WESTERN, color: CSS.amber }));
     y += 42;

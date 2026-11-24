@@ -136,6 +136,48 @@ export const TURN = {
   idleNudgeMs: 8000,
 } as const;
 
+/**
+ * Moving between screens (docs/MOBILE_UX_PLAN.md §7.1): the title's camera goes in through the
+ * opened doors and darkens, then the table fades up out of the dark; leaving the table, the title
+ * fades up out of the same dark (C.oakDeep).
+ */
+export const TRANSITION = {
+  /** Through the doors: after DOORS_MS, the title's camera pushes in and fades out this long, then the deal. */
+  throughDoorsMs: 300,
+  /** How far the camera pushes in through the doors (a multiple of its zoom). */
+  throughDoorsZoom: 1.6,
+  /** A screen arriving fades up out of the dark this long. */
+  fadeUpMs: 260,
+} as const;
+
+/**
+ * The sheets (Settings, How to play; §7.2): they slide up over a dim that fades in, and go back
+ * down the same way. The body scrolls with momentum and rubber-band ends; pulled down from the
+ * top, the whole sheet follows the finger and is dismissed past a distance or a flick. The
+ * distances and the drag maths are render/sheetDrag.ts.
+ */
+export const SHEET = {
+  /** After a release, the scroll glides on for this long (a flick's momentum). */
+  momentumMs: 650,
+  /** A pulled sheet that is let go short of dismissal springs back this long. */
+  springBackMs: 220,
+} as const;
+
+/**
+ * The title's idle life (§7.4): the doors' glow flickers like a lamp (one change every
+ * flicker[0]-flicker[1] ms: under 2 Hz, so nothing flashes, principle 1.7), the doors sway a
+ * degree now and then, and after a while with no touch "Deal me in" breathes a few times.
+ */
+export const TITLE = {
+  flickerMs: [500, 1100],
+  swayEveryMs: 5200,
+  swayMs: 1600,
+  /** With no touch for this long, Deal me in breathes... */
+  idlePulseMs: 3000,
+  /** ...this many times, then rests idlePulseMs again before the next few. */
+  pulseCycles: 3,
+} as const;
+
 /** The doors' sprite frames: ajar, then open, inside DOORS_MS. */
 export const DOORS_FRAMES_MS = { ajar: 200, open: 420 } as const;
 /** A button that copied something says "Copied" this long. */

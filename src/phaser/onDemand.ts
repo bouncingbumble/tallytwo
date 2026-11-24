@@ -23,10 +23,30 @@ export function markDirty(): void {
   dirtyUntil = performance.now() + DIRTY_MS;
 }
 
+/**
+ * Whether anything is moving: a playing tween with something visible to move (a looping pulse on
+ * an object that is hidden, or inside a hidden container, draws nothing, so it does not count), or
+ * a camera effect (a fade between screens, the slap's jolt).
+ */
 const animating = (game: Phaser.Game): boolean => {
-  for (const s of game.scene.getScenes(true)) if (s.tweens.getTweens().some((t) => t.isPlaying())) return true;
+  for (const s of game.scene.getScenes(true)) {
+    if (s.tweens.getTweens().some((t) => t.isPlaying() && (!Array.isArray(t.targets) || t.targets.some(shows)))) return true; // a chain has no targets of its own: it counts
+    for (const cam of s.cameras.cameras) if (cam.fadeEffect.isRunning || cam.shakeEffect.isRunning || cam.zoomEffect.isRunning || cam.panEffect.isRunning) return true;
+  }
   return false;
 };
+
+interface Showable {
+  visible?: boolean;
+  parentContainer?: Showable | null;
+}
+
+/** A tween target that is on screen: not a GameObject (a plain proxy driving onUpdate counts), or visible up through its containers. */
+function shows(target: unknown): boolean {
+  if (typeof target !== "object" || target === null) return true;
+  for (let o: Showable | null | undefined = target as Showable; o; o = o.parentContainer) if (o.visible === false) return false;
+  return true;
+}
 
 export function renderOnDemand(game: Phaser.Game): void {
   const events = game.events;

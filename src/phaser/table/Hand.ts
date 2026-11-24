@@ -171,7 +171,8 @@ export class HandView {
       this.layer.add(c);
       this.#views.set(card, c);
     });
-    this.#layout();
+    // not animated (the first render of a rebuild): every card straight to its rest
+    this.#layout(!animate);
   }
 
   /** True while the deal is still landing cards: the hand takes no input. */
@@ -214,7 +215,7 @@ export class HandView {
   }
 
   /** Place every card: fan slot, lift, scale, look, drawing order; tween what moved. */
-  #layout(): void {
+  #layout(instant = false): void {
     const v = this.#view;
     if (!v) return;
     const hand = this.#hand();
@@ -239,8 +240,9 @@ export class HandView {
       const pose = this.#pose.get(card);
       if (pose && pose.x === t.x && pose.y === t.y && pose.s === t.s) continue;
       this.#pose.set(card, t);
-      if (this.#dealing) {
-        view.setPosition(t.x, t.y); // waiting for the deal: at rest, hidden
+      if (this.#dealing || instant) {
+        this.scene.tweens.killTweensOf(view);
+        view.setPosition(t.x, t.y).setScale(t.s); // waiting for the deal (at rest, hidden), or a rebuild
         continue;
       }
       this.#place(view, t.x, t.y, t.s, t.direct);

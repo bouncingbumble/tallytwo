@@ -176,7 +176,8 @@ export class PosterScene extends BaseScene {
   /** Drop in on a spring, rows one after another, then count. Under reduced motion: all at once. */
   #arrive(rows: readonly Phaser.GameObjects.Container[], cy: number, h: number): void {
     const drop = ms(MOTION.emphasis);
-    if (!drop) {
+    // a rebuild for a new viewport: the poster is already up and counted
+    if (!drop || this.resumed) {
       this.#done();
       return;
     }
