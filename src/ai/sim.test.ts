@@ -1,7 +1,8 @@
 /**
  * The simulation gate under Vitest: 200 seeded games through the real reduce(), 0 illegal
  * actions, 0 stalls; the AI is deterministic for a seed. Win rates are printed by
- * `npm run sim`, not asserted (DECISIONS: Hard is not measurably stronger than Medium).
+ * `npm run sim`, not asserted. Card sharp's lookahead (ai/lookahead.ts) makes the 100 games
+ * with a hard seat the slow part, hence the longer timeout on the first test.
  */
 import { beforeEach, describe, expect, test } from "vitest";
 import { type Action, deal, reduce } from "../engine/reducer";
@@ -60,7 +61,7 @@ describe("simulation gate", () => {
     }
     expect(errors).toBe(0);
     expect(stalls).toBe(0);
-  });
+  }, 120_000);
 
   test("the first action of every game is a play that includes the 3♦", () => {
     for (let i = 0; i < 50; i++) {

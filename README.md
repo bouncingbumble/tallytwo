@@ -112,17 +112,17 @@ npm run sim -- 300
 Expected output (Node 24.15.0; only the millisecond figure varies):
 
 ```text
-✓ 300 games in 375 ms
+✓ 300 games in 19536 ms
 illegal actions : 0
 stalled games   : 0
-all Regular                      75 games, seat wins 20/18/22/15, avg 25.1 plays
-Card sharp vs three Greenhorns   75 games, seat 0 wins 48 (64%; even odds would be 25%)
-Regular vs three Greenhorns      75 games, seat 0 wins 47 (63%; even odds would be 25%)
-Card sharp vs three Regulars     75 games, seat 0 wins 25 (33%; even odds would be 25%)
+all Regular                      75 games, seat wins 17/19/24/15, avg 25.0 plays
+Card sharp vs three Greenhorns   75 games, seat 0 wins 49 (65%; even odds would be 25%)
+Regular vs three Greenhorns      75 games, seat 0 wins 41 (55%; even odds would be 25%)
+Card sharp vs three Regulars     75 games, seat 0 wins 32 (43%; even odds would be 25%)
 ✓ legality and termination gates pass
 ```
 
-The three percentages are the "Hard is not measurably stronger than Medium" finding: Card sharp (hard) beats three Greenhorns 64 % of the time, Regular (medium) beats them 63 %, and Card sharp against three Regulars wins 33 % — barely above the 25 % of even odds. Card counting alone buys nothing without lookahead, which is why the settings sheet says "Card sharp plays the same as Regular for now". Seeds are `1000 + i`, so the numbers are exact and repeatable; they are printed, not asserted (the gate is the two zeros).
+Card sharp (hard) looks ahead (`src/ai/lookahead.ts`): its best few moves, plus passing when following, are each played out to the end of the round over 24 guessed deals of the unseen cards, and the best average round score wins. It beats three Greenhorns 65 % of the time against Regular's 55 %, and three Regulars 43 % of the time against the 25 % of even odds. The lookahead is also why the run takes seconds, not milliseconds: about 10 ms per Card sharp move (82 ms at worst). Seeds are `1000 + i`, so the numbers are exact and repeatable; they are printed, not asserted (the gate is the two zeros).
 
 ```sh
 npm run check     # typecheck (app + core) → lint → vitest → sim 300 → vite build; exit 0 is the answer

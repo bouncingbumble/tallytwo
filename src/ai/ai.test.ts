@@ -12,6 +12,7 @@ import { aiTurn } from "./aiTurn";
 import { type Difficulty, chooseMove } from "./choose";
 import { controlSpend, unbeatable, unseenList } from "./evaluate";
 import { getPersonality } from "./getPersonality";
+import { lookahead } from "./lookahead";
 import { legalMoves } from "./moves";
 import { clearPartitionCache, partitionCount } from "./partition";
 import { PERSONALITIES } from "./personalities";
@@ -70,6 +71,31 @@ describe("chooseMove", () => {
     const a = aiTurn(g, g.turn, mulberry32(1), "medium");
     expect(a.type).toBe("PLAY");
     expect(() => aiTurn(deal(7, R), 0, mulberry32(1), "medium")).toThrow(/not an AI/);
+  });
+});
+
+describe("lookahead (Card sharp)", () => {
+  // Me: the 2♠ and the 4♣ on an open lead; the three opponents hold fifteen middling cards
+  // between them, and everything else has been played. The 2♠ first is a certain win: nothing
+  // beats it, the trick clears back to me, and the 4♣ goes out. The 4♣ first hands them the lead.
+  const hand = parseCards("4C 2S");
+  const theirs = new Set<Card>(Array.from({ length: 15 }, (_, i) => 20 + i));
+  const played = new Set<Card>();
+  for (let v = 0; v < 52; v++) if (!theirs.has(v) && !hand.includes(v)) played.add(v);
+  const pub = { me: 0, counts: [2, 5, 5, 5], lastPlay: null, passesInRow: 0, played, need3D: false };
+  const low = classify(parseCards("4C"), R)!;
+  const high = classify(parseCards("2S"), R)!;
+
+  test("plays the line that wins the round outright", () => {
+    expect(lookahead(pub, hand, [low, high], R, mulberry32(1))).toBe(high);
+    expect(lookahead(pub, hand, [high, low], R, mulberry32(1))).toBe(high);
+  });
+
+  test("is deterministic for its rng, and a single option is returned untouched", () => {
+    const a = lookahead(pub, hand, [low, high], R, mulberry32(9));
+    const b = lookahead(pub, hand, [low, high], R, mulberry32(9));
+    expect(a).toBe(b);
+    expect(lookahead(pub, hand, [low], R, mulberry32(9))).toBe(low);
   });
 });
 

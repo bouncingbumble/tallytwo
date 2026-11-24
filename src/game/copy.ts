@@ -73,7 +73,6 @@ export const COPY = {
     easy: "Greenhorn",
     medium: "Regular",
     hard: "Card sharp",
-    difficultyHint: "Card sharp plays the same as Regular for now",
     gameSpeed: "Game speed",
     gameSpeedHint: "How long the regulars sit on a decision",
     fast: "Fast",
