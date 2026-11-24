@@ -1,6 +1,10 @@
 # Plan: React → Phaser
 
-Status: **proposal**, not started. Target: Phaser **4.2.x** (`npm view phaser` → `latest: 4.2.1`).
+Status: **done — Option B (full Phaser, no React)**, in this folder (`~/Desktop/Tally Two Phaser`, branch `phaser`); the React app is untouched in `~/Desktop/Tally Two`. Phaser **4.2.1**.
+
+What was built, briefly: `GameStore` / `SettingsStore` / audio `director` (PURE, with a fake-clock test of the turn loop); `render/tableLayout.ts` (the CSS grid as tested rects); `src/phaser/` with Boot, Title, Table, Poster, Settings, HowTo, Crash and Rotate scenes, a director that picks scenes, pauses and rebuilds on resize, and a hand-built widget kit (Button, Switch, Slider, Picker, a camera-clipped scrolling sheet). Selects became ‹ › pickers. `e2e/play.mjs` was rewritten against `window.__tally.probe()` and passes 101/101 checks on the four device profiles. Not yet done: a run on real iPhone hardware (audio unlock, WebGL context loss, the Dynamic Island insets), and screen-reader access is down to an aria-live line for the sign and status.
+
+The original plan follows.
 
 ## 0. What changes and what does not
 

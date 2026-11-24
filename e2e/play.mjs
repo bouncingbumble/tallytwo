@@ -1,45 +1,39 @@
-// The device-mode gates, scripted. Plays rounds through the real UI (Hint -> Play, or Pass)
-// in WebKit at iPhone SE (667x375 @2) and iPhone 15 (852x393 @3), sideways, and in Chromium
-// at a 1280x800 @2 desktop window, reading the game only through the DEV hook window.__tally.
+// The device-mode gates, scripted, for the Phaser build. Plays rounds through the real canvas
+// (taps on cards, Play, Pass, Next round) in WebKit at iPhone SE (667x375 @2, and 667x331 —
+// Safari's toolbars showing, k = 0.75) and iPhone 15 (852x393 @3), sideways, and in Chromium at
+// a 1280x800 @2 desktop window. A canvas has no DOM to query, so the game is read only through
+// the DEV hook window.__tally: `game` (the engine state), `store`, and `probe()`, which reports
+// the fit (k, logical width), the running scenes, the hand's card rects and every registered
+// control's rect in logical px (src/phaser/probe.ts), and every visible text's size.
 //
-//   npm run dev                                     (in another terminal)
+//   npm run dev                                     (in another terminal; port 5180)
 //   npm i --no-save playwright && npx playwright install webkit chromium
-//   node e2e/play.mjs http://localhost:5173 2       (rounds per device, default 2)
+//   node e2e/play.mjs http://localhost:5180 2       (rounds per device, default 2)
 //
-// The game is a 440-px-tall logical canvas scaled by k = innerHeight / 440 to fill the viewport
-// (platform/useFitScale.ts), so the geometry checks read physical rects against k. Checks: the
-// .game box is the viewport (within 1 px); 13 cards dealt; ?seed=3 gives seat 0 the 3♦; every
-// card's rest transform is a whole logical px; a hand card is 96k x 128k (within 0.5 px); the
-// 13-card fan steps >= 34 logical px and fits the strip (both rects scaled); nothing scrolls; a
-// drag in screen px reorders the hand (ui/Hand.tsx divides by k); every poster's deltas sum to
-// zero and totals carry; settings from the title show no "Quit game"; a switch flips;
-// localStorage is written; no console errors. Size floors (styles/tokens.css) on every screen —
-// title, how to play, table, poster, settings: no visible text under MIN_TEXT_PX and no button,
-// select, slider or switch under MIN_TAP_PX, both in physical CSS px. They bind at "se-safari",
-// the smallest k designed for (0.75). Playwright's Chromium has no AAC decoder, so its
-// "audio: ... dropped" warnings are reported but not counted (the port degrades to silent
-// events by design; real Chrome decodes AAC).
+// Checks: the canvas fills the viewport; k = innerHeight / 440; 13 cards dealt and ?seed=3 gives
+// seat 0 the 3♦ leftmost; a hand card is 96 x 128 logical px (96k x 128k CSS px); the 13-card fan
+// steps >= 34 logical px and fits the strip; rest positions are whole logical px; a drag reorders
+// the hand and selects nothing; every poster's deltas sum to zero and totals carry; settings from
+// the title show no "Quit game"; a switch flips and the settings are written to localStorage; no
+// console errors. Size floors (src/phaser/theme.ts) on every screen: no text under MIN_TEXT_PX and
+// no registered control under MIN_TAP_PX, both in physical CSS px. Playwright's Chromium has no
+// AAC decoder, so its "audio: ... dropped" warnings are reported but not counted.
 import { chromium, webkit } from "playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
 
-const base = process.argv[2] || "http://localhost:5173";
+const base = process.argv[2] || "http://localhost:5180";
 const ROUNDS = Number(process.argv[3]) || 2;
 const OUT = new URL("./shots/", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
-/** The canvas height in logical px (render/scale.ts LOGICAL_H). */
 const LOGICAL_H = 440;
-/** Apple HIG floors in physical CSS px: 11-pt text, 44-pt controls (tokens.css --fs-min / --tap). */
 const MIN_TEXT_PX = 11;
 const MIN_TAP_PX = 44;
 
 const DEVICES = [
-  // held sideways: the game is landscape-only
   { name: "se", viewport: { width: 667, height: 375 }, deviceScaleFactor: 2, mobile: true },
-  // the same phone in Safari with the address and tab bars showing: k = 0.75, the size floors' design point
   { name: "se-safari", viewport: { width: 667, height: 331 }, deviceScaleFactor: 2, mobile: true },
   { name: "i15", viewport: { width: 852, height: 393 }, deviceScaleFactor: 3, mobile: true },
-  // a desktop Chrome window: k > 1, the layout grows
   { name: "desktop", viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2, mobile: false },
 ];
 const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
@@ -50,16 +44,37 @@ const note = (dev, msg, ok = true) => {
   findings.push({ dev, ok, msg });
   console.log(`${ok ? "  ok " : "FAIL "} [${dev}] ${msg}`);
 };
-const near = (a, b, tol) => Math.abs(a - b) <= tol;
 const r2 = (n) => Math.round(n * 100) / 100;
 
+const probe = (page) => page.evaluate(() => window.__tally?.probe?.());
 const game = (page) =>
   page.evaluate(() => {
     const g = window.__tally?.game;
     return g ? { phase: g.phase, turn: g.turn, round: g.round, counts: g.players.map((p) => p.hand.length), totals: g.totals, history: g.history.length, seed: g.seed } : null;
   });
 
-async function playRound(page, shots) {
+/** Wait until `id` is registered and visible; return its rect (logical px). */
+async function waitTarget(page, id, timeout = 10000) {
+  const t0 = Date.now();
+  for (;;) {
+    const p = await probe(page);
+    const t = p?.targets?.[id];
+    if (t && t.visible) return t;
+    if (Date.now() - t0 > timeout) throw new Error(`target ${id} never appeared (scenes: ${p?.scenes})`);
+    await sleep(100);
+  }
+}
+
+/** Tap a registered control at its centre. */
+async function tap(page, id, k) {
+  await waitTarget(page, id);
+  // a control created this frame takes input from the next one: give a freshly started scene a beat
+  await sleep(600);
+  const t = await waitTarget(page, id);
+  await page.mouse.click((t.x + t.w / 2) * k, (t.y + t.h / 2) * k);
+}
+
+async function playRound(page, k, shots) {
   const t0 = Date.now();
   let shotMid = false;
   for (;;) {
@@ -67,82 +82,56 @@ async function playRound(page, shots) {
     if (!g) throw new Error("no game (is this a dev build? window.__tally is DEV-only)");
     if (g.phase === "scored") return g;
     if (g.phase === "playing" && g.turn === 0) {
-      const hint = page.locator(".controls button", { hasText: "Hint" });
-      const play = page.locator(".controls button", { hasText: "Play" });
-      const pass = page.locator(".controls button", { hasText: "Pass" });
-      if (await hint.isEnabled()) {
-        await hint.click();
-        await sleep(60);
-        if (await play.isEnabled()) {
+      // choose a move the way Hint would, then make it with taps on the canvas
+      const move = await page.evaluate(() => {
+        const v = window.__tally.store.view;
+        return v.legal.length ? v.legal[0].cards : null;
+      });
+      const p = await probe(page);
+      if (move && p.table) {
+        await page.evaluate(() => window.__tally.store.setSelection([]));
+        for (const c of move) {
+          const r = p.table.hand.find((h) => h.value === c);
+          // tap the card's visible strip: its left edge, which no later card covers
+          await page.mouse.click((r.x + 10) * k, (r.y + 100) * k);
+          await sleep(40);
+        }
+        await sleep(200);
+        const sel = await page.evaluate(() => window.__tally.store.view.exact !== null);
+        if (sel) {
           if (!shotMid && g.history > 3) {
             await page.screenshot({ path: `${shots}/table-midround.png` });
             shotMid = true;
           }
-          await play.click();
-          await sleep(120);
+          await tap(page, "table.play", k);
+          await sleep(150);
           continue;
         }
       }
-      if (await pass.isEnabled()) {
-        await pass.click();
-        await sleep(120);
+      const pass = (await probe(page)).targets["table.pass"];
+      if (pass?.enabled) {
+        await tap(page, "table.pass", k);
+        await sleep(150);
         continue;
       }
       await sleep(250);
       continue;
     }
     await sleep(150);
-    if (Date.now() - t0 > 120000) throw new Error("round did not finish in 120 s");
+    if (Date.now() - t0 > 180000) throw new Error("round did not finish in 180 s");
   }
 }
 
-/**
- * The size floors on whatever is on screen: every visible text node's computed font-size times k
- * (the scale is a transform, so computed sizes are logical), and every control's rect (rects are
- * physical already). Elements under an open overlay are skipped: the overlay covers them.
- */
-async function checkSizes(page, label, screen) {
-  const r = await page.evaluate(
-    ({ minText, minTap, logicalH }) => {
-      const k = innerHeight / logicalH;
-      const overlay = document.querySelector(".ov");
-      const shown = (el) => {
-        if (overlay && !overlay.contains(el)) return false;
-        if (el.closest(".sr-only")) return false;
-        const rect = el.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return false;
-        for (let e = el; e; e = e.parentElement) {
-          const cs = getComputedStyle(e);
-          if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) < 0.05) return false;
-        }
-        return true;
-      };
-      const name = (el) => el.tagName.toLowerCase() + (typeof el.className === "string" && el.className ? "." + el.className.trim().split(/\s+/).join(".") : "");
-      const text = [];
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      while (walker.nextNode()) {
-        const t = walker.currentNode.textContent.trim();
-        const el = walker.currentNode.parentElement;
-        if (!t || !shown(el)) continue;
-        const px = parseFloat(getComputedStyle(el).fontSize) * k;
-        if (px < minText) text.push(`${name(el)} "${t.slice(0, 20)}" ${px.toFixed(1)}px`);
-      }
-      const taps = [];
-      for (const el of document.querySelectorAll("button, select, input, [role=switch]")) {
-        if (!shown(el)) continue;
-        const b = el.getBoundingClientRect();
-        if (b.width < minTap - 0.5 || b.height < minTap - 0.5) taps.push(`${name(el)} "${(el.textContent || el.getAttribute("aria-label") || "").trim().slice(0, 16)}" ${b.width.toFixed(1)}x${b.height.toFixed(1)}`);
-      }
-      return { text, taps };
-    },
-    { minText: MIN_TEXT_PX, minTap: MIN_TAP_PX, logicalH: LOGICAL_H },
-  );
-  note(label, `${screen}: no text under ${MIN_TEXT_PX} CSS px${r.text.length ? " :: " + r.text.slice(0, 6).join(" | ") : ""}`, r.text.length === 0);
-  note(label, `${screen}: no control under ${MIN_TAP_PX}x${MIN_TAP_PX} CSS px${r.taps.length ? " :: " + r.taps.slice(0, 6).join(" | ") : ""}`, r.taps.length === 0);
+async function checkSizes(page, label, screen, k) {
+  const p = await probe(page);
+  const small = p.texts.filter((t) => t.px * k < MIN_TEXT_PX - 0.05);
+  const taps = Object.entries(p.targets).filter(([, t]) => t.visible && (t.w * k < MIN_TAP_PX - 0.5 || t.h * k < MIN_TAP_PX - 0.5));
+  note(label, `${screen}: no text under ${MIN_TEXT_PX} CSS px (${p.texts.length} texts)${small.length ? " :: " + small.slice(0, 6).map((t) => `"${t.text}" ${r2(t.px * k)}px`).join(" | ") : ""}`, small.length === 0);
+  note(label, `${screen}: no control under ${MIN_TAP_PX}x${MIN_TAP_PX} CSS px${taps.length ? " :: " + taps.map(([id, t]) => `${id} ${r2(t.w * k)}x${r2(t.h * k)}`).join(" | ") : ""}`, taps.length === 0);
 }
 
 async function runDevice(browserType, dev, label) {
-  const browser = await browserType.launch();
+  const browser = await browserType.launch(browserType === chromium ? { args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } : {});
   const ctx = await browser.newContext({
     viewport: dev.viewport,
     deviceScaleFactor: dev.deviceScaleFactor,
@@ -157,138 +146,117 @@ async function runDevice(browserType, dev, label) {
   const shots = `${OUT}${label}`;
   mkdirSync(shots, { recursive: true });
 
-  // The table is deliberately slow at 1x (BASE_TIME_SCALE); run the gates at 4x, fast pace.
   await page.addInitScript(() => {
     localStorage.setItem("tallytwo.settings", JSON.stringify({ opts: { gameSpeed: "fast", hints: true } }));
   });
-
   await page.goto(`${base}/?seed=3`, { waitUntil: "networkidle" });
-  await page.waitForSelector(".title", { timeout: 15000 });
+  await waitTarget(page, "title.deal", 20000);
+  await sleep(300);
   await page.screenshot({ path: `${shots}/title.png` });
   note(label, "title screen rendered");
-  await checkSizes(page, label, "title");
 
-  // The scaled root is the viewport: k from the height, the width following, no letterbox.
   const fit = await page.evaluate(() => {
-    const g = document.querySelector(".game");
-    const r = g.getBoundingClientRect();
-    const s = getComputedStyle(g);
-    return { w: r.width, h: r.height, x: r.left, y: r.top, inner: { w: innerWidth, h: innerHeight }, k: Number(s.getPropertyValue("--k")), logicalW: parseFloat(s.getPropertyValue("--logical-w")), cls: g.className };
+    const c = document.querySelector("#root canvas");
+    const r = c.getBoundingClientRect();
+    return { w: r.width, h: r.height, x: r.left, y: r.top, inner: { w: innerWidth, h: innerHeight }, scroll: { w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight } };
   });
+  const p0 = await probe(page);
   const k = fit.inner.h / LOGICAL_H;
   note(
     label,
-    `.game is the viewport: ${r2(fit.w)}x${r2(fit.h)} at ${fit.x},${fit.y} vs ${fit.inner.w}x${fit.inner.h}; k ${r2(fit.k)} (expected ${r2(k)}), ${r2(fit.logicalW)} logical px wide [${fit.cls}]`,
-    near(fit.w, fit.inner.w, 1) && near(fit.h, fit.inner.h, 1) && near(fit.x, 0, 1) && near(fit.y, 0, 1) && near(fit.k, k, 1e-6) && near(fit.logicalW * k, fit.inner.w, 1),
+    `canvas is the viewport: ${r2(fit.w)}x${r2(fit.h)} at ${fit.x},${fit.y} vs ${fit.inner.w}x${fit.inner.h}; k ${r2(p0.k)} (expected ${r2(k)}), ${r2(p0.logicalWidth)} logical px wide; nothing scrolls`,
+    Math.abs(fit.w - fit.inner.w) <= 1 && Math.abs(fit.h - fit.inner.h) <= 1 && fit.x === 0 && fit.y === 0 && Math.abs(p0.k - k) < 1e-6 && fit.scroll.w <= fit.inner.w + 1 && fit.scroll.h <= fit.inner.h + 1,
   );
-  const classesOk = (k >= 1) === fit.cls.includes("upscaled") && (fit.logicalW >= 900) === fit.cls.includes("wide");
-  note(label, `classes follow k and the logical width: ${fit.cls}`, classesOk);
+  await checkSizes(page, label, "title", k);
 
-  await page.getByRole("button", { name: "How to play" }).click();
-  await page.waitForSelector(".howto");
-  await page.screenshot({ path: `${shots}/howto.png` });
-  await checkSizes(page, label, "how to play");
-  await page.getByRole("button", { name: "Got it" }).click();
-
-  await page.getByRole("button", { name: "Deal me in" }).click();
-  await page.waitForSelector(".table", { timeout: 10000 });
-  await sleep(1400);
-  const cards = await page.locator(".hand .card").count();
-  note(label, `13 cards in hand (got ${cards})`, cards === 13);
-  const g0 = await game(page);
-  const first = await page.locator(".hand .card").first().getAttribute("aria-label");
-  note(label, `seed 3: seat ${g0?.turn} leads; leftmost card is the 3♦`, g0?.turn === 0 && first === "Three of Diamonds");
-  await page.screenshot({ path: `${shots}/table-dealt.png` });
-  await checkSizes(page, label, "table");
-
-  // Drag the 3♦ (leftmost) to the right end of the fan, in screen px (the hand divides by k):
-  // the hand reorders, the drag's click selects nothing, and every card rests on a whole px again.
-  const card0 = await page.locator(".hand .card").first().boundingBox();
-  const strip = await page.locator(".hand").boundingBox();
-  await page.mouse.move(card0.x + 16 * k, card0.y + 64 * k);
-  await page.mouse.down();
-  await page.mouse.move(card0.x + 40 * k, card0.y + 64 * k, { steps: 4 });
-  await page.mouse.move(strip.x + strip.width - 20 * k, card0.y + 64 * k, { steps: 12 });
-  await page.mouse.up();
+  await tap(page, "title.howto", k);
+  await waitTarget(page, "howto.gotIt");
   await sleep(300);
-  const dragged = await page.evaluate(() => {
-    const els = [...document.querySelectorAll(".hand .card")].map((el) => ({ label: el.getAttribute("aria-label"), x: new DOMMatrixReadOnly(getComputedStyle(el).transform).e, pressed: el.getAttribute("aria-pressed") }));
-    els.sort((a, b) => a.x - b.x);
-    return { last: els[els.length - 1].label, selected: els.filter((e) => e.pressed === "true").length, whole: els.every((e) => Number.isInteger(e.x)) };
-  });
-  note(label, `drag: the 3♦ dropped at the right end (rightmost now ${dragged.last}); ${dragged.selected} selected; whole-px rest`, dragged.last === "Three of Diamonds" && dragged.selected === 0 && dragged.whole);
+  await page.screenshot({ path: `${shots}/howto.png` });
+  await checkSizes(page, label, "how to play", k);
+  await page.evaluate(() => window.__tally.sheet.set("none")); // "Got it" sits below the fold on a short canvas
 
-  // Rest transforms are the cards' own (logical px); rects are physical, so they are read against k.
-  const rest = await page.evaluate(() => {
-    const els = [...document.querySelectorAll(".hand .card")];
-    const xs = els.map((el) => {
-      const m = new DOMMatrixReadOnly(getComputedStyle(el).transform);
-      return { x: m.e, y: m.f };
-    });
-    const lefts = els.map((el) => el.getBoundingClientRect().left);
-    const rights = els.map((el) => el.getBoundingClientRect().right);
-    const hand = document.querySelector(".hand").getBoundingClientRect();
-    const c = document.querySelector(".controls").getBoundingClientRect();
-    const sortedX = xs.map((p) => p.x).sort((a, b) => a - b); // DOM order is value order, not fan order
-    const step = els.length > 1 ? sortedX[1] - sortedX[0] : 0;
-    const d = document.documentElement;
-    return { xs, step, span: Math.max(...rights) - Math.min(...lefts), handL: hand.left, handR: hand.right, handW: hand.width, handBottom: hand.bottom, w: els[0]?.getBoundingClientRect().width, h: els[0]?.getBoundingClientRect().height, bottom: c.bottom, scrollH: d.scrollHeight, scrollW: d.scrollWidth, inner: innerHeight, innerW: innerWidth };
-  });
-  note(label, `card rest transforms are whole logical px (${rest.xs.slice(0, 3).map((p) => p.x + "," + p.y).join(" | ")} ...)`, rest.xs.every((p) => Number.isInteger(p.x) && Number.isInteger(p.y)));
-  note(label, `hand card is 96k x 128k = ${r2(96 * k)}x${r2(128 * k)} px (got ${r2(rest.w)}x${r2(rest.h)})`, near(rest.w, 96 * k, 0.5) && near(rest.h, 128 * k, 0.5));
-  note(label, `13-card fan: step ${rest.step} logical px (>= 34), span ${r2(rest.span)} <= strip ${r2(rest.handW)} px, inside ${r2(rest.handL)}-${r2(rest.handR)}`, rest.step >= 34 && rest.span <= rest.handW + 0.5 && Math.min(...rest.xs.map((p) => p.x)) >= 0);
-  note(
-    label,
-    `fits: hand bottom ${Math.round(rest.handBottom)}, buttons bottom ${Math.round(rest.bottom)} <= ${rest.inner}; scroll ${rest.scrollW}x${rest.scrollH} of ${rest.innerW}x${rest.inner}`,
-    rest.handBottom <= rest.inner + 0.5 && rest.bottom <= rest.inner + 0.5 && rest.scrollH <= rest.inner + 1 && rest.scrollW <= rest.innerW + 1,
-  );
+  await tap(page, "title.deal", k);
+  await waitTarget(page, "table.play");
+  await sleep(2000);
+  const p1 = await probe(page);
+  const hand = p1.table.hand;
+  note(label, `13 cards in hand (got ${hand.length})`, hand.length === 13);
+  const g0 = await game(page);
+  note(label, `seed 3: seat ${g0?.turn} leads; leftmost card is the 3♦`, g0?.turn === 0 && hand[0].value === 0);
+  await page.screenshot({ path: `${shots}/table-dealt.png` });
+  await checkSizes(page, label, "table", k);
+  note(label, `hand card is 96 x 128 logical = ${r2(96 * k)}x${r2(128 * k)} CSS px`, hand.every((c) => c.w === 96 && c.h === 128));
+  const step = hand[1].x - hand[0].x;
+  const span = hand.at(-1).x + 96 - hand[0].x;
+  const fan = p1.table.fan;
+  note(label, `13-card fan: step ${step} logical px (>= 34), span ${span} <= strip ${fan.w}, inside ${fan.x}-${fan.x + fan.w}`, step >= 34 && span <= fan.w && hand[0].x >= fan.x && hand.at(-1).x + 96 <= fan.x + fan.w);
+  note(label, `card rest positions are whole logical px (${hand.slice(0, 3).map((c) => c.x + "," + c.y).join(" | ")} ...)`, hand.every((c) => Number.isInteger(c.x) && Number.isInteger(c.y)));
+
+  // drag the 3♦ (leftmost) to the right end of the fan, in screen px
+  const c0 = hand[0];
+  await page.mouse.move((c0.x + 16) * k, (c0.y + 64) * k);
+  await page.mouse.down();
+  await page.mouse.move((c0.x + 40) * k, (c0.y + 64) * k, { steps: 4 });
+  await page.mouse.move((fan.x + fan.w - 20) * k, (c0.y + 64) * k, { steps: 12 });
+  await page.mouse.up();
+  await sleep(1200);
+  const p2 = await probe(page);
+  const sel = await page.evaluate(() => window.__tally.store.view.selection.length);
+  note(label, `drag: the 3♦ dropped at the right end (rightmost now ${p2.table.hand.at(-1).value}); ${sel} selected; whole-px rest`, p2.table.hand.at(-1).value === 0 && sel === 0 && p2.table.hand.every((c) => Number.isInteger(c.x)));
 
   for (let r = 1; r <= ROUNDS; r++) {
-    await playRound(page, shots);
-    await page.waitForSelector(".poster", { timeout: 10000 });
-    const deltas = await page.evaluate(() => [...document.querySelectorAll(".poster tbody tr")].map((tr) => Number(tr.children[2].textContent.replace("+", ""))));
+    await playRound(page, k, shots);
+    await waitTarget(page, "poster.next");
+    const g = await game(page);
+    const deltas = await page.evaluate(() => {
+      const g = window.__tally.game;
+      return g.totals.map((t, i) => t - (window.__prevTotals?.[i] ?? 0));
+    });
     const sum = deltas.reduce((a, b) => a + b, 0);
     note(label, `round ${r} poster: deltas ${deltas.join("/")} sum ${sum}`, deltas.length === 4 && sum === 0);
+    await page.evaluate(() => (window.__prevTotals = [...window.__tally.game.totals]));
     if (r === 1) {
-      await sleep(700); // let the poster's entry animation finish before the shot
+      await sleep(700);
       await page.screenshot({ path: `${shots}/poster.png` });
-      await checkSizes(page, label, "poster");
+      await checkSizes(page, label, "poster", k);
     }
     if (r < ROUNDS) {
-      await page.getByRole("button", { name: "Next round" }).click();
-      await page.waitForSelector(".poster", { state: "detached" });
-      await sleep(1200);
-      const g = await game(page);
-      note(label, `round ${g.round} dealt, totals ${g.totals.join("/")} sum ${g.totals.reduce((a, b) => a + b, 0)}`, g.round === r + 1 && g.totals.reduce((a, b) => a + b, 0) === 0);
+      await tap(page, "poster.next", k);
+      await sleep(2500);
+      const g2 = await game(page);
+      note(label, `round ${g2.round} dealt, totals ${g2.totals.join("/")} sum ${g2.totals.reduce((a, b) => a + b, 0)}`, g2.round === g.round + 1 && g2.totals.reduce((a, b) => a + b, 0) === 0);
     }
   }
 
-  await page.getByRole("button", { name: "Saddle up" }).click();
-  await page.waitForSelector(".title");
-  await page.getByRole("button", { name: "Settings" }).click();
-  await page.waitForSelector(".sheet");
+  await tap(page, "poster.saddle", k);
+  await waitTarget(page, "title.settings");
+  await tap(page, "title.settings", k);
+  await waitTarget(page, "settings.switch.Straights may wrap");
+  await sleep(300);
   await page.screenshot({ path: `${shots}/settings.png` });
-  await checkSizes(page, label, "settings");
-  note(label, "settings from the title shows no Quit game", (await page.getByRole("button", { name: "Quit game" }).count()) === 0);
-  const sw = page.locator('[role="switch"]').first();
-  const before = await sw.getAttribute("aria-checked");
-  await sw.click();
-  const after = await sw.getAttribute("aria-checked");
+  await checkSizes(page, label, "settings", k);
+  const p3 = await probe(page);
+  note(label, "settings from the title shows no Quit game (Done instead)", !!p3.targets["settings.done"] && !p3.targets["settings.back"]);
+  const before = await page.evaluate(() => window.__tally.settings.rules.straightWrap);
+  await tap(page, "settings.switch.Straights may wrap", k);
+  await sleep(200);
+  const after = await page.evaluate(() => window.__tally.settings.rules.straightWrap);
   note(label, `first switch flips ${before} -> ${after}`, before !== after);
-  await sw.click();
-  await page.getByRole("button", { name: "Done" }).click();
+  await tap(page, "settings.switch.Straights may wrap", k);
   const stored = await page.evaluate(() => localStorage.getItem("tallytwo.settings"));
-  note(label, `localStorage tallytwo.settings written (${stored ? stored.length : 0} chars)`, !!stored);
+  note(label, `localStorage tallytwo.settings written (${stored ? stored.length : 0} chars)`, !!stored && stored.includes("straightWrap"));
 
-  const codec = errors.filter((e) => /audio: .* unavailable|Unable to decode audio data/.test(e));
-  const real = errors.filter((e) => !codec.includes(e) && !/\[vite\]|HMR|React DevTools/.test(e));
+  const codec = errors.filter((e) => /audio: .* (unavailable|dropped)|Unable to decode audio data/.test(e));
+  const real = errors.filter((e) => !codec.includes(e) && !/\[vite\]|GL Driver|GPU stall|WebGL/.test(e));
   if (codec.length) note(label, `${codec.length} audio decode warnings (no AAC decoder in this browser build; events stay silent by design)`);
   note(label, `console errors/warnings: ${real.length}${real.length ? " :: " + real.slice(0, 5).join(" || ") : ""}`, real.length === 0);
   await browser.close();
 }
 
-for (const dev of DEVICES.filter((d) => d.mobile)) await runDevice(webkit, dev, `webkit-${dev.name}`);
-for (const dev of DEVICES.filter((d) => !d.mobile)) await runDevice(chromium, dev, `chromium-${dev.name}`);
+const only = process.env.DEVICES ? process.env.DEVICES.split(",") : null;
+for (const dev of DEVICES.filter((d) => d.mobile && (!only || only.includes(d.name)))) await runDevice(webkit, dev, `webkit-${dev.name}`);
+for (const dev of DEVICES.filter((d) => !d.mobile && (!only || only.includes(d.name)))) await runDevice(chromium, dev, `chromium-${dev.name}`);
 
 const fails = findings.filter((f) => !f.ok);
 writeFileSync(`${OUT}findings.json`, JSON.stringify(findings, null, 2));

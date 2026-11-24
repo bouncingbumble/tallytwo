@@ -1,12 +1,12 @@
 /**
  * settings.ts: parseSettings merges any blob over DEFAULTS without ever throwing — the
- * prototype's exact localStorage blob included — and the SettingsProvider reducer hydrates and
+ * prototype's exact localStorage blob included — and the settings store reducer hydrates and
  * merges patches. The StoragePort round-trip uses the in-memory port.
  */
 import { expect, test } from "vitest";
 import { DEFAULT_RULES } from "../engine/rules";
 import { DEFAULTS, KEY, type Settings, parseSettings, serializeSettings } from "./settings";
-import { SETTINGS_INITIAL, settingsReduce } from "./SettingsProvider";
+import { SETTINGS_INITIAL, settingsReduce } from "./store";
 import { memoryStorage } from "./storage";
 
 /** What a returning player has under KEY (P:685, saved by saveOpts). */

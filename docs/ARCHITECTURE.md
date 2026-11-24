@@ -1,5 +1,7 @@
 # Architecture
 
+> **Phaser port.** This document was written for the React build. The engine, AI, selectors, timing, audio and shell sections (§1-2, §4, §7-8, §11) still hold. What changed: React's `GameProvider` + `useTurnLoop` + `useBarks` are now one framework-free `GameStore` (`src/game/store.ts`) with a `ClockPort`, so §3's data flow and §6's reference-stability rules now live in that class (the loop re-arms only when the game, pause, crash or speed/difficulty change); §5's ErrorBoundary is a `window` error listener feeding the same crash sheet; §9-10's DOM/CSS rendering is Phaser scenes (`src/phaser/`) — the backing canvas is the viewport × devicePixelRatio, every camera zooms by k × dpr from its top-left so scenes lay out in the same 440-px logical px, the table grid is `render/tableLayout.ts`, art textures switch to NEAREST at k ≥ 1, and text is rasterised at that zoom. See `docs/PHASER_MIGRATION.md`.
+
 How Tally Two is put together and why. This is the long version of the README, and it records what the device checks found. `P:<line>` in doc comments cites a line of the original browser prototype the behaviour was copied from; that file is not in this repo, so read those as provenance, not links.
 
 ## 1. The one idea

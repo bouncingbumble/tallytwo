@@ -4,7 +4,6 @@
 import { appendFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import react from "@vitejs/plugin-react";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 
@@ -84,7 +83,9 @@ const base = process.env.BASE_PATH ?? "/";
 
 export default defineConfig({
   base,
-  plugins: [react(), assetNotes()],
+  plugins: [assetNotes()],
+  // Phaser is one ~1.4 MB chunk (≈400 kB gzipped); a one-time download, and splitting it buys nothing.
+  build: { chunkSizeWarningLimit: 1600 },
   test: {
     environment: "node",
     include: ["src/**/*.test.{ts,tsx}"],

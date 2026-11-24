@@ -15,7 +15,7 @@
  * `createBridge(win)` exists so bridge.test.ts can drive the whole thing with a fake window
  * under node; the app only ever uses the `bridge` singleton below.
  */
-import type { ShellPort } from "../game/useGame";
+import type { ShellPort } from "../game/store";
 import { type InboundPayloads, type InboundType, type Insets, type OutboundMessage, type OutboundPayloads, type OutboundType, type RequestType, decode, encode, envelope, isRequestType, replyId } from "./bridgeProtocol";
 
 export type Host = "ios" | "android" | "iframe" | null;
