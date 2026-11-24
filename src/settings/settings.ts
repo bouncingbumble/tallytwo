@@ -13,6 +13,15 @@ export interface Volume {
   sfx: number;
 }
 
+/**
+ * Motion: "auto" follows the device's reduce-motion setting (live), "full" and "reduced"
+ * override it. Reduced cuts every presentation tween to nothing (phaser/motion.ts).
+ */
+export type MotionPref = "auto" | "full" | "reduced";
+export const MOTION_PREFS: readonly MotionPref[] = ["auto", "full", "reduced"];
+/** Whether presentation motion is off, given the setting and the device's reduce-motion flag. */
+export const motionReduced = (pref: MotionPref, deviceReduced: boolean): boolean => pref === "reduced" || (pref === "auto" && deviceReduced);
+
 export interface Opts {
   difficulty: Difficulty;
   /** Game speed: one setting for the AI's think time and every wait at the table (timing.ts SPEED). */
@@ -23,6 +32,7 @@ export interface Opts {
   sfx: boolean;
   /** 0-1 multipliers over the sfxTable gains. */
   volume: Volume;
+  motion: MotionPref;
 }
 
 export interface Settings {
@@ -38,6 +48,7 @@ export const DEFAULTS: Settings = {
     hints: false,
     sfx: true,
     volume: { music: 1, sfx: 1 },
+    motion: "auto",
   },
 };
 
@@ -91,6 +102,8 @@ export function parseSettings(raw: string | null | undefined): Settings {
         music: o.music === false ? 0 : unit(vol.music, D.opts.volume.music),
         sfx: unit(vol.sfx, D.opts.volume.sfx),
       },
+      // the prototype's reduceMotion switch, when it was on, is kept as an explicit "reduced"
+      motion: oneOf<MotionPref>(o.motion, MOTION_PREFS, o.reduceMotion === true ? "reduced" : D.opts.motion),
     },
   };
 }

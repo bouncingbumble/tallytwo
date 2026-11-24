@@ -10,9 +10,10 @@
  */
 import { COPY } from "../../game/copy";
 import { newSeed } from "../../game/seeds";
-import { DOORS_MS } from "../../game/timing";
+import { DOORS_FRAMES_MS, DOORS_MS, EASE, MOTION } from "../../game/timing";
 import { WIDE_W } from "../../platform/env";
 import { art, standing } from "../art";
+import { ms } from "../motion";
 import { painted, text } from "../paint";
 import { CSS, FS_BODY, TAP, WESTERN } from "../theme";
 import { target } from "../probe";
@@ -135,12 +136,13 @@ export class TitleScene extends BaseScene {
       if (this.#dealing) return; // the doors are already swinging: a double tap deals once
       this.#dealing = true;
       void game.audio.init();
-      this.tweens.add({ targets: glow, alpha: 0.95, duration: 500, ease: "Sine.InOut" });
-      this.after(200, () => {
+      if (ms(MOTION.doorsGlow)) this.tweens.add({ targets: glow, alpha: 0.95, duration: ms(MOTION.doorsGlow), ease: EASE.inOut });
+      else glow.setAlpha(0.95);
+      this.after(DOORS_FRAMES_MS.ajar, () => {
         closed.setVisible(false);
         ajar.setVisible(true);
       });
-      this.after(420, () => {
+      this.after(DOORS_FRAMES_MS.open, () => {
         ajar.setVisible(false);
         open.setVisible(true);
       });

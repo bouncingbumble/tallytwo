@@ -10,7 +10,9 @@
 import { COPY } from "../../game/copy";
 import { newSeed } from "../../game/seeds";
 import { HUMAN, matchOver, matchWinner, portraitFor, roundDeltas, roundWinner, scoreRows } from "../../game/selectors";
+import { EASE, MOTION } from "../../game/timing";
 import { art } from "../art";
+import { ms } from "../motion";
 import { painted, roundRect, text } from "../paint";
 import { CSS, FS_EM, FS_MIN, TAP, WESTERN } from "../theme";
 import { target } from "../probe";
@@ -152,7 +154,9 @@ export class PosterScene extends BaseScene {
     layer.setPosition(PAD, PAD);
     const poster = this.add.container(px, py, [paper, layer]).setScale(scale);
     this.data.set("scale", scale);
-    poster.setAlpha(0);
-    this.tweens.add({ targets: poster, alpha: 1, duration: 180 });
+    if (ms(MOTION.uiIn)) {
+      poster.setAlpha(0);
+      this.tweens.add({ targets: poster, alpha: 1, duration: ms(MOTION.uiIn), ease: EASE.fadeIn });
+    }
   }
 }

@@ -7,6 +7,9 @@
 import Phaser from "phaser";
 import { dropShadow, insetStroke, painted, roundRect, text, vgrad } from "./paint";
 import { C, CSS, FS_EM, TAP } from "./theme";
+import { EASE, MOTION } from "../game/timing";
+import { press } from "./fx";
+import { ms } from "./motion";
 import { markDirty } from "./onDemand";
 import { zoomOf } from "./viewport";
 
@@ -80,6 +83,8 @@ export class Button extends Phaser.GameObjects.Container {
   #up: Phaser.GameObjects.Image;
   #down: Phaser.GameObjects.Image;
   #label: Phaser.GameObjects.Text;
+  /** The drawing, centred on the button so the press squish shrinks it about its middle; the hit zone stays put. */
+  #face: Phaser.GameObjects.Container;
   #enabled = true;
   #kind: ButtonKind;
   #zone: Phaser.GameObjects.Zone;
@@ -90,9 +95,11 @@ export class Button extends Phaser.GameObjects.Container {
     this.h = Math.max(TAP, h);
     this.#kind = o.kind ?? "normal";
     const bh = this.h - (FACE[this.#kind].base ? 3 : 0);
-    this.#up = painted(scene, `btn-${this.#kind}-up`, 0, 0, w, bh, buttonPainter(this.#kind, false), 3);
-    this.#down = painted(scene, `btn-${this.#kind}-down`, 0, 0, w, bh, buttonPainter(this.#kind, true), 3).setVisible(false);
-    this.#label = text(scene, w / 2, bh / 2, label, { size: o.size ?? FS_EM, color: FACE[this.#kind].text, bold: FACE[this.#kind].bold, font: o.font, align: "center", wrap: w - 12 }).setOrigin(0.5, 0.5);
+    const cx = w / 2;
+    const cy = this.h / 2;
+    this.#up = painted(scene, `btn-${this.#kind}-up`, -cx, -cy, w, bh, buttonPainter(this.#kind, false), 3);
+    this.#down = painted(scene, `btn-${this.#kind}-down`, -cx, -cy, w, bh, buttonPainter(this.#kind, true), 3).setVisible(false);
+    this.#label = text(scene, 0, bh / 2 - cy, label, { size: o.size ?? FS_EM, color: FACE[this.#kind].text, bold: FACE[this.#kind].bold, font: o.font, align: "center", wrap: w - 12 }).setOrigin(0.5, 0.5);
     this.#zone = tapZone(
       scene,
       w,
@@ -102,14 +109,17 @@ export class Button extends Phaser.GameObjects.Container {
       },
       (down) => this.#press(down && this.#enabled),
     );
-    this.add([this.#up, this.#down, this.#label, this.#zone]);
+    this.#face = scene.add.container(cx, cy, [this.#up, this.#down, this.#label]);
+    this.add([this.#face, this.#zone]);
     scene.add.existing(this);
   }
 
   #press(down: boolean): void {
+    const was = this.#down.visible;
     this.#up.setVisible(!down);
     this.#down.setVisible(down);
-    this.#label.setY((this.h - (FACE[this.#kind].base ? 3 : 0)) / 2 + (down ? 3 : 0));
+    this.#label.setY((this.h - (FACE[this.#kind].base ? 3 : 0)) / 2 - this.h / 2 + (down ? 3 : 0));
+    if (down !== was) press(this.scene, this.#face, down);
   }
 
   setEnabled(on: boolean): this {
@@ -174,7 +184,7 @@ export class Switch extends Phaser.GameObjects.Container {
     g.strokeRoundedRect(6.5, TAP / 2 - 16.5, 59, 33, 16.5);
     const x = this.#on ? 49 : 23;
     this.#knob.setFillStyle(this.#on ? C.amber : C.dust);
-    if (animate) this.scene.tweens.add({ targets: this.#knob, x, duration: 150, ease: "Sine.Out" });
+    if (animate && ms(MOTION.knob)) this.scene.tweens.add({ targets: this.#knob, x, duration: ms(MOTION.knob), ease: EASE.fadeIn });
     else this.#knob.setX(x);
   }
 

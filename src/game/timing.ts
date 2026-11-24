@@ -84,3 +84,62 @@ export const BARK_CHANCE = 0.55;
 export const SELECT_MS = 160;
 /** How long the "Final round" banner stays over the felt at the start of the last round. */
 export const FINAL_ROUND_MS = 3200;
+
+/* ---- Presentation motion (docs/MOBILE_UX_PLAN.md §1.5, §2.1) ----
+ *
+ * How long things take to *look* like they happen, as opposed to the table's pace above. Not
+ * paced by Game speed. Bands: feedback 80-150 ms, UI transitions 180-350 ms, emphasis 400-700 ms;
+ * the long runs (bark, banner) are how long a thing stays on screen. Under reduced motion every
+ * one of these becomes 0 (phaser/motion.ts ms()); the store's timers still decide when things
+ * appear and go.
+ */
+export const MOTION = {
+  /** A control squished under a finger, and back. */
+  press: 80,
+  /** A one-shot pop: a count ticking, a card painted into the selection. */
+  micro: 120,
+  /** A "no" shake: a disabled control or a card that cannot be played, tapped. */
+  shake: 260,
+  /** The select lift and the hand's slide (table.css: 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.2)). */
+  slide: 160,
+  /** A switch's knob. */
+  knob: 150,
+  /** An overlay or sheet coming in. */
+  uiIn: 260,
+  /** An overlay or sheet going away. */
+  uiOut: 180,
+  /** One card's fly-in at the deal (motion.css `deal`, 0.38s ease). */
+  dealIn: 380,
+  /** Something that should be noticed: a turn arriving, a trick won. */
+  emphasis: 450,
+  /** The title doors' glow brightening as they swing. */
+  doorsGlow: 500,
+  /** After a play, the remaining cards close the gap 4x slower than a slide. */
+  settle: 640,
+  /** A looping pulse's period (an idle reminder). */
+  pulse: 1200,
+  /** The bark bubble's run (motion.css barkin 1.9s): in over the first 10 %, out over the last 15 %. */
+  bark: 1900,
+  /** The final-round banner's run (motion.css announce 3.2s). */
+  announce: 3200,
+} as const;
+
+/** The doors' sprite frames: ajar, then open, inside DOORS_MS. */
+export const DOORS_FRAMES_MS = { ajar: 200, open: 420 } as const;
+/** A button that copied something says "Copied" this long. */
+export const COPIED_MS = 1500;
+
+/**
+ * Named easings (Phaser ease names). Enter decelerates, exit accelerates, `land` overshoots a
+ * little and is only for short moves (<= 300 ms: a long overshoot reads as a wobble, PERF_PLAN
+ * 2.5), `settle` glides in without one.
+ */
+export const EASE = {
+  enter: "Cubic.Out",
+  exit: "Cubic.In",
+  land: "Back.Out",
+  settle: "Cubic.Out",
+  inOut: "Sine.InOut",
+  fadeIn: "Sine.Out",
+  fadeOut: "Sine.In",
+} as const;

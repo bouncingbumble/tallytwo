@@ -21,6 +21,7 @@ import { install, watchInstall } from "./platform/install";
 import { registerOffline, updates } from "./platform/offline";
 import { webStorage } from "./platform/webStorage";
 import { direct } from "./phaser/director";
+import { bindMotion } from "./phaser/motion";
 import { markDirty, renderOnDemand } from "./phaser/onDemand";
 import { installPerf, perfEnabled } from "./phaser/perf";
 import { BootScene } from "./phaser/scenes/Boot";
@@ -67,6 +68,7 @@ function boot(): void {
     game.setOpts(pick());
   });
   void settings.hydrate();
+  bindMotion(() => settings.opts.motion); // Settings › Motion, read live by every tween (phaser/motion.ts)
   const sheet = new Value<Sheet>("none");
   const fault = new Value<Error | null>(null);
   provide({ game, settings, sheet, seed: readSeed(), fault, update: updates, install });

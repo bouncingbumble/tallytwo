@@ -89,6 +89,27 @@ test("SCENES: src/phaser/** imports engine/reducer and ai only as `import type`"
   expect(offenders, offenders.join("\n")).toEqual([]);
 });
 
+/**
+ * Every presentation duration is a token in game/timing.ts (MOTION, EASE, DOORS_FRAMES_MS, ...;
+ * docs/MOBILE_UX_PLAN.md §2.1), so motion can be tuned in one place and reduced motion reaches
+ * all of it. A number written straight into a tween or a scene timer is the thing this stops.
+ */
+const TIMING_LITERAL = [/\b(duration|delay|hold|repeatDelay)\s*:\s*\d/, /\b(after|delayedCall)\(\s*\d/];
+
+test("SCENES: no tween or timer duration written as a number literal (use game/timing.ts)", () => {
+  const offenders: string[] = [];
+  for (const file of walk(join(SRC, "phaser"))) {
+    const r = rel(file);
+    if (/\.test\.tsx?$/.test(r)) continue;
+    readFileSync(file, "utf8")
+      .split("\n")
+      .forEach((line, i) => {
+        if (TIMING_LITERAL.some((re) => re.test(line))) offenders.push(`src/${r}:${i + 1}: ${line.trim()}`);
+      });
+  }
+  expect(offenders, offenders.join("\n")).toEqual([]);
+});
+
 test("the phaser/ walk sees the scenes (the rule is not vacuous)", () => {
   expect(walk(join(SRC, "phaser")).map(rel)).toEqual(expect.arrayContaining(["phaser/cards.ts", "phaser/table/Hand.ts", "phaser/scenes/Table.ts"]));
 });

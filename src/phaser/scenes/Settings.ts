@@ -10,8 +10,8 @@ import type { Difficulty } from "../../ai/choose";
 import { serializeLog } from "../../game/appReducer";
 import { COPY } from "../../game/copy";
 import { gameLog } from "../../game/selectors";
-import type { GameSpeed } from "../../game/timing";
-import type { Volume } from "../../settings/settings";
+import { COPIED_MS, type GameSpeed } from "../../game/timing";
+import type { MotionPref, Volume } from "../../settings/settings";
 import { text } from "../paint";
 import { copyText } from "../services";
 import { CSS, FS_BODY, FS_EM, FS_MIN, TAP, WESTERN } from "../theme";
@@ -30,10 +30,13 @@ const GAME_SPEED: readonly { value: GameSpeed; label: string }[] = [
   { value: "normal", label: t.normal },
   { value: "fast", label: t.fast },
 ];
+const MOTION_PICK: readonly { value: MotionPref; label: string }[] = [
+  { value: "auto", label: t.motionAuto },
+  { value: "full", label: t.motionFull },
+  { value: "reduced", label: t.motionReduced },
+];
 const PICKER_W = 176;
 const SLIDER_W = 200;
-/** timing.ts holds every game ms; this is the "Copied" flash. */
-const COPIED_MS = 1500;
 
 export class SettingsScene extends SheetScene {
   constructor() {
@@ -100,6 +103,7 @@ export class SettingsScene extends SheetScene {
     heading(t.tableFeel);
     row(t.difficulty, undefined, PICKER_W, (x, ry) => new Picker(this, x, ry, PICKER_W, DIFFICULTY, opts().difficulty, (v) => settings.setOpts({ difficulty: v })));
     row(t.gameSpeed, t.gameSpeedHint, PICKER_W, (x, ry) => new Picker(this, x, ry, PICKER_W, GAME_SPEED, opts().gameSpeed, (v) => settings.setOpts({ gameSpeed: v })));
+    row(t.motion, t.motionHint, PICKER_W, (x, ry) => new Picker(this, x, ry, PICKER_W, MOTION_PICK, opts().motion, (v) => settings.setOpts({ motion: v })));
     switchRow(t.hints, t.hintsHint, () => opts().hints, (v) => settings.setOpts({ hints: v }));
     switchRow(t.sfx, undefined, () => opts().sfx, (v) => settings.setOpts({ sfx: v }));
     row(`${t.volume} · ${t.volumeMusic}`, undefined, SLIDER_W, (x, ry) => new Slider(this, x, ry, SLIDER_W, opts().volume.music, (v) => setVolume({ music: v })));

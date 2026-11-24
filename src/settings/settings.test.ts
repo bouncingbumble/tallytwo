@@ -5,7 +5,7 @@
  */
 import { describe, expect, test } from "vitest";
 import { DEFAULT_RULES } from "../engine/rules";
-import { DEFAULTS, FIRST_TIME, KEY, type Settings, parseSettings, serializeSettings, settingsFor } from "./settings";
+import { DEFAULTS, FIRST_TIME, KEY, type Settings, motionReduced, parseSettings, serializeSettings, settingsFor } from "./settings";
 import { SETTINGS_INITIAL, SettingsStore, settingsReduce } from "./store";
 import { memoryStorage } from "./storage";
 
@@ -32,7 +32,25 @@ test("a prototype blob with changed values keeps every one that still exists", (
   const opts = { difficulty: "hard", speed: "slow", music: false, sfx: false, reduceMotion: true }; // the prototype's autoPass and sortBy are dropped: the player is never passed for, and a fresh deal is always in value order
   const s = parseSettings(JSON.stringify({ rules, opts }));
   expect(s.rules).toEqual({ straightWrap: true }); // passLocksOut, mustLeadWith3D, laterRoundLead and flushSuitFirst are no longer flags (flushes always rank by suit first)
-  expect(s.opts).toEqual({ difficulty: "hard", gameSpeed: "slow", hints: false, sfx: false, volume: { music: 0, sfx: 1 } }); // the old piano switch off -> music volume 0; reduceMotion is no longer a setting
+  expect(s.opts).toEqual({ difficulty: "hard", gameSpeed: "slow", hints: false, sfx: false, volume: { music: 0, sfx: 1 }, motion: "reduced" }); // the old piano switch off -> music volume 0; the old reduceMotion on -> motion "reduced"
+});
+
+test("motion: auto by default, only auto / full / reduced accepted; a saved motion beats the old reduceMotion", () => {
+  expect(DEFAULTS.opts.motion).toBe("auto");
+  const motionOf = (opts: object) => parseSettings(JSON.stringify({ opts })).opts.motion;
+  expect(motionOf({ motion: "full" })).toBe("full");
+  expect(motionOf({ motion: "reduced" })).toBe("reduced");
+  expect(motionOf({ motion: "jittery" })).toBe("auto");
+  expect(motionOf({ reduceMotion: false })).toBe("auto");
+  expect(motionOf({ motion: "full", reduceMotion: true })).toBe("full");
+  expect("reduceMotion" in parseSettings(JSON.stringify({ opts: { reduceMotion: true } })).opts).toBe(false);
+});
+
+test("motionReduced: auto follows the device, full and reduced override it", () => {
+  expect(motionReduced("auto", false)).toBe(false);
+  expect(motionReduced("auto", true)).toBe(true);
+  expect(motionReduced("full", true)).toBe(false);
+  expect(motionReduced("reduced", false)).toBe(true);
 });
 
 test("gameSpeed: normal by default, only slow / normal / fast accepted", () => {

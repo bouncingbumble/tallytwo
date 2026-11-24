@@ -9,13 +9,12 @@
  */
 import { serializeLog } from "../../game/appReducer";
 import { COPY } from "../../game/copy";
+import { COPIED_MS } from "../../game/timing";
 import { text } from "../paint";
 import { copyText } from "../services";
 import { CSS, FS_MIN, MONO, TAP, WESTERN } from "../theme";
 import { Button } from "../widgets";
 import { SheetScene } from "./sheet";
-
-const COPIED_MS = 1500;
 
 export class CrashScene extends SheetScene {
   constructor() {
