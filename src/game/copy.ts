@@ -8,6 +8,7 @@ export const COPY = {
     deal: "Deal me in",
     howto: "How to play",
     settings: "Settings",
+    update: "New version ready · tap to update",
   },
   topbar: {
     round: "Round",

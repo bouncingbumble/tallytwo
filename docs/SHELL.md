@@ -105,7 +105,7 @@ func sendInsets() {
 // viewSafeAreaInsetsDidChange() -> sendInsets();  sceneWillResignActive -> send("pause");  sceneDidBecomeActive -> send("resume")
 ```
 
-`JSONSerialization` turns a Swift `nil` into JSON `null`, which is what the app expects for "nothing stored". Keep the web content served over https (or bundled and loaded with `loadFileURL(_:allowingReadAccessTo:)`); `dist/` is a plain static site with no service worker, so the shell owns offline if it wants it.
+`JSONSerialization` turns a Swift `nil` into JSON `null`, which is what the app expects for "nothing stored". Serve the web content over https, or bundle it for offline play (§7). Do **not** use `loadFileURL(_:allowingReadAccessTo:)`: WKWebView refuses `fetch()` of `file://` URLs, so every SFX and music file would fail and the game would be silent.
 
 ### Android WebView
 
@@ -157,10 +157,76 @@ fun reply(id: Int, json: String?) = send("settings", JSONObject().put("id", id).
 
 `allow="autoplay"` lets the audio context start from the tap inside the frame; without it the game is silent but otherwise fine. The frame itself never checks the parent's origin (the game holds nothing worth stealing), but it reads only messages whose `source` is its parent. A parent that does not implement the protocol costs the game one 1.5-s wait on load, after which it runs on its own localStorage.
 
-## 7. Without a host
+## 7. Offline in a shell: bundle dist/
+
+On the web the game caches itself with a service worker (`src/platform/offline.ts`, `docs/OFFLINE_PLAN.md`). A WKWebView has no service workers outside App-Bound Domains, so in an `ios` or `android` host `registerOffline()` does nothing. The shell ships `dist/` inside the app instead and serves it from a same-origin URL that `fetch()` can read. These recipes have not been run here (there is no shell in this repo yet); the web side needs nothing more than the base path. `dist/sw.js` ships too, but it is never registered.
+
+### iOS: a `WKURLSchemeHandler` on `tally://app/`
+
+Build with `BASE_PATH=/ npm run build` and add `dist/` to the app target as a **folder reference** (blue folder), so its tree is kept.
+
+```swift
+import UniformTypeIdentifiers
+
+final class BundleSchemeHandler: NSObject, WKURLSchemeHandler {
+  private let root = Bundle.main.resourceURL!.appendingPathComponent("dist").standardizedFileURL
+
+  func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
+    guard let url = task.request.url else { return }
+    var path = url.path.isEmpty ? "/" : url.path
+    if path.hasSuffix("/") { path += "index.html" }               // "/", "/?seed=3" -> the page
+    let file = root.appendingPathComponent(path).standardizedFileURL
+    guard file.path.hasPrefix(root.path), let data = try? Data(contentsOf: file) else {
+      task.didFailWithError(URLError(.fileDoesNotExist)); return
+    }
+    // module scripts need a JavaScript type; everything else only needs to arrive
+    let mime = UTType(filenameExtension: file.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+    let res = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1",
+                              headerFields: ["Content-Type": mime, "Content-Length": String(data.count)])!
+    task.didReceive(res); task.didReceive(data); task.didFinish()
+  }
+  func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
+}
+
+// with the configuration from §6, before the WKWebView is created:
+config.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: "tally")
+// then
+webView.load(URLRequest(url: URL(string: "tally://app/")!))
+```
+
+Every URL the game builds is base-relative (`/assets/…` resolves to `tally://app/assets/…`), so the page, its module script, the Phaser image loads and the audio `fetch()`es all go through the handler, with no network at all.
+
+### Android: `WebViewAssetLoader` on `https://appassets.androidplatform.net/game/`
+
+Build with `BASE_PATH=/game/ npm run build` and copy `dist/` to `app/src/main/assets/game/` (a Gradle `Copy` task, or by hand). Then add `androidx.webkit:webkit`:
+
+```kotlin
+val loader = WebViewAssetLoader.Builder()
+  .addPathHandler("/game/") { path ->                              // path is after the prefix: "", "assets/x.js"
+    val file = "game/" + path.ifEmpty { "index.html" }
+    runCatching {
+      val mime = URLConnection.guessContentTypeFromName(file)
+        ?: if (file.endsWith(".js")) "text/javascript" else "application/octet-stream"
+      WebResourceResponse(mime, null, assets.open(file))
+    }.getOrNull()
+  }
+  .build()
+webView.webViewClient = object : WebViewClient() {
+  override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest) = loader.shouldInterceptRequest(request.url)
+}
+webView.loadUrl("https://appassets.androidplatform.net/game/")
+```
+
+The origin is https and same-origin, so `fetch()` and `localStorage` behave as on the web, and the settings still go through the bridge (§5).
+
+### Updating
+
+A bundled `dist/` changes only with an app update. A shell that also wants web deploys between releases can load the https URL when it is online and fall back to the bundled copy when the load fails (`webView(_:didFailProvisionalNavigation:withError:)` / `onReceivedError` on the main frame).
+
+## 8. Without a host
 
 No host means no bridge: `bridge.host === null`, `bridge.send` does nothing, `bridge.request` rejects at once (and `App.tsx` never builds `bridgeStorage` in that case — settings go to localStorage as before), `useBridgePause()` is always false, no `--inset-*` properties are set so the CSS falls through to `env(safe-area-inset-*)`, and `window.tallyReceive` does not exist. The webview hygiene (`styles/shell.css`: `overscroll-behavior: none`, no touch callout; the viewport meta's `maximum-scale=1, user-scalable=no`) applies everywhere, host or not — a game page never wants rubber-banding, pull-to-refresh or pinch-zoom.
 
-## 8. Testing it
+## 9. Testing it
 
 `src/platform/bridgeProtocol.test.ts` pins the envelope and the validator; `bridge.test.ts` drives `createBridge()` over fake windows (detection order, the three delivery forms, request/reply by id, timeouts, the parent-only rule); `bridgeStorage.test.ts` runs the port against a fake bridge (reply wins, timeout falls back and stays fallen back, set writes through). All run under vitest's node environment. The end-to-end check (Playwright, an `about:blank` page that iframes the dev server and plays host) was run by hand on 2026-10-07 in Chromium and WebKit: `ready` once, `settings:get` answered and applied, `settings:set` written through with localStorage left empty, insets on `.game`, `pause` holding an AI lead for 4.5 s and `resume` releasing it, `haptic` deal and slap, no console errors.

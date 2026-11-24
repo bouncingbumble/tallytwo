@@ -54,6 +54,13 @@ test("nothing imports React", () => {
   expect(offenders).toEqual([]);
 });
 
+test("only platform/offline.ts touches navigator.serviceWorker (docs/OFFLINE_PLAN.md)", () => {
+  const offenders = walk(SRC)
+    .map(rel)
+    .filter((r) => !/\.test\.tsx?$/.test(r) && r !== "platform/offline.ts" && /\bserviceWorker\b/.test(readFileSync(join(SRC, r), "utf8")));
+  expect(offenders).toEqual([]);
+});
+
 /* ---- (b) phaser/** ---- */
 
 const RULES_IMPORT = /^(\.\.\/)+(engine\/reducer$|ai(\/|$))/;

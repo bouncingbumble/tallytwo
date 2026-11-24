@@ -204,7 +204,13 @@ DOM/CSS sprites, no canvas. The card rule (`styles/cards.css`): `width: var(--cw
 
 ### Shipping
 
-`vite build` emits a plain static `dist/` (`index.html`, hashed `assets/`, `icons/`) for a webview shell or any static host; there is no service worker, no precache and no webmanifest (the PWA layer was dropped, so nothing caches the 2.1-2.4 MB music loops on the device — the shell owns offline, if it wants it). `index.html` keeps the `apple-mobile-web-app-*` tags and the icons, which a shell may use: `public/icons/icon-192.png` (apple-touch-icon and favicon) and `icon-512.png` (note a circular mask clips the card's corners — the card is 288x384 centred, so its corners sit 240 px from the centre, outside the 205-px safe zone).
+`vite build` emits a static `dist/` (`index.html`, hashed `assets/`, `icons/`, `manifest.webmanifest`) plus `sw.js`, a hand-written service worker that makes the game work offline. The `tally-offline` plugin in `vite.config.ts` hashes `dist/`, asks `src/platform/precache.ts` (PURE) which files to save, and prepends that plan to `src/platform/sw.js`. Behaviour:
+
+- **Install:** every core file is cached (all or nothing); the music goes into a second cache, best-effort.
+- **Fetches:** navigations are network-first with a 3-s timeout, then the cached index; listed files are cache-first.
+- **Updates:** a new build waits and never takes over mid-match. It takes over on the next cold launch, or from the Title's "New version ready" line.
+
+`src/platform/offline.ts` registers the worker in production builds only, and not in an `ios` or `android` host: those bundle `dist/` (`docs/SHELL.md` §7). `docs/OFFLINE_PLAN.md` has the reasoning. `index.html` keeps the `apple-mobile-web-app-*` tags and the icons, which a shell may use: `public/icons/icon-192.png` (apple-touch-icon and favicon) and `icon-512.png` (note a circular mask clips the card's corners — the card is 288x384 centred, so its corners sit 240 px from the centre, outside the 205-px safe zone).
 
 ## 10. The logical canvas
 

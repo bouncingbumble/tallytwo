@@ -14,7 +14,7 @@ import { DOORS_MS } from "../../game/timing";
 import { WIDE_W } from "../../platform/env";
 import { art, standing } from "../art";
 import { painted, text } from "../paint";
-import { CSS, WESTERN } from "../theme";
+import { CSS, FS_BODY, TAP, WESTERN } from "../theme";
 import { target } from "../probe";
 import { Button } from "../widgets";
 import { BaseScene } from "./base";
@@ -156,5 +156,17 @@ export class TitleScene extends BaseScene {
     target(this, "title.settings", bSet, { w: menuW, h: btnH });
     menu.setVisible(settings.loaded);
     this.watch(settings, () => menu.setVisible(settings.loaded));
+
+    // a newer build is installed and waiting (platform/offline.ts): offered here only, never mid-match
+    const { update } = this.app;
+    const updateW = Math.min(W - 32, 340);
+    const updateBox = this.add.container(Math.floor((W - updateW) / 2), 6);
+    const updateLine = text(this, updateW / 2, TAP / 2, COPY.title.update, { size: FS_BODY, color: CSS.amber, align: "center" }).setOrigin(0.5, 0.5);
+    const updateHit = this.add.zone(0, 0, updateW, TAP).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+    updateHit.on("pointerup", () => update.apply());
+    updateBox.add([updateLine, updateHit]);
+    target(this, "title.update", updateBox, { w: updateW, h: TAP }, () => update.ready.get());
+    updateBox.setVisible(update.ready.get());
+    this.watch(update.ready, () => updateBox.setVisible(update.ready.get()));
   }
 }

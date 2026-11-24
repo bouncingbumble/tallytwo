@@ -21,13 +21,16 @@ npm run dev          # vite --host: open the printed LAN URL on the phone
 | Script | What it does |
 | --- | --- |
 | `npm run dev` | Vite dev server on the LAN (`--host`), **port 5180**, so an iPhone on the same Wi-Fi can load it |
-| `npm run build` | `tsc -b && vite build` → `dist/`, a plain static site (no service worker, no webmanifest) for a webview shell or any static host |
+| `npm run build` | `tsc -b && vite build` → `dist/`: a static site for any static host, plus `sw.js` (the offline service worker) and `manifest.webmanifest` |
 | `npm run preview` | serves `dist/` on the LAN — what you use to check the built bundle on the phone |
 | `npm run typecheck` | `tsc -b --noEmit` (the app, with the DOM lib) **and** `tsc -p tsconfig.core.json --noEmit` (the pure files, without it) |
 | `npm run lint` | oxlint |
 | `npm test` | Vitest, `environment: node`, every `src/**/*.test.ts`; no jsdom — the stores and the layout are pure, so the turn loop and the table geometry are tested without a renderer |
 | `npm run sim -- 300` | the legality-and-termination gate: 300 AI-only games through the real reducer, plus difficulty numbers |
-| `npm run check` | typecheck + lint + test + `sim 300` + `vite build` — the single gate |
+| `npm run check:sw` | checks `dist/sw.js` against `dist/`: every file listed exists and carries `BASE_PATH`, every shipped file is listed (except the deliberate skips), under 16 MB |
+| `npm run e2e:offline` | builds with `VITE_E2E=1`, previews, and runs `e2e/play.mjs` with `OFFLINE=1` in Chromium: install, cut the network, reload, play a round |
+| `npm run e2e:update` | `e2e/update.mjs`: a deploy mid-match waits; the Title's update line hands over |
+| `npm run check` | typecheck + lint + test + `sim 300` + `vite build` + `check:sw` — the single gate |
 
 Pace: the table runs at `BASE_TIME_SCALE` (4×) times the prototype's waits — `src/game/timing.ts` — and Settings › Game speed (1x/2x/3x/4x) divides that down; Opponent pace (fast/normal/slow) sets the think-time range underneath.
 
@@ -35,7 +38,9 @@ Dev URL switches: `?seed=N` deals a fixed seed (seat 0 holds the 3♦ for seeds 
 
 ## Deploy
 
-Every push to `main` runs `.github/workflows/pages.yml`: the gate (typecheck, lint, tests, `sim 300`), then `vite build` with `BASE_PATH=/tallytwo/`, published to GitHub Pages at **https://bouncingbumble.github.io/tallytwo/**. A failed gate leaves the live site as it was. `BASE_PATH` only changes the public path (`vite.config.ts` `base`); locally and in a webview shell it stays `/`. On an iPhone, open the URL in Safari and Share › Add to Home Screen to run it full screen.
+Every push to `main` runs `.github/workflows/pages.yml`: the gate (typecheck, lint, tests, `sim 300`), then `vite build` with `BASE_PATH=/tallytwo/` and `check:sw`, published to GitHub Pages at **https://bouncingbumble.github.io/tallytwo/**. A failed gate leaves the live site as it was. `BASE_PATH` only changes the public path (`vite.config.ts` `base`); locally and in a webview shell it stays `/`. On an iPhone, open the URL in Safari and Share › Add to Home Screen to run it full screen.
+
+**Offline.** The first online visit installs a service worker that caches the whole game, music included (≈ 14 MB). After that it launches and plays with no network. On iOS the Home Screen app keeps its own storage, separate from Safari's, so **open it from the Home Screen icon once while online**. That copy is also exempt from Safari's 7-day eviction. A new deploy downloads in the background and never interrupts a match. It takes over on the next cold launch, or when you tap "New version ready" on the title. `docs/OFFLINE_PLAN.md` has the design; `docs/SHELL.md` §7 covers a native shell, which bundles `dist/` instead.
 
 ## Device checks
 

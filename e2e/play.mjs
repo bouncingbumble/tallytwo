@@ -18,11 +18,18 @@
 // console errors. Size floors (src/phaser/theme.ts) on every screen: no text under MIN_TEXT_PX and
 // no registered control under MIN_TAP_PX, both in physical CSS px. Playwright's Chromium has no
 // AAC decoder, so its "audio: ... dropped" warnings are reported but not counted.
+//
+// OFFLINE=1 (npm run e2e:offline) runs the same flow against a production build made with
+// VITE_E2E=1 (which keeps window.__tally) under `vite preview`: load once online, wait for the
+// service worker to install and take control with both caches full, cut the network, reload,
+// and play on with no failed request. docs/OFFLINE_PLAN.md. Playwright's WebKit has limited
+// service-worker support, so run it with DEVICES=desktop (Chromium); the iPhone is a manual check.
 import { chromium, webkit } from "playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
 
 const base = process.argv[2] || "http://localhost:5180";
 const ROUNDS = Number(process.argv[3]) || 2;
+const OFFLINE = process.env.OFFLINE === "1";
 const OUT = new URL("./shots/", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
@@ -130,6 +137,47 @@ async function checkSizes(page, label, screen, k) {
   note(label, `${screen}: no control under ${MIN_TAP_PX}x${MIN_TAP_PX} CSS px${taps.length ? " :: " + taps.map(([id, t]) => `${id} ${r2(t.w * k)}x${r2(t.h * k)}`).join(" | ") : ""}`, taps.length === 0);
 }
 
+/** Wait for the worker to control the page with its caches full, cut the network and reload. */
+async function goOffline(page, ctx, label, errors) {
+  const sw = await page.evaluate(async () => {
+    if (!("serviceWorker" in navigator)) return { ok: false, why: "no serviceWorker" };
+    const reg = await navigator.serviceWorker.ready;
+    for (let i = 0; i < 100 && !navigator.serviceWorker.controller; i++) await new Promise((r) => setTimeout(r, 100));
+    const src = await (await fetch(reg.active.scriptURL)).text();
+    const plan = JSON.parse(src.match(/const PLAN = (\{[\s\S]*?\n\});/)[1]);
+    const core = await caches.open(`tally-core-${plan.version}`);
+    const music = await caches.open(`tally-music-${plan.version}`);
+    const coreN = (await core.keys()).length;
+    const musicN = (await music.keys()).length;
+    return { ok: !!navigator.serviceWorker.controller, version: plan.version, coreN, musicN, core: plan.core.length, music: plan.music.length };
+  });
+  note(label, `service worker ${sw.version} controls the page; core ${sw.coreN}/${sw.core}, music ${sw.musicN}/${sw.music} cached${sw.why ? " :: " + sw.why : ""}`, sw.ok && sw.coreN === sw.core && sw.musicN === sw.music);
+
+  await ctx.setOffline(true);
+  const failed = [];
+  page.on("requestfailed", (r) => failed.push(`${r.url()} (${r.failure()?.errorText})`));
+  const notFromSw = [];
+  page.on("response", (r) => {
+    if (!r.fromServiceWorker() && r.url().startsWith(base)) notFromSw.push(r.url());
+  });
+  errors.length = 0;
+  await page.reload({ waitUntil: "load" });
+  await waitTarget(page, "title.deal", 20000);
+  await sleep(500);
+  note(label, `offline reload: the title rendered; ${failed.length} failed requests${failed.length ? " :: " + failed.slice(0, 4).join(" | ") : ""}`, failed.length === 0);
+  note(label, `offline reload: every response came from the service worker${notFromSw.length ? " :: " + notFromSw.slice(0, 4).join(" | ") : ""}`, notFromSw.length === 0);
+  const music = await page.evaluate(async () => {
+    for (const n of await caches.keys()) {
+      const keys = await (await caches.open(n)).keys();
+      if (keys.some((k) => /\/ost_1-[^/]*\.m4a$/.test(k.url))) return true;
+    }
+    return false;
+  });
+  note(label, "offline: the music (ost_1) is in the cache", music);
+  // keep failures visible to the final console check too
+  page.on("requestfailed", (r) => errors.push(`requestfailed: ${r.url()}`));
+}
+
 async function runDevice(browserType, dev, label) {
   const browser = await browserType.launch(browserType === chromium ? { args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } : {});
   const ctx = await browser.newContext({
@@ -151,6 +199,7 @@ async function runDevice(browserType, dev, label) {
   });
   await page.goto(`${base}/?seed=3`, { waitUntil: "networkidle" });
   await waitTarget(page, "title.deal", 20000);
+  if (OFFLINE) await goOffline(page, ctx, label, errors);
   await sleep(300);
   await page.screenshot({ path: `${shots}/title.png` });
   note(label, "title screen rendered");

@@ -15,6 +15,8 @@ export interface Services {
   seed: number | undefined;
   /** A render-time error (not an engine throw: those are the store's crash report). */
   fault: Value<Error | null>;
+  /** A newer build is installed and waiting (platform/offline.ts); apply() hands over and reloads. */
+  update: { readonly ready: Value<boolean>; apply(): void };
 }
 
 let current: Services | null = null;

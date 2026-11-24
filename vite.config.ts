@@ -1,11 +1,12 @@
 // `defineConfig` comes from "vitest/config", not "vite": Vite's own UserConfig has no `test`
 // key, and tsconfig.node.json type-checks this file under `tsc -b`.
-// No PWA plugin: the build is a plain static dist/ for a webview shell or any static host.
-import { appendFile } from "node:fs/promises";
+// No PWA plugin: dist/ is a static site plus one hand-written service worker (tally-offline).
+import { appendFile, readFile, readdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
-import type { Plugin } from "vite";
+import { join, relative, resolve } from "node:path";
+import type { Plugin, ResolvedConfig } from "vite";
 import { defineConfig } from "vitest/config";
+import { fnv1aBytes, precachePlan, renderWorker, type DistFile } from "./src/platform/precache.ts";
 
 /** Where the /assets page's Submit appends notes. */
 const NOTES_FILE = join(homedir(), "Desktop", "tally-two-asset-notes.txt");
@@ -73,6 +74,47 @@ function assetNotes(): Plugin {
   };
 }
 
+/** Offline precache budget: the build fails past it (docs/OFFLINE_PLAN.md). */
+const PRECACHE_BUDGET = 16 * 1024 * 1024;
+
+async function walkDist(dir: string): Promise<string[]> {
+  const out: string[] = [];
+  for (const e of await readdir(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) out.push(...(await walkDist(p)));
+    else out.push(p);
+  }
+  return out;
+}
+
+/**
+ * Build-only: once dist/ is written (public/ copied in), hash every file, ask precache.ts which
+ * ones go offline, and write dist/sw.js = that plan + src/platform/sw.js. docs/OFFLINE_PLAN.md.
+ */
+function offline(): Plugin {
+  let config: ResolvedConfig;
+  return {
+    name: "tally-offline",
+    apply: "build",
+    configResolved(c) {
+      config = c;
+    },
+    async closeBundle() {
+      const outDir = resolve(config.root, config.build.outDir);
+      const files: DistFile[] = [];
+      for (const p of await walkDist(outDir)) {
+        const bytes = await readFile(p);
+        files.push({ path: relative(outDir, p).split("\\").join("/"), hash: fnv1aBytes(bytes), size: bytes.length });
+      }
+      const plan = precachePlan(files, config.base);
+      if (plan.bytes > PRECACHE_BUDGET) throw new Error(`offline: precache is ${plan.bytes} bytes, over the ${PRECACHE_BUDGET}-byte budget`);
+      const body = await readFile(resolve(config.root, "src/platform/sw.js"), "utf8");
+      await writeFile(join(outDir, "sw.js"), renderWorker(plan, config.base, body), "utf8");
+      config.logger.info(`offline: sw.js ${plan.version}, ${plan.core.length} core + ${plan.music.length} music files, ${(plan.bytes / 1048576).toFixed(1)} MB`);
+    },
+  };
+}
+
 /**
  * The public path the build is served under. GitHub Pages serves a project site from
  * /<repo>/, so the deploy workflow (.github/workflows/pages.yml) sets BASE_PATH=/tallytwo/;
@@ -83,7 +125,7 @@ const base = process.env.BASE_PATH ?? "/";
 
 export default defineConfig({
   base,
-  plugins: [assetNotes()],
+  plugins: [assetNotes(), offline()],
   // Phaser is one ~1.4 MB chunk (≈400 kB gzipped); a one-time download, and splitting it buys nothing.
   build: { chunkSizeWarningLimit: 1600 },
   test: {

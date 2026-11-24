@@ -16,6 +16,7 @@ import { bridge, bridgeShell } from "./platform/bridge";
 import { bridgeStorage } from "./platform/bridgeStorage";
 import { timerClock } from "./platform/clock";
 import { env, installEnv } from "./platform/env";
+import { registerOffline, updates } from "./platform/offline";
 import { webStorage } from "./platform/webStorage";
 import { direct } from "./phaser/director";
 import { markDirty, renderOnDemand } from "./phaser/onDemand";
@@ -56,7 +57,8 @@ function boot(): void {
   void settings.hydrate();
   const sheet = new Value<Sheet>("none");
   const fault = new Value<Error | null>(null);
-  provide({ game, settings, sheet, seed: readSeed(), fault });
+  provide({ game, settings, sheet, seed: readSeed(), fault, update: updates });
+  registerOffline(bridge.host); // docs/OFFLINE_PLAN.md: a production build caches itself for offline play
   directAudio(game, settings, sheet);
 
   // iOS interruptions (a call, Siri, the lock screen) leave the AudioContext not running; the
@@ -100,7 +102,8 @@ function boot(): void {
     bridge.send("ready", {});
   });
 
-  if (import.meta.env.DEV) {
+  // the e2e hook: always in dev; in a build only with VITE_E2E=1 (e2e/play.mjs OFFLINE=1 tests a real build)
+  if (import.meta.env.DEV || import.meta.env.VITE_E2E === "1") {
     window.__tally = {
       act: (a) => game.act(a),
       get game() {
