@@ -42,11 +42,11 @@ export function unseenList(pub: PublicView, hand: readonly Card[]): Card[] {
   return u;
 }
 
-/** Can anything still out there beat this move? Singles, pairs and triples only. */
+/** Can anything still out there beat this move? Singles and pairs only. */
 export function unbeatable(move: Combo, unseen: readonly Card[]): boolean {
   const n = move.cards.length;
   if (n === 1) return !unseen.some((v) => v > move.key);
-  if (n === 2 || n === 3) {
+  if (n === 2) {
     const byRank: Record<number, Card[]> = {};
     for (const v of unseen) (byRank[rank(v)] ??= []).push(v);
     for (const r in byRank) if (byRank[r].length >= n && Number(r) * 4 + 3 > move.key) return false;

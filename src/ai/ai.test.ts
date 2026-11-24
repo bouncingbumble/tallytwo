@@ -86,6 +86,7 @@ describe("evaluation helpers", () => {
     expect(unbeatable(classify(parseCards("3D 3C"), R)!, parseCards("4D 4C 9H"))).toBe(false);
     expect(unbeatable(classify(parseCards("3D 3C"), R)!, parseCards("4D 9H"))).toBe(true);
     expect(unbeatable(classify(parseCards("3D 4C 5H 6S 7D"), R)!, all)).toBe(false); // five-card hands are never counted
+    expect(classify(parseCards("4D 4C 4H"), R)).toBeNull(); // three of a kind is not a play, so there is nothing to count
   });
   test("controlSpend and unseenList", () => {
     expect(controlSpend(classify(parseCards("2S"), R)!)).toBe(3);

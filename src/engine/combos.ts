@@ -2,7 +2,7 @@ import { type Card, rank, suit, RANK_NAMES, RANK_PLURALS, SUIT_NAMES } from "./c
 import type { RuleConfig } from "./rules";
 
 export type FiveCardType = "straight" | "flush" | "fullhouse" | "four" | "straightflush";
-export type ComboType = "single" | "pair" | "triple" | FiveCardType;
+export type ComboType = "single" | "pair" | FiveCardType;
 
 /**
  * A legal play. `cards` is always sorted ascending. `key` orders combos of the same type:
@@ -36,7 +36,8 @@ function straightInfo(sorted: readonly Card[], rules: RuleConfig): StraightInfo 
 
 /**
  * Classify a selection. Returns null when the cards are not a legal shape: two unmatched
- * cards, four cards, a five-card hand that is nothing, and so on.
+ * cards, three or four cards (three of a kind is not played in this game; it only counts
+ * inside a full house), a five-card hand that is nothing, and so on.
  */
 export function classify(cards: readonly Card[], rules: RuleConfig): Combo | null {
   const cs = cards.slice().sort((a, b) => a - b);
@@ -45,7 +46,6 @@ export function classify(cards: readonly Card[], rules: RuleConfig): Combo | nul
 
   if (n === 1) return mk("single", cs[0]);
   if (n === 2) return rank(cs[0]) === rank(cs[1]) ? mk("pair", cs[1]) : null;
-  if (n === 3) return rank(cs[0]) === rank(cs[1]) && rank(cs[1]) === rank(cs[2]) ? mk("triple", cs[2]) : null;
   if (n !== 5) return null;
 
   const count = new Map<number, number>();
@@ -81,8 +81,6 @@ export function describe(combo: Combo | null): string {
       return `${RANK_NAMES[rank(hi)]} of ${SUIT_NAMES[suit(hi)]}`;
     case "pair":
       return `Pair of ${RANK_PLURALS[rank(hi)]}`;
-    case "triple":
-      return `Three ${RANK_PLURALS[rank(hi)]}`;
     case "straight":
       return `Straight, ${RANK_NAMES[rank(hi)]} high`;
     case "flush":

@@ -1,10 +1,10 @@
 /**
- * Move generation. Structural, not brute force: pairs and triples come from rank groups,
+ * Move generation. Structural, not brute force: pairs come from rank groups,
  * flushes from suit groups, straights from rank windows, so a 13-card hand yields at most a
  * few hundred candidates in well under a millisecond.
  *
  * The output ORDER is part of the AI's behaviour (ties in chooseMove go to the first
- * candidate found), so keep it: singles in hand order, then pairs and triples by rank,
+ * candidate found), so keep it: singles in hand order, then pairs by rank,
  * four-of-a-kind + kicker, full houses, flushes by suit, straights by window.
  */
 import { type Card, rank, suit } from "../engine/cards";
@@ -72,7 +72,6 @@ export function genMoves(hand: readonly Card[], rules: RuleConfig): Combo[] {
   for (const r in byRank) {
     const g = byRank[r];
     if (g.length >= 2) pick(g, 2).forEach(add);
-    if (g.length >= 3) pick(g, 3).forEach(add);
   }
   // four of a kind + any kicker
   for (const r in byRank) {

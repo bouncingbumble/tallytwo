@@ -98,7 +98,7 @@ export const COPY = {
     orderTitle: "Card order",
     order: "3 is low, 2 is high: 3 4 5 6 7 8 9 10 J Q K A 2. Ties break by suit — ♦ lowest, then ♣, then ♥, then ♠ highest.",
     playTitle: "What you can play",
-    play: "A single, a pair, three of a kind, or a five-card hand. You must follow with the same number of cards and beat what's down, or pass.",
+    play: "A single, a pair, or a five-card hand. You must follow with the same number of cards and beat what's down, or pass.",
     fiveTitle: "Five-card hands, weakest to strongest",
     five: "Straight · flush · full house · four of a kind plus any fifth card · straight flush. A weak flush still beats the best straight.",
     clearTitle: "Clearing the table",

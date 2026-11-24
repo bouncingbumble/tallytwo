@@ -34,18 +34,17 @@ const pass = (g: GameState): [Action, GameState] => {
 /** The leader's hand replaced, so a chosen opening lead is in hand and may end the round. */
 const leaderHolds = (g: GameState, hand: number[]): GameState => ({ ...g, players: g.players.map((p, i) => (i === g.turn ? { ...p, hand } : p)) });
 
-test("PLAY of 1-3 cards by an AI -> playSmall + bark play", () => {
+test("PLAY of 1-2 cards by an AI -> playSmall + bark play", () => {
   const g = aiLead();
   const [a, n] = play(g, [THREE_OF_DIAMONDS]);
   expect(cueFor(g, a, n)).toEqual({ sfx: ["playSmall"], bark: { seat: g.turn, kind: "play" } });
   const pair = leaderHolds(g, [0, 1, 2, 3, 4, 5]);
   const [a2, n2] = play(pair, [0, 1]);
   expect(cueFor(pair, a2, n2)).toEqual({ sfx: ["playSmall"], bark: { seat: g.turn, kind: "play" } });
-  const [a3, n3] = play(pair, [0, 1, 2]);
-  expect(cueFor(pair, a3, n3)).toEqual({ sfx: ["playSmall"], bark: { seat: g.turn, kind: "play" } });
+  expect(() => play(pair, [0, 1, 2])).toThrow("not a legal hand shape"); // three of a kind is not a play
 });
 
-test("PLAY of 1-3 cards by the human -> playSmall, no bark", () => {
+test("PLAY of 1-2 cards by the human -> playSmall, no bark", () => {
   const g = humanLead();
   const [a, n] = play(g, [THREE_OF_DIAMONDS]);
   const cue = cueFor(g, a, n);

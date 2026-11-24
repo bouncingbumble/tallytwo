@@ -83,7 +83,7 @@ describe("classification", () => {
     expect(typeOf("9S")).toBe("single");
     expect(typeOf("9S 9H")).toBe("pair");
     expect(typeOf("9S 8H")).toBeNull();
-    expect(typeOf("4D 4C 4H")).toBe("triple");
+    expect(typeOf("4D 4C 4H")).toBeNull(); // three of a kind is not a play; it only counts inside a full house
     expect(typeOf("4D 4C 4H 4S")).toBeNull();
     expect(typeOf("3D 4C 5H 6S 7D")).toBe("straight");
     expect(typeOf("10D JC QH KS AD")).toBe("straight");
@@ -109,7 +109,6 @@ describe("classification", () => {
     expect(describeCombo(C("KD KC KH 4S 4D"))).toBe("Full House, Kings over Fours");
     expect(describeCombo(C("KD KC KH KS 4D"))).toBe("Four Kings");
     expect(describeCombo(C("9S 9H"))).toBe("Pair of Nines");
-    expect(describeCombo(C("4D 4C 4H"))).toBe("Three Fours");
     expect(describeCombo(C("3D 4C 5H 6S 7D"))).toBe("Straight, Seven high");
     expect(describeCombo(C("3H 5H 9H JH KH"))).toBe("Flush in Hearts, King high");
     expect(describeCombo(C("3H 4H 5H 6H 7H"))).toBe("Straight Flush in Hearts, Seven high");
