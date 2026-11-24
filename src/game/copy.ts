@@ -9,6 +9,8 @@ export const COPY = {
     howto: "How to play",
     settings: "Settings",
     update: "New version ready · tap to update",
+    install: "Play offline · add to Home Screen",
+    installIOS: "Tap Share (or ··· › Share), then “Add to Home Screen”",
   },
   topbar: {
     round: "Round",

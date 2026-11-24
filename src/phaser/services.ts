@@ -17,6 +17,8 @@ export interface Services {
   fault: Value<Error | null>;
   /** A newer build is installed and waiting (platform/offline.ts); apply() hands over and reloads. */
   update: { readonly ready: Value<boolean>; apply(): void };
+  /** Add to Home Screen (platform/install.ts): "prompt" opens the browser's dialog, "ios" needs the steps shown. */
+  install: { readonly mode: Value<"none" | "prompt" | "ios">; run(): void };
 }
 
 let current: Services | null = null;

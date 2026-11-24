@@ -125,4 +125,12 @@ Phases 1–3: about 1½ days, including the iPhone manual pass. Phase 4: about 1
 | — | `src/platform/sw.test.ts` runs the real `sw.js` against fake caches and a fake network: install all-or-nothing for core and best-effort for music, activate cleanup, offline navigation, cache-first, runtime fill, pass-through, `skipWaiting`. |
 | Phase 4 | `docs/SHELL.md` §7: `WKURLSchemeHandler` on `tally://app/` (iOS) and `WebViewAssetLoader` on `https://appassets.androidplatform.net/game/` with `BASE_PATH=/game/` (Android). Not run: there is no shell yet. |
 
+**Add to Home Screen, from the Title** (`src/platform/install.ts`, `install.test.ts`): the Title's top line offers "Play offline · add to Home Screen" when the game is not already installed. The line has three behaviours:
+
+- **Chromium:** it holds `beforeinstallprompt` and opens the browser's own install dialog.
+- **iPhone/iPad Safari:** there is no install API, so a tap swaps in the steps ("Tap Share (or ··· › Share), then “Add to Home Screen”"), and a second tap puts the offer back.
+- **Hidden:** in standalone, in a shell or an iframe, in dev, and in browsers with neither path.
+
+A waiting update takes the same line first. Probe id: `title.install`.
+
 Still manual: the iPhone pass (Add to Home Screen → launch online → airplane mode → kill → relaunch → play a round with music).

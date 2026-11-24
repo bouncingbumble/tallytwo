@@ -16,6 +16,7 @@ import { bridge, bridgeShell } from "./platform/bridge";
 import { bridgeStorage } from "./platform/bridgeStorage";
 import { timerClock } from "./platform/clock";
 import { env, installEnv } from "./platform/env";
+import { install, watchInstall } from "./platform/install";
 import { registerOffline, updates } from "./platform/offline";
 import { webStorage } from "./platform/webStorage";
 import { direct } from "./phaser/director";
@@ -57,8 +58,9 @@ function boot(): void {
   void settings.hydrate();
   const sheet = new Value<Sheet>("none");
   const fault = new Value<Error | null>(null);
-  provide({ game, settings, sheet, seed: readSeed(), fault, update: updates });
+  provide({ game, settings, sheet, seed: readSeed(), fault, update: updates, install });
   registerOffline(bridge.host); // docs/OFFLINE_PLAN.md: a production build caches itself for offline play
+  watchInstall(bridge.host); // the Title's "add to Home Screen" line
   directAudio(game, settings, sheet);
 
   // iOS interruptions (a call, Siri, the lock screen) leave the AudioContext not running; the

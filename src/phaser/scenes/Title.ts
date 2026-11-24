@@ -157,16 +157,31 @@ export class TitleScene extends BaseScene {
     menu.setVisible(settings.loaded);
     this.watch(settings, () => menu.setVisible(settings.loaded));
 
-    // a newer build is installed and waiting (platform/offline.ts): offered here only, never mid-match
-    const { update } = this.app;
-    const updateW = Math.min(W - 32, 340);
-    const updateBox = this.add.container(Math.floor((W - updateW) / 2), 6);
-    const updateLine = text(this, updateW / 2, TAP / 2, COPY.title.update, { size: FS_BODY, color: CSS.amber, align: "center" }).setOrigin(0.5, 0.5);
-    const updateHit = this.add.zone(0, 0, updateW, TAP).setOrigin(0, 0).setInteractive({ useHandCursor: true });
-    updateHit.on("pointerup", () => update.apply());
-    updateBox.add([updateLine, updateHit]);
-    target(this, "title.update", updateBox, { w: updateW, h: TAP }, () => update.ready.get());
-    updateBox.setVisible(update.ready.get());
-    this.watch(update.ready, () => updateBox.setVisible(update.ready.get()));
+    // the top line, one at a time: a waiting update (platform/offline.ts; offered here only, never
+    // mid-match) wins over "add to Home Screen" (platform/install.ts), which on iOS turns into the steps
+    const { update, install } = this.app;
+    const lineW = Math.min(W - 32, 460);
+    const box = this.add.container(Math.floor((W - lineW) / 2), 6);
+    const line = text(this, lineW / 2, TAP / 2, "", { size: FS_BODY, color: CSS.amber, align: "center", wrap: lineW }).setOrigin(0.5, 0.5);
+    const hit = this.add.zone(0, 0, lineW, TAP).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+    box.add([line, hit]);
+    let iosSteps = false;
+    const show = (): void => {
+      const m = install.mode.get();
+      const s = update.ready.get() ? COPY.title.update : m === "none" ? "" : m === "ios" && iosSteps ? COPY.title.installIOS : COPY.title.install;
+      line.setText(s);
+      box.setVisible(s !== "");
+    };
+    hit.on("pointerup", () => {
+      if (update.ready.get()) return update.apply();
+      if (install.mode.get() === "prompt") return install.run();
+      iosSteps = !iosSteps; // ios: the steps, and a second tap puts the offer back
+      show();
+    });
+    target(this, "title.update", box, { w: lineW, h: TAP }, () => update.ready.get());
+    target(this, "title.install", box, { w: lineW, h: TAP }, () => !update.ready.get() && install.mode.get() !== "none");
+    show();
+    this.watch(update.ready, show);
+    this.watch(install.mode, show);
   }
 }
