@@ -11,9 +11,9 @@ import { resolution } from "./viewport";
 export type Painter = (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
 
 /**
- * The DEV guard: once a round is under way (the table passes its
- * scene and a time), a painted() texture that is not already cached means a canvas draw and a GPU
- * upload mid-motion — prewarm it instead. It warns, and the e2e counts warnings as failures.
+ * The DEV guard: once a round is under way (the table passes its scene and a time), a painted()
+ * texture that is not already cached means a canvas draw and a GPU upload mid-motion — prewarm it
+ * instead. It warns, and the e2e counts warnings as failures.
  */
 let strict: { scene: Phaser.Scene; from: number } | null = null;
 export function paintStrict(scene: Phaser.Scene | null, from = 0): void {

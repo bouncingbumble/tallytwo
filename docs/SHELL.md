@@ -1,6 +1,6 @@
 # The shell contract
 
-How a host — a native app's web view or a page that iframes the game — talks to Tally Two, and what the game does on its own. The code this describes is `src/platform/bridgeProtocol.ts` (the types and the pure encode/decode/validate, unit-tested with no DOM), `src/platform/bridge.ts` (host detection, delivery, requests), `src/platform/bridgeStorage.ts` (settings through the host) and `src/platform/useBridge.ts` (pause, insets, ready as React state). Nothing in `game/`, `engine/`, `ai/` or `audio/` knows a host exists: `GameProvider` receives a three-method `ShellPort` as a prop, the way it receives `audio`.
+How a host — a native app's web view or a page that iframes the game — talks to Tally Two, and what the game does on its own. The code this describes is `src/platform/bridgeProtocol.ts` (the types and the pure encode/decode/validate, unit-tested with no DOM), `src/platform/bridge.ts` (host detection, delivery, requests, and the `ShellPort` the game store reports to), `src/platform/bridgeStorage.ts` (settings through the host) and `src/platform/env.ts` (the host's pause and insets as observables the scenes read). Nothing in `game/`, `engine/`, `ai/` or `audio/` knows a host exists: `src/main.ts` hands the `GameStore` a three-method `ShellPort`, the way it hands it `audio`.
 
 ## 1. Detection
 
@@ -29,7 +29,7 @@ Every message, both ways, is
 
 | Type | Payload | When |
 | --- | --- | --- |
-| `ready` | `{}` | once, after the first render. Send `insets` (and `pause`, if the app is already in the background) in response. |
+| `ready` | `{}` | once, when the Phaser game has booted. Send `insets` (and `pause`, if the app is already in the background) in response. |
 | `score` | `{ round, totals }` | a round has been scored; `totals` is the running match tally, one number per seat (seat 0 is the player). |
 | `matchOver` | `{ winner, totals }` | the eighth round has been scored; `winner` is a seat index. Sent in the same tick as that round's `score`. |
 | `haptic` | `{ kind: "slap" \| "win" \| "deal" }` | `slap`: a play landed on the felt (any seat); `win`: that play emptied a hand; `deal`: a deal roll started. Map to `UIImpactFeedbackGenerator` light / `UINotificationFeedbackGenerator` success / a soft tick, or ignore. |
@@ -43,7 +43,7 @@ Every message, both ways, is
 | `pause` | `{}` (optional) | no AI timer fires and the audio context suspends until `resume`. Send it on `applicationWillResignActive` / `onPause`; the hidden-tab pause still works on its own. |
 | `resume` | `{}` (optional) | the AI loop and the audio resume. |
 | `settings` | `{ id, json }` | the reply to `settings:get` (`json`: the stored string, or `null` when nothing is stored yet) and to `settings:set` (echo the json). `id` must be the request's. |
-| `insets` | `{ top, right, bottom, left }` | CSS px of the web view. Set as `--inset-top/right/bottom/left` on the `.game` element as `calc(<px> / var(--k))` — `.game` is the logical canvas scaled by k (`docs/ARCHITECTURE.md` §10), so the layout, which reads `var(--inset-left, env(safe-area-inset-left))` inside that box, clears the notch and the home indicator by the physical amount. Resend on rotation. Negative values clamp to 0. |
+| `insets` | `{ top, right, bottom, left }` | CSS px of the web view. They replace the browser's `env(safe-area-inset-*)`: the table divides them by k into logical px and clears the notch on the side it is on, and keeps the side column's buttons above the home indicator. Resend on rotation. Negative values clamp to 0. |
 
 Anything else is dropped silently.
 
@@ -161,7 +161,7 @@ fun reply(id: Int, json: String?) = send("settings", JSONObject().put("id", id).
 
 ## 7. Offline in a shell: bundle dist/
 
-On the web the game caches itself with a service worker (`src/platform/offline.ts`, `docs/OFFLINE_PLAN.md`). A WKWebView has no service workers outside App-Bound Domains, so in an `ios` or `android` host `registerOffline()` does nothing. The shell ships `dist/` inside the app instead and serves it from a same-origin URL that `fetch()` can read. These recipes have not been run here (there is no shell in this repo yet); the web side needs nothing more than the base path. `dist/sw.js` ships too, but it is never registered.
+On the web the game caches itself with a service worker (`src/platform/offline.ts`; `docs/ARCHITECTURE.md`, Offline). A WKWebView has no service workers outside App-Bound Domains, so in an `ios` or `android` host `registerOffline()` does nothing. The shell ships `dist/` inside the app instead and serves it from a same-origin URL that `fetch()` can read. These recipes have not been run against a real shell; the web side needs nothing more than the base path. `dist/sw.js` ships too, but it is never registered.
 
 ### iOS: a `WKURLSchemeHandler` on `tally://app/`
 
@@ -227,8 +227,8 @@ A bundled `dist/` changes only with an app update. A shell that also wants web d
 
 ## 8. Without a host
 
-No host means no bridge: `bridge.host === null`, `bridge.send` does nothing, `bridge.request` rejects at once (and `App.tsx` never builds `bridgeStorage` in that case — settings go to localStorage as before), `useBridgePause()` is always false, no `--inset-*` properties are set so the CSS falls through to `env(safe-area-inset-*)`, and `window.tallyReceive` does not exist. The webview hygiene (`styles/shell.css`: `overscroll-behavior: none`, no touch callout; the viewport meta's `maximum-scale=1, user-scalable=no`) applies everywhere, host or not — a game page never wants rubber-banding, pull-to-refresh or pinch-zoom.
+No host means no bridge: `bridge.host === null`, `bridge.send` does nothing, `bridge.request` rejects at once (and `main.ts` never builds `bridgeStorage` in that case — settings go to localStorage), the host pause is always false, the insets are the browser's `env(safe-area-inset-*)`, and `window.tallyReceive` does not exist. The webview hygiene (`src/styles/shell.css`: `overscroll-behavior: none`, no touch callout; the viewport meta's `maximum-scale=1, user-scalable=no`) applies everywhere, host or not — a game page never wants rubber-banding, pull-to-refresh or pinch-zoom.
 
 ## 9. Testing it
 
-`src/platform/bridgeProtocol.test.ts` pins the envelope and the validator; `bridge.test.ts` drives `createBridge()` over fake windows (detection order, the three delivery forms, request/reply by id, timeouts, the parent-only rule); `bridgeStorage.test.ts` runs the port against a fake bridge (reply wins, timeout falls back and stays fallen back, set writes through). All run under vitest's node environment. The end-to-end check (Playwright, an `about:blank` page that iframes the dev server and plays host) was run by hand on 2026-10-07 in Chromium and WebKit: `ready` once, `settings:get` answered and applied, `settings:set` written through with localStorage left empty, insets on `.game`, `pause` holding an AI lead for 4.5 s and `resume` releasing it, `haptic` deal and slap, no console errors.
+`src/platform/bridgeProtocol.test.ts` pins the envelope and the validator; `bridge.test.ts` drives `createBridge()` over fake windows (detection order, the three delivery forms, request/reply by id, timeouts, the parent-only rule); `bridgeStorage.test.ts` runs the port against a fake bridge (reply wins, timeout falls back and stays fallen back, set writes through). All run under vitest's node environment. There is no automated end-to-end check with a real host: to try one by hand, load a page that iframes the dev server and answers the messages in §3 and §4 (the iframe recipe in §6).

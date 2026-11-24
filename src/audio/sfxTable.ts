@@ -101,7 +101,7 @@ export interface LoopSpec {
    * Seconds: the whole composed loop, as frames / 44100 from the WAV master (afinfo "valid
    * frames" of the AAC is the same count), so the loop lands on the sample. Each is a whole
    * number of beats (OST 1 224 at 111 bpm, OST 2 144 at 77, OST 3 192 at 105, OST 4 240 at 137,
-   * OST 5 160 at 85). docs/ASSETS.md §4-5.
+   * OST 5 160 at 85). docs/ASSETS.md.
    */
   loopEnd: number;
 }

@@ -1,9 +1,9 @@
 /**
  * A sheet over whatever is below: the dark cover, a wooden panel, and content that scrolls inside
- * the panel when it is taller than the canvas (what .ov / .sheet with overflow:auto did). The
- * content lives in one container drawn by a second camera whose viewport is the panel, so it is
- * clipped by the camera, and a tap outside the panel can never reach a control scrolled out of
- * view. A control only fires on a press that did not travel (widgets.ts TAP_SLOP).
+ * the panel when it is taller than the canvas. The content lives in one container drawn by a second
+ * camera whose viewport is the panel, so it is clipped by the camera, and a tap outside the panel
+ * can never reach a control scrolled out of view. A control only fires on a press that did not
+ * travel (widgets.ts TAP_SLOP).
  *
  * Motion: the panel slides up from below the canvas over a dim that fades in with it (MOTION.uiIn)
  * and goes back down the same way (uiOut) before the sheet closes. It closes by a tap on the dim,

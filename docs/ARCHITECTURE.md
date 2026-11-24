@@ -1,260 +1,103 @@
 # Architecture
 
-> **Phaser port.** This document was written for the React build. The engine, AI, selectors, timing, audio and shell sections (§1-2, §4, §7-8, §11) still hold. What changed: React's `GameProvider` + `useTurnLoop` + `useBarks` are now one framework-free `GameStore` (`src/game/store.ts`) with a `ClockPort`, so §3's data flow and §6's reference-stability rules now live in that class (the loop re-arms only when the game, pause, crash or speed/difficulty change); §5's ErrorBoundary is a `window` error listener feeding the same crash sheet; §9-10's DOM/CSS rendering is Phaser scenes (`src/phaser/`) — the backing canvas is the viewport × devicePixelRatio, every camera zooms by k × dpr from its top-left so scenes lay out in the same 440-px logical px, the table grid is `render/tableLayout.ts`, and text is rasterised at that zoom. See `docs/PHASER_MIGRATION.md`.
->
-> **Performance pass** (`docs/PERF_PLAN.md`, with measured before/after numbers): Card sharp's moves are computed in a Web Worker (`game/think.ts` `ThinkPort`, `platform/aiWorker.ts`) while the think delay runs, with the AI's random stream carried as a state number (`engine/cards.ts` `seededRng`) so a worker's move is the main thread's move, draw for draw; the store's timers fire at the start of a frame (`platform/clock.ts` `frameClock`, pumped from the Phaser loop); every card layer comes from one 4096x2048 runtime card sheet (`phaser/cardSheet.ts`: padded faces, shadows, rings — one batch, mipmapped, no MSAA); the saloon strip is one baked texture; the title prewarms the table's painted textures; art is LINEAR while shrunk from 3x and Phaser's smoothPixelArt shader once enlarged (Z > 3), with unrotated quads snapped to device px (`phaser/viewport.ts`); sound runs through a master soft clipper, pans a seat's own cards to its side, schedules the deal roll and the duck on the audio clock, and releases poster loops it no longer needs. `?perf=1` shows a frame-time overlay and `e2e/perf.mjs` is the benchmark.
+Tally Two is a Phaser 4 game with no UI framework. The rules are a pure reducer, a small store runs the table around it, and the Phaser scenes subscribe to the store and draw what it says. Everything that touches the browser is created in one file, `src/main.ts`, and handed to the rest as a port.
 
-> **Mobile UX pass** (`docs/MOBILE_UX_PLAN.md`): every presentation duration is a token in `game/timing.ts` (`MOTION`, `TRANSITION`, `SHEET`, `TITLE`, `DEAL`, `POSTER`…) and goes through `phaser/motion.ts` `ms()`, which makes it 0 under Settings › Motion › Reduced (or the device flag on Auto). `phaser/fx.ts` holds the shared effects (pop, shake, wobble, pulse, press, flipFrom). The hand's gestures are pure (`render/handGesture.ts`), as is the sheet drag (`render/sheetDrag.ts`). The director owns transitions between screens and tells a scene rebuilt for a new viewport that it is one (`SceneData.resumed`, `carry()`). The table takes its card objects from a per-run pool (`phaser/cardPool.ts`) and paints everything a round can show when it is built (a DEV warning on a mid-round `painted()` miss). A lost WebGL context pauses the table (`phaser/contextLoss.ts`).
-
-How Tally Two is put together and why. This is the long version of the README, and it records what the device checks found. `P:<line>` in doc comments cites a line of the original browser prototype the behaviour was copied from; that file is not in this repo, so read those as provenance, not links.
-
-## 1. The one idea
-
-The whole app is built around a pure function you meet in the first file you open:
-
-```ts
-reduce(state: GameState, action: Action): GameState        // src/engine/reducer.ts
-```
-
-It never mutates its input, never calls `Math.random` or the clock, and throws on an illegal PLAY or PASS. React's `useReducer` runs it unchanged. Two more reducers sit around it:
-
-| Reducer | File | State | Actions |
-| --- | --- | --- | --- |
-| engine | `src/engine/reducer.ts` | `GameState` (plain JSON: seed, round, rules, phase, players, turn, leader, lastPlay, lastBy, passesInRow, forced3D, history, totals) | `DEAL`, `PLAY`, `PASS`, `SCORE_ROUND`, `NEXT_ROUND` |
-| app | `src/game/appReducer.ts` | `AppState = { game: GameState \| null; dealId }` — `game === null` is the title screen | the engine's plus `NEW_MATCH { seed, rules }` and `QUIT`; no-op guards on the app-level actions, engine throws kept loud for PLAY/PASS |
-| settings | `src/settings/SettingsProvider.tsx` | `Settings = { rules: RuleConfig; opts: Opts }` | `HYDRATE`, `SET_RULES`, `SET_OPTS` |
-
-Everything else is `useState` for UI-only things (selection, open sheet, barks, doors, crash) and `useMemo` over `src/game/selectors.ts`. No state library.
-
-## 2. Three buckets
-
-Three buckets are all you need to hold in your head, and they are the three things the tooling actually enforces:
-
-| Bucket | What goes there | The rule you feel | Enforced by |
-| --- | --- | --- | --- |
-| **PURE** | `engine/`, `ai/`, `render/*.ts`, `game/*.ts` (not the `.tsx`/`use*` files), `settings/{settings,storage}.ts`, `audio/{sfxTable,pool,musicLatch,port}.ts`, `assets/names.ts` | "If it needs `window`, `setTimeout`, `console`, `URLSearchParams` or `import.meta`, it does not go here." | `tsconfig.core.json` — those names are "Cannot find name". Inside the seven pure-bearing folders, every `.ts` file that is not `use*.ts`, not `*.test.ts` and not one of the two named WEB files (`audio/WebAudio.ts`, `assets/manifest.ts`) is PURE and is type-checked without the DOM lib. A new pure file is checked the moment it exists; a new hook is excluded by its `use` prefix. |
-| **HOOKS** | `game/{GameProvider,useTurnLoop,useBarks,useGame}`, `settings/{SettingsProvider,useSettings}`, `audio/useAudio.ts` | "React + `setTimeout` only. Platform objects (`audio`, `storage`, `shell`) **arrive as props**, never as imports." | `boundary.test.ts` (a regex over these files) |
-| **WEB** | `ui/**`, `styles/*`, `platform/*`, `audio/WebAudio.ts`, `assets/manifest.ts`, `App.tsx`, `main.tsx`, `dev/*` | "Anything goes, but no game rules: an `if` about the rules of the game belongs in `selectors.ts`." | `boundary.test.ts` (one rule: `ui/**` never imports `engine/reducer` or `ai/*` directly; types allowed) |
-
-The finer eight-layer view. A file may import only from its own layer or a lower one:
-
-| Layer | Folders | May import | Enforced by |
-| --- | --- | --- | --- |
-| 0 engine | `src/engine` | nothing | verbatim copy; `tsconfig.core.json` |
-| 1 ai | `src/ai` | engine (plus one *type* from `assets/names.ts`: `getPersonality.ts` narrows `Personality.portrait` to `PortraitKey`) | verbatim copy; `tsconfig.core.json` |
-| 2 geometry | `src/render/{atlas,scale,fanLayout}.ts` | engine types | `tsconfig.core.json` |
-| 3 pure game | `src/game/*.ts` except `use*.ts` (`appReducer, cues, selectors, timing, seeds, copy`), `src/settings/{settings,storage}.ts`, `src/audio/{sfxTable,pool,musicLatch,port}.ts`, `src/assets/names.ts` | 0-2 | `tsconfig.core.json` |
-| 4 hooks | `src/game/{GameProvider,useTurnLoop,useBarks,useGame}`, `src/settings/{SettingsProvider,useSettings}`, `src/audio/useAudio.ts` | 0-3 + `react` (never `react-dom`, never `window`/`document`/`localStorage`/`navigator`, never `./WebAudio`, `../platform`, `../assets/manifest`) | `boundary.test.ts`. They need `setTimeout`, which is why they sit outside `tsconfig.core.json`. |
-| 5 platform | `src/platform/*`, `src/audio/WebAudio.ts`, `src/assets/manifest.ts` | 0-4 + DOM | — |
-| 6 ui | `src/ui/**`, `src/styles/*` | 2-5 (`useGame`, `useSettings`, `selectors`, `copy`, `atlas`, `manifest`) — **never** `engine/reducer` or `ai/*` directly (types allowed) | `boundary.test.ts` fails on `from "../engine/reducer"` / `from "../ai` inside `src/ui` |
-| 7 app | `main.tsx`, `App.tsx`, `dev/` | anything | — |
-
-`tsconfig.core.json`:
-
-```json
-{ "extends": "./tsconfig.app.json",
-  "compilerOptions": { "lib": ["ES2023"], "types": [], "noEmit": true },
-  "include": ["src/engine", "src/ai", "src/render", "src/game", "src/settings", "src/audio", "src/assets"],
-  "exclude": ["**/*.test.ts", "**/*.tsx", "**/use*.ts", "src/audio/WebAudio.ts", "src/assets/manifest.ts"] }
-```
-
-`exclude` only filters what `include` matched; a file that an included file imports is still compiled. That is the point: if a PURE file ever imports `assets/manifest.ts`, tsc pulls it in and its `import … from "./cards/cards_atlas.png?url"` lines fail (no `vite/client` module declarations under `types: []`), so the leak is reported at the importer. Two traps the config sets on purpose, and where the code routes around them: `import.meta.glob` and the `*.png`/`*.m4a` module declarations exist only in `vite/client`, so a PURE file must never import from `assets/manifest.ts` (that is why `assets/names.ts` exists); `URLSearchParams` lives in `lib.dom`, so `?seed=` is parsed in `App.tsx`, not in `game/seeds.ts`.
-
-The readability contract: **if a component contains an `if` about the rules of the game, it belongs in `selectors.ts`. If a reducer needs randomness or a sound, it belongs in `act()`.**
-
-## 3. Data flow: engine → store → components
+## Layers
 
 ```
-tap Card ──► toggleCard(v) ──► (ignored unless phase "playing" and turn 0, P:820) ──► selection (useState)
-                                   │
-                    selectors.ts (useMemo): legal [game], exact / live / canPass / status / sign [game, selection]
-                                   │
-Controls onPlay ──► act({type:"PLAY", player:0, cards: exact.cards})     <- only ever a Combo that came from legalMoves
-                                   │
-                      tryReduce ──► appReduce ──► engine.reduce ──► new GameState (fresh object, reducer.ts)
-                                   │                  (throws → { crash } → setCrash → provider renders <CrashScreen/>, §5)
-        ┌──────────────────────────┼──────────────────────────────┐
-   context value changes      cueFor(before, a, next)        useTurnLoop effect re-runs
-   Seats / Felt / Pile /      -> audio.play(...)             (game changed) -> ONE timer:
-   Hand / Status / TopBar     -> barks.show(...) (AI only)   AI think | roundover->SCORE_ROUND (never the human)
-   re-render from `game`                                              │
-                                                                      ▼
-                                    phase "scored", !matchOver -> <ResultsPoster/> -> "Next round": act(NEXT_ROUND{seed:newSeed(round+1)})
-                                                                                      "Saddle up":  act(QUIT)
-                                    phase "scored",  matchOver -> <ResultsPoster final/> -> "New match": act(NEW_MATCH{seed:newSeed(1), rules})
-                                                                                            "Saddle up":  act(QUIT)
-                                    any time      -> Menu (SettingsSheet) -> "Quit game": act(QUIT)
-                                    useAudio: musicFor(game, sheet) / tensionFor(game) -> audio.setMusic / setTension   (no screen owns playback)
+engine/      the rules: cards, combos, comparison, scoring, reduce(state, action) -> state     PURE
+ai/          the three regulars: move generation, heuristics, Card sharp's lookahead          PURE
+game/        appReducer, selectors, cues, copy, timing, seeds, think, GameStore             PURE
+settings/    the settings shape, parseSettings, SettingsStore                                 PURE
+audio/       the sound table, the music latch, the AudioPort, the audio director             PURE (WebAudio.ts is WEB)
+render/      the 440-px logical canvas, the card atlas, the fan, the table layout, gestures  PURE
+platform/    the browser and the host: env, clock, storage, bridge, worker, service worker   WEB
+phaser/      the scenes, the table's views, widgets, painting, the scene director            SCENES
+main.ts      wiring                                                                           WEB
 ```
 
-`act(QUIT)` sets `game` to `null`; the `useTurnLoop` effect's cleanup clears the pending AI timer on that change, so a quit during a think delay fires no further move, sound or bark.
+The buckets are enforced:
 
-### The store's public face (`src/game/useGame.ts`)
-
-| Value | Definition | Source |
+| Bucket | Rule | Enforced by |
 | --- | --- | --- |
-| `game`, `dealId` | the app state; `dealId` bumps on every deal and keys the deal animation | `appReducer.ts` |
-| `legal` | `legalMoves(hand, lastPlay, rules, needThreeD(game))` on the human's turn, else `[]`; **memoised on `[game]` only** | `selectors.legalFor` |
-| `exact` | the legal move whose cards equal the selection; Play enabled iff non-null | `selectors.exactMove` (P:830) |
-| `live` | union of cards of every legal move containing the whole selection; the others get `.dim`; `null` with nothing selected | `selectors.liveCards` (P:805-811) |
-| `canPass` | `lastPlay !== null \|\| legal.length === 0`, on the human's turn — passing on your own lead throws in the engine | `selectors.canPass` (P:832) |
-| `status` | the exact strings of P:837-843 through `copy.ts`, with a tone | `selectors.statusFor` |
-| `sign` | the plaque: `describe(lastPlay)`, "Fresh lead", "Waiting on the opening play" | `selectors.signFor` (P:872-887) |
-| `act(a)` | dispatch; illegal engine actions become `crash`, never a throw | `GameProvider` |
-| `actAi(seat, difficulty)` | one AI move from the provider's seeded rng (`aiTurn`) | `GameProvider` |
-| `toggleCard(v)`, `setSelection(cards)` | selection, guarded by `selectors.canToggle` | `GameProvider` |
-| `barks` | `{ id, seat, text }[]`, AI-only, each alive for `BARK_MS` | `useBarks` |
-| `audio` | the injected `AudioPort`, re-exposed so `useAudio` never imports `WebAudio` | prop of `GameProvider` |
-| `crash` | the `CrashReport` being shown, or `null` | `GameProvider` |
+| **PURE** | No `window`, `document`, `setTimeout`, `console` or `URLSearchParams`. Time, sound, storage and the host arrive as ports (`ClockPort`, `AudioPort`, `StoragePort`, `ShellPort`, `ThinkPort`). | `tsconfig.core.json` compiles `engine/ ai/ render/ game/ settings/ audio/ assets/` without the DOM lib (`npm run typecheck`). |
+| **SCENES** | No game rules. An `if` about the rules belongs in `game/selectors.ts`; a layout number in `render/tableLayout.ts`; a duration in `game/timing.ts`. `engine/reducer` and `ai/` are imported only as types. A card face is never made translucent. | `src/game/boundary.test.ts` |
+| **WEB** | The browser. | — |
 
-### The turn loop (`src/game/useTurnLoop.ts`)
+## Data flow
 
-One effect, one timer, keyed on the `game` object. Every branch returns `clearTimeout`. Every wait below is `paced(ms, opts.gameSpeed)` — the prototype's ms times the Game speed tier's scale (`timing.ts` `SPEED`: slow ×4, normal ×2, fast ×1.5/0.7).:
-
-- `phase === "roundover"` → `SCORE_ROUND` after `ROUND_OVER_MS.human` (800) or `.ai` (900) — the turn stays on the winner.
-- human's turn → no timer. The player is never passed for them, even with no legal move: the status line says "Nothing here beats that — you'll have to pass." and the Pass button is the only way on.
-- AI's turn → `actAi(seat, opts.difficulty)` after `thinkMs(opts.gameSpeed, Math.random()) + (history.length === 0 ? FIRST_STEP_MS : 0)`, paced. `chooseMove` runs **inside** the timeout, inside the provider, so StrictMode's mount/cleanup/mount never consumes the AI rng twice.
-- `paused` (a hidden tab, or a shell's `pause` — §11) → no timer at all; the effect re-runs when `paused` flips back.
-
-`chooseMove` is synchronous. In the React build it was worst case under a millisecond, so there was no worker; Card sharp's lookahead (~10 ms a move, 80-120 ms at worst) changed that — the Phaser build computes AI moves in a Worker (see the performance note at the top). A crash inside `actAi` leaves `game` unchanged, so no timer is re-armed and the crash screen is the only thing that happens.
-
-## 4. Timing
-
-Every millisecond lives in `src/game/timing.ts`; nothing else in `src/` may hold a timing number. All values are the prototype's.
-
-| Constant | Value | Prototype |
-| --- | --- | --- |
-| `BASE_TIME_SCALE` / `paced(ms, multiplier)` | every table wait is the prototype's ms × 4 ÷ the Game speed setting (`SpeedMultiplier` = 1 \| 2 \| 3 \| 4) | new |
-| `SPEED` | `{ fast: [280, 520], normal: [650, 1250], slow: [1100, 1900] }` ms, uniform (before pacing) | P:917 |
-| `thinkMs(speed, r)` | `lo + r * (hi - lo)`; `r` is `Math.random()` in the game, a fixed value in tests | P:918-921 |
-| `ROUND_OVER_MS` | `{ ai: 900, human: 800 }` | P:943, P:966 |
-| `FIRST_STEP_MS` | 700 | P:1037 |
-| `DOORS_MS` | 620 | P:1228 |
-| `DEAL` / `dealTotalMs()` | 52 backs leave a deck on the felt 14 ms apart, fly 300 ms (the opponents' shrink into their portraits, the player's land face-down in the fan), then the player's flip over 25 ms apart, 220 ms each: ≈ 1.5 s. Presentation only; `timing.test.ts` pins it inside the earliest first AI move at every speed. A tap finishes it | new (replaces the prototype's 32-ms `DEAL_STAGGER_MS` fly-in, P:775) |
-| `ROUND_END` | the round's last play holds 300 ms after landing, then slaps down (220 ms, camera jolt). On Greenhorn the losers' leftover cards come out face-up, and the store waits a fixed `revealHoldMs` (1500) more before scoring | new |
-| `POSTER` | rows 60 ms apart, then the numbers count up over 700 ms (a tick sound at most every 70 ms); a tap finishes it | new |
-| `MOTION` / `EASE` / `GESTURE` / `TURN` | presentation durations and easings, the hand's gesture timings, the turn cues (docs/MOBILE_UX_PLAN.md); `boundary.test.ts` fails on a number literal in a `phaser/` tween or timer | new |
-| `PLAY_FLY_MS` / `PLAY_FLY_STAGGER_MS` / `playLandMs(n)` | 700 / 30 per card: a play flies from behind its player's portrait (the hand strip for the human), meets as a stack, then spreads (`motion.css` `fly`). Not paced; the turn loop adds `playLandMs` to the next wait so nothing moves until it lands | new (the prototype's 280-ms slap, 40-ms stagger: P:883) |
-| `BARK_MS` / `BARK_CHANCE` | 2000 / 0.55 | P:894-899 |
-| `SELECT_MS` | 160 (the select lift) | P:151 |
-
-Audio timings live next to the sounds in `src/audio/sfxTable.ts`: `DUCK` (to 0.12 within 20 ms, back to 0.30 300 ms after the last slap; P:369-374 — both moves scheduled on the audio clock), `DEAL_ROLL` (shuffle at 0, four deal ticks at 260 + k·110 ms, scheduled on the audio clock at once; P:388-391), `FADE` (a track switch is a 1.5-s fade-out, then a 2-s fade-in — never a crossfade), `JITTER` (±4 % true pitch).
-
-## 5. How a crash becomes a screen
-
-React error boundaries only catch errors thrown during render, lifecycle methods and constructors — never in event handlers or `setTimeout` callbacks — and every `act()` call happens in exactly those two places (a button handler, or the turn-loop timer). So the crash path does not use a boundary at all:
-
-1. `act(a)` calls `tryReduce(state, a)` (`src/game/appReducer.ts`), **the one place an engine throw is caught**. It is pure, so it is unit-tested directly.
-2. On a throw it returns `{ crash: CrashReport }` where `CrashReport = { error, action } & GameLog` and `GameLog = { seed, rules, round, leader, totals, history, final }` (`selectors.gameLog`). Nothing is dispatched: `game` is unchanged, no timer is re-armed.
-3. The provider stores the report in state and **renders `<CrashScreen/>` instead of its children**. Same data, same buttons, no class component, no throw-in-render idiom.
-4. `ui/CrashScreen.tsx` shows the seed, rules, round, leader, totals, the action that threw and the history, with "Copy game log" (`serializeLog`) and "Saddle up" (clear `crash`, dispatch `QUIT` → title; settings live in the outer provider and survive).
-5. The copied log is the `GameLog` shape that `selectors.replayLog(log)` rebuilds — `deal(seed, rules, seats, round, leader, totals)` then the history as actions — so a bug report is one paste into a scratch test: `expect(JSON.stringify(replayLog(log))).toBe(JSON.stringify(log.final))`. This works for round 2+ too, which the engine's own `replay()` (round 1 only) cannot do.
-
-Why no-op guards for app-level actions but throws for PLAY/PASS: "Next round" and "Score" can be double-tapped and must not unmount the tree; PLAY/PASS are gated by `legalMoves` and `canPass`, so a throw there is a real bug and must end up on screen with enough data to replay it. The cosmetic layer (`cueFor` → sounds and barks) runs inside the same `try` in `act()`, so a throw there also reaches the screen instead of dying silently in a click handler.
-
-`ui/ErrorBoundary.tsx` is a separate, last-resort net for **render** bugs — a missing `PORTRAITS` key, an undefined sprite URL, a typo in a selector — which carry no report. It is about 15 lines, the only class component in the codebase (`getDerivedStateFromError` has no hook equivalent), and renders just `error.message` + "Saddle up" (reset → remounts `GameProvider` at `INITIAL`). It never sees engine throws, because `tryReduce` has already turned those into a `CrashScreen`. `dev/DevHook.tsx` (DEV builds only) exposes `window.__tally = { act, game }` so an illegal PLAY can be forced from the console without editing code.
-
-## 6. Reference stability
-
-The thing a learner cannot debug by reading: **every value in an effect's dependency array must keep its identity between renders unless `game` changed.** A value that changes identity for any other reason clears and re-arms the pending timer, which looks like "the AI hesitates".
-
-Concretely:
-
-- `useBarks` returns `{ list, show }` with `show = useCallback(…, [])` — it only calls `setList` with a functional update and arms one `setTimeout` per bark — and `act` depends on `barks.show`, not `barks`. Otherwise every bark expiry would recreate `act` → `actAi` → the turn-loop effect mid-think.
-- `legal` is `useMemo` on `[game]` **only**: it never reads the selection, so a card tap never recomputes the legal moves.
-- The `audio` port is created once in `App.tsx` with `useMemo`; `storage` and `shell` are module constants (`bridge.host` is fixed at module load, so the storage pick never changes).
-- `opts.*` read by the loop are primitives (`gameSpeed`, `difficulty`).
-- The AI rng is a `useRef`, reseeded on `NEW_MATCH`/`NEXT_ROUND` with `aiRngFor(seed)`; it never appears in a dependency array and never leaves the provider.
-
-`appReduce` is pure, so calling it once more inside `act()` to learn `next` is free. StrictMode double-invokes reducers in dev; because sounds and barks live in `act()`, nothing fires twice.
-
-## 7. Match over
-
-The engine has no match concept (`state.ts`: phases are `playing | roundover | scored`; only `round` and `totals` carry across deals), and `DECISIONS.md` leaves the length open, so this is the plan's own definition, in `src/game/selectors.ts`:
-
-```ts
-export const ROUNDS_PER_MATCH = 8;                                                     // a match is exactly eight rounds; not a setting
-export const matchOver = (g: GameState | null): boolean =>
-  !!g && g.phase === "scored" && g.round >= ROUNDS_PER_MATCH;
-export function matchWinner(g: GameState): number {        // highest tally; a tie goes to the seat that won the LAST round
-  const best = Math.max(...g.totals);
-  const tied = g.totals.flatMap((t, i) => (t === best ? [i] : []));
-  return tied.length === 1 ? tied[0] : tied.includes(g.turn) ? g.turn : tied[0];      // turn stays on the round winner after SCORE_ROUND
-}
+```
+             ┌──────────── main.ts ─────────────┐
+ WebAudio ──►│ GameStore(audio, frameClock,      │◄── SettingsStore(webStorage | bridgeStorage)
+ workerThink►│           bridgeShell, think)     │       rules ─► game.setRules, opts ─► game.setOpts
+             └──────┬──────────────▲────────────┘
+                    │ view          │ act / toggleCard / setSelection
+                    ▼               │
+             Phaser scenes (Title, Table, Poster, Settings, HowTo, Crash, Rotate)
 ```
 
-A match is exactly `ROUNDS_PER_MATCH` = 8 rounds (`game/selectors.ts`; the prototype's Endless / 5 / 10 setting is gone — 2026-10-07: "8 rounds per match no more, no less"). The **round** poster (`ResultsPoster`) shows the round winner: `wanted.png` for seat 0 else the portrait, the reward line `$N reward for an empty hand`, the Player / Cards / Round / Tally table, buttons Next round / Saddle up. The **final** poster, when `matchOver(game)`, reuses the component: heading "FINAL TALLY", face and name from `matchWinner(game)`, `$N over M rounds`, rows sorted by tally, buttons "New match" (`act(NEW_MATCH{ seed: newSeed(1), rules })`, doors stay open) and "Saddle up"; no "Next round".
+- **`GameStore`** (`game/store.ts`) holds one `AppState` (`appReduce` over the engine's `reduce`), the selection, any crash report, the barks and the final-round banner. `view` is a snapshot object that changes identity only when something in it changed; the scenes render from it. `act(action)` dispatches; an engine throw becomes a `CrashReport` (shown by the Crash scene with a replayable game log), never an exception.
+- **The turn loop** is one pending timer on the `ClockPort`, re-armed only when the game, the pause, the crash or the Game speed / difficulty settings change. The human's turn arms nothing. An AI turn waits for the previous play to land, then the paced think time (`game/timing.ts` `SPEED`), then plays. With a `ThinkPort` the move is computed in a Web Worker (`platform/think.ts`, `platform/aiWorker.ts`) while the delay runs; if no worker can be made, the same code runs on the main thread.
+- **Determinism.** A deal's seed fixes the shuffle and seeds the AI's own random stream (`game/seeds.ts`); `Math.random` is used only for cosmetics (bark chance, think jitter). A round replays from its seed and its action list (`replayLog`).
+- **The frame clock** (`platform/clock.ts`) fires store timers from the Phaser loop's pre-step, so a state change, the scene's re-render and the first frame of any tween it starts land in the same frame. A fallback `setTimeout` fires anything due while the loop is asleep (a background tab).
+- **Settings** (`settings/`) hydrate once from a `StoragePort`: `localStorage` in a browser, the host in a native shell (`platform/bridgeStorage.ts`). Nothing stored means a first-time player: Greenhorn opponents and hints on. Blobs saved by earlier versions are merged field by field; unknown and retired fields are dropped.
+- **Audio** (`audio/`). `sfxTable.ts` lists every event's files, gain and duck, and the five music loops. `director.ts` follows the stores and the open sheet and tells the `AudioPort` which loop is wanted, when the tension loop stands in for the table loop, the bus gains, and suspend/resume. `WebAudio.ts` is the port on the Web Audio API: SFX fetched early and decoded on the first tap, music decoded the first time it is wanted, every fade and duck scheduled on the audio clock.
 
-## 8. Audio: who decides what plays
+## The scenes
 
-- One table, `src/audio/sfxTable.ts`: `SfxEvent → { files, gain, ducks }` plus the four loops (`table` ost_1, `tension` ost_3 in its place while any seat is low, `results` ost_4, `ambience` CardsMovingLoop03 at −14 dB) with sample-accurate `loopEnd`s. PURE: it names assets through `assets/names.ts`. One music loop plays at a time: `WebAudio` fades the playing loop out over `FADE.outMs` and schedules the next to start, and fade in over `FADE.inMs`, on the audio clock at the moment the fade-out ends — a switch is never a crossfade, and a loop stopped before it has sounded is cancelled outright. The level a fade-out starts from is computed from the schedule (`gain × fade-in progress`), never read back from the `AudioParam` (Firefox returns the cancelled timeline's value, and an unrendered node returns 1.0). Wanting the table also prefetches the tension loop, so a session's first tension switch is scheduled like every later one instead of waiting on a 2 MB decode. `tensionFor` holds its value through `roundover` by counting the winner's final play in place of their empty hand, so a round's end is one switch, to the results track.
-- Per-action sounds (`play`, `dealRoll`, `select`) are fired from `act()` / `toggleCard` via `cueFor(before, action, next)` (`src/game/cues.ts`, tested row by row). Barks are AI-only — seat 0 has no personality and no lines — so a human round win yields `roundWin` and no bark.
-- Per-state music is decided in exactly one hook, `src/audio/useAudio.ts`, called once from `App.tsx` with `{ sheet, paused }`: `audio.setMusic(opts.music ? musicFor(game, sheet) : null)`, `audio.setTension(tensionFor(game))` (any seat at ≤ 3 cards, the same threshold as the `.low` seat state), `audio.setBus(bus, on ? volume : 0)`, `paused ? suspend() : resume()`. No screen or sheet owns playback; `ui/` reaches the port only through `useGame().audio`.
-- `setMusic` is desired state, not fire-and-forget (`src/audio/musicLatch.ts`, PURE, tested): music decodes lazily, so the first `setMusic("results")` on a fresh cache lands seconds before the buffer exists; the latch starts the loop when the decode lands iff that track is still wanted.
-- `AudioPort` (`src/audio/port.ts`) is the interface; `WebAudio.ts` is the web implementation (an `AudioContext`, three `GainNode` buses, `Promise.allSettled` decoding, `ctx.resume()` whenever the context is not running). `init()` never rejects and is never awaited: a device that cannot decode a file gets a silent event, never a stalled deal.
-- The iOS unlock: `audio.init()` runs from all three title buttons (Deal me in, How to play, Settings), and `App.tsx` installs one `document` `pointerdown` listener that calls `audio.resume()`, so the next tap after a phone call, Siri or the lock screen is the gesture Safari wants.
+`phaser/director.ts` decides what runs from the store and a few observables (`platform/env.ts`): the Crash sheet over everything when there is a crash or an uncaught scene error; the Title when there is no game, else the Table with the Poster over it once the round is scored; the Settings or How to play sheet on top; the Rotate gate over all of it on a phone held upright. It also folds a hidden tab, the host's `pause`, the Rotate gate and a lost WebGL context into the store's pause, owns the moves between screens (through the title's doors, a fade up out of the dark), and restarts every running scene when the viewport changes — a restart is told it is one and keeps its place (a sheet's scroll, the cards' poses).
 
-## 9. Rendering and crispness
+| Scene | What it is |
+| --- | --- |
+| `Boot` | Loads every image from `assets/manifest.ts` and waits for the Rye font. |
+| `Title` | The saloon front: Deal me in, How to play, Settings; the "New version ready" / "add to Home Screen" line. |
+| `Table` | The round. `table/Seat` (an opponent's badge, barks, thinking dots), `table/Trick` (the plays on the felt), `table/Hand` (the fan and its gestures), `table/Side` (round, tally, sign, status, Play / Pass / Hint), `table/Deal` (the deal animation), `table/Saloon` (the room behind the hand, baked into one texture). |
+| `Poster` | The WANTED poster after a round, the FINAL TALLY poster after the eighth. |
+| `Settings`, `HowTo` | Sheets (`scenes/sheet.ts`): a panel over a dim, scrolling with momentum, closed by ✕, a tap on the dim or a pull down. |
+| `Crash` | An engine throw or a scene error, with the game log to copy and Saddle up. |
+| `Rotate` | "Turn your phone sideways". |
 
-DOM/CSS sprites, no canvas. The card rule (`styles/cards.css`): `width: var(--cw); height: var(--ch)` with `--cw: 96px; --ch: 128px` always; `background-image: url(cards_atlas.png)` — one file, 3744x1536, three times the 1248x512 art; `background-size: calc(var(--cw) * 13) calc(var(--ch) * 4)`; `background-position` from `--col`/`--row` (`render/atlas.ts`: the engine and the atlas disagree on both axes, so the tables are pinned by `atlas.test.ts`); `image-rendering: auto`, pixelated only inside `.game.upscaled`.
+`phaser/services.ts` is what the scenes reach: the two stores, the open sheet, the seed, the update and install offers. Scenes never construct them.
 
-- **One 3x file, smoothed; pixelated only when upscaled**: every sprite and the atlas ship as one PNG holding 3x the art's pixels, and the CSS draws it at the art size in CSS px (`docs/ASSETS.md` §7). The browser scales it — smoothed by default, since a phone draws the game at a factor k < 1 of its frame and nearest-neighbour would drop art pixels unevenly. When k ≥ 1 (desktop Chrome) the game root carries the `upscaled` class and one rule in `styles/sprites.css` (`.game.upscaled .sp / .card / .face / .felt / .table / .title::after`) switches the art to `image-rendering: pixelated`. Nothing cares about integer device scales any more. iOS Safari resamples pixelated backgrounds — moot now that nothing is drawn 1:1.
-- **Integer scale / rest pose**: only `transform: translate()` with integer logical px at rest; `rotate(0)` at rest; animations may pass through fractional values but end on the integer pose. The one scale transform is the root's (`.game`, §10): the whole logical canvas scaled by k, so every integer below it lands on the same fractional device grid and nothing inside ever scales on its own. The prototype's resting `rotate(t*2.4deg)` and fractional `step`/`x0` (P:792-800) are the one thing not copied.
-- **Fan**: `fanLayout(13, availW)` (`render/fanLayout.ts`) with the hand strip at `padding: 0 8px`, `availW` being the strip left of the 136-px side column inside the 16-px `--edge`, in logical px (`platform/useElementWidth`, §10): step `min(64, floor((availW − 96) / 12))`, so a 13-card hand shows 41 logical px of each card on an iPhone SE held sideways (canvas 782 wide, `availW = 592`), 55 on an iPhone 15 (954 wide) and 34 in a 1280x800 desktop window (704 wide); `FAN_STEP_MAX = 64` stops a wide strip from spreading the cards apart. The narrowest fan the art allows is `fanStepArt(96) = 22` (`scale.ts`), above the 20-px corner index; `scale.test.ts` pins the three steps above and `e2e/play.mjs` asserts ≥ 34 on every target.
-- **Hand order and gestures** (`phaser/table/Hand.ts`, `render/handGesture.ts`; docs/MOBILE_UX_PLAN.md §4): a fresh deal is sorted low to high, a rank's cards by suit (`selectors.sortHand`; there is no sort setting or Sort button). The order is view state per deal, never engine state. One touch zone covers the fan; the card under a finger comes from the fan geometry (`cardIndexAt`: each card owns its exposed strip), not from object hits. Every press becomes exactly one gesture (`resolveGesture`, unit-tested on pointer traces):
-  - **tap** toggles the card. A card that cannot join a legal play with what is chosen also wobbles "no".
-  - **swipe** (Settings › Swipe to select, on by default): a sideways move paints the selection across the cards passed. The range runs from the first card to the one under the finger, and sliding back un-paints (`paintSelection`).
-  - **flick** (Settings › Flick to play, on by default): an upward move from a selected card drags the selection. Released ≥ 40 px up, or flung, while it is a legal play, it is played, and the trick flies the cards from exactly where the finger left them (`HandView.poseOf`). Anything else springs back.
-  - **hold** (`GESTURE.holdMs` = 180 ms still): the card lifts and grows (a peek at 1.5× after another 400 ms), then follows the finger to rearrange. Same-rank neighbours are put back low suit to high (`selectors.suitSortRuns`). With Swipe to select off, any sideways move rearranges at once, as before.
+## Geometry
 
-  Gesture timing is measured with `performance.now()`, not the frame clock, so a slow frame never turns a hold into a swipe. A selected card lifts `SELECT_LIFT` = 26 logical px, and glows amber when the selection is a legal play. Rest positions stay whole px (the drag x is rounded and clamped to the strip).
-- **Other sprites, one 3x file each**: wood tile 96 CSS px, felt tile 32, portraits 96x104 (the framed art at its native pixel size — Marshal Cobb 90x91, Lucky Pearl 77x88, Dusty Vane a mirrored palette swap of Lucky's (black hat, teal bandana, sunset sky, dark frame) — centred on a 96x104 canvas; the prototype's resampled 46/64 px is rejected; on the table badges they are drawn at 85 %), the WANTED face 61x71 at 2x on the poster — each a `url()` with its `background-size` in CSS px written in the rule that uses it (`base.css` body and `.title::after`; `table.css` `.table`, `.felt`, `.face.p_marshal` / `.face.p_outlaw` / `.face.p_gambler` / `.face.wanted`), so Vite resolves and hashes the file. Seat back chips are CSS rectangles. Nothing sets a texture from JavaScript.
-- **The trick on the felt** (`ui/Pile.tsx`, `selectors.trickPlays`): the three opponents' badges sit along the felt's top edge; the four seats' latest plays in the current trick are staggered in three rows beneath (`TrickSlot`) so each can spread wider than a third of the felt — Dusty's (the middle seat) in the top row, the full width, centred under its badge; Marshal Cobb's and Lucky Pearl's in the middle row, half the width each, against the left and right edges under theirs; the human's own play in the bottom row, centred. Each slot's `top` comes from the area's measured height (`platform/useElementSize`, logical px): the bottom row flush with the bottom, the middle row halfway — on the 440-px canvas the three rows overlap by 41 px, the same on every device now that the canvas is scaled rather than squeezed (§10) — the latest play on top. The sign sits in the side column. A seat that plays again replaces its earlier play; a clear empties the felt (`GameState.trickStart` marks where the trick began). The play to beat is outlined in amber, earlier ones recede. Cards are absolutely positioned at integer x (`PILE_STEP` = 40 apart, squeezed to a minimum of 12 in a narrow slot, centred by whole pixels from the slot's measured width) and rest at `rotate(0)`; the prototype's alternating tilt happens on the way in only (`motion.css` `slap`). The hand's select lift is part of the inline transform (`translate(x, -14px)`), not an `!important` rule, so it cannot override the deal keyframes.
-- **Plays**: the trick's cards are a fixed 72x96 CSS px on every device (`render/scale.ts` `PLAY_CARD_W/H`, `tokens.css` `--cw-small/--ch-small`, step `PILE_STEP` = 30) — three quarters of the hand's, by request (2026-10-07: "1.5x bigger" than the 48-px plays they replaced). That is a 0.75 downscale of the atlas; like everything else it is drawn smoothed (`image-rendering: auto`) and goes pixelated with the rest of the art only inside `.game.upscaled`. The portraits are likewise drawn at 85 % (82x88) on the badges.
-- **Layout** (`styles/table.css`): the table is a phone held sideways — a grid of `felt + side / hand + side`: the felt (three portrait badges — 96x104 sprites at 82x88 — along its top edge over the three play rows of 72x96 cards), a 136-px side column (round and tally with the menu button, the sign, the status line, Play / Pass / Hint stacked at the bottom) and a 122-px hand row whose 128-px cards overhang the felt's edge by 6 px (the select lift rises over the felt; `.handwrap` is `z-index: 3`). Behind the hand sits a saloon (`ui/Saloon.tsx`, `styles/table.css` `.saloon`): a 900-px room of B-4 / B-6 props — plant, stool, piano, chair, barrel, the WHISKEY / BEER / RUM back bar with stools, a sconce, a hanging sign, a poker table, a fireplace — centred in the strip by a whole px from its measured width and clipped to it, so a 13-card fan hides it and the hand uncovers it from both ends as it is played down. The title (`ui/screens/TitleScreen.tsx`, `base.css` `.title`) is a saloon front from the same sheets: the SALOON sign over batwing doors that swing open in three sprite frames (`ui/Doors.tsx`, `motion.css` `frame-*`) when Deal me in is tapped, a barrel with an oil lamp, chips, a stool and a plant, the desert painting over the buttons, floorboards along the bottom, sconces and a chip pile in the corners of a frame at least 900 px wide. Every prop is a `.sp-<name>` class (`styles/sprites.css`: size + `url()` + `background-size` in CSS px), placed by whole px; `docs/ASSETS.md` §7 lists the cuts. Every px here is a logical px of the 440-px-tall canvas (§10): the vertical budget is 326 with the play rows fully overlapped, and the three play rows overlap by 41 px — the middle row's plays sit at the felt's edges, so only wide plays can collide. The table runs edge to edge: the felt and the hand out to the left of the screen, the side column to the right, inside only `--edge` (16 logical px) for the rounded corners. The notch / Dynamic Island is cleared where it is, not with a full-height gutter: in landscape it sits mid-height on one long edge, so only what is level with it steps in, by the safe-area inset beyond `--edge` — the trick's rows (`.plays`) when it is on the left, the sign and status line (with the side column widened to match) when it is on the right. iOS reports that inset on both sides, so `platform/useNotchSide.ts` reads the rotation (`window.orientation`, else `screen.orientation.angle`) and `App.tsx` marks `.game` `notch-left` / `notch-right`, which zeroes the other side's clearance. The side column keeps clear of the home indicator. `--inset-*` on `.game` win over `env()` when a native shell sets them. The game root (`base.css` `.game`) is the logical canvas — `height: 440px`, `width: var(--logical-w)`, `transform: scale(var(--k))` from its top-left corner, both properties set by `platform/useFitScale.ts` — so it fills the viewport exactly with nothing of the body around it; `touch-action: manipulation; user-select: none`. The title's corner decor shows only on a `.game.wide` canvas (≥ 900 logical px). There is no orientation gate and none is wanted: held upright, the same layout shrinks to the width. `useElementWidth` measures the strips in logical px. Rye is self-hosted (`@fontsource/rye`): no FOUT on a cold cache, and it works offline.
-- **Size floors** (`styles/tokens.css`): because the canvas is scaled by k, a CSS size is not what the player sees. The smallest k designed for is 0.75 — an iPhone SE held sideways in Safari with its toolbar showing (667x331) — so every floor is the physical target divided by 0.75: text `--fs-min: 15px` (11 CSS px, Apple's 11-pt minimum), `--fs-body: 16px`, `--fs-em: 18px`, and every control `--tap: 60px` (45 CSS px, Apple's 44-pt minimum). No `font-size` is written below `--fs-min`. A switch, the menu button and a slider are a full `--tap` box to hit with the drawing inside it; a settings row is a `--tap` tall and its label fills it (`htmlFor`). `e2e/play.mjs` gates the physical sizes at 667x331: no visible text under 11 CSS px, no button, select, slider or switch under 44x44.
-- **Verification tooling**: `atlas.test.ts` asserts `spriteFor(0)` = (192, 0) 3♦, `spriteFor(51)` = (96, 128) 2♠, `spriteFor(45)` = (0, 384) A♣; `scale.test.ts` pins k and the fan step for the three targets. `e2e/play.mjs` scripts the device gates in Playwright's WebKit and Chromium (§10 and the README). The old `?dev=spike` checker-probe page, its checker sprite and `.checker-tile` rule are gone with the integer-scale rule they tested.
+The game is laid out on a **logical canvas 440 px tall** and as wide as the viewport allows (`render/scale.ts`). Every scene's camera zooms by `Z = k × dpr`, where `k = innerHeight / 440`, over a backing canvas the size of the viewport in device pixels (`phaser/viewport.ts`), so scenes lay out in logical px and never see k. `render/tableLayout.ts` turns the canvas width and the notch insets into the table's rects; `render/fanLayout.ts` places the hand's cards at whole logical px.
 
-### Shipping
+Size floors (`phaser/theme.ts`) are set for the smallest k designed for, 0.75 (an iPhone SE held sideways with Safari's toolbars showing): no text under 11 CSS px, no control under 44×44 CSS px.
 
-`vite build` emits a static `dist/` (`index.html`, hashed `assets/`, `icons/`, `manifest.webmanifest`) plus `sw.js`, a hand-written service worker that makes the game work offline. The `tally-offline` plugin in `vite.config.ts` hashes `dist/`, asks `src/platform/precache.ts` (PURE) which files to save, and prepends that plan to `src/platform/sw.js`. Behaviour:
+Art ships as one PNG per sprite at 3× the art's pixels (`docs/ASSETS.md`). While Z ≤ 3 it is drawn LINEAR (the cards from a mipmapped power-of-two sheet built at boot, `phaser/cardSheet.ts`); above that, Phaser's smoothPixelArt shader keeps art pixels square and even. Unrotated quads are snapped to device pixels.
 
-- **Install:** every core file is cached (all or nothing); the music goes into a second cache, best-effort.
-- **Fetches:** navigations are network-first with a 3-s timeout, then the cached index; listed files are cache-first.
-- **Updates:** a new build waits and never takes over mid-match. It takes over on the next cold launch, or from the Title's "New version ready" line.
+## Input
 
-`src/platform/offline.ts` registers the worker in production builds only, and not in an `ios` or `android` host: those bundle `dist/` (`docs/SHELL.md` §7). `docs/OFFLINE_PLAN.md` has the reasoning. `index.html` keeps the `apple-mobile-web-app-*` tags and the icons, which a shell may use: `public/icons/icon-192.png` (apple-touch-icon and favicon) and `icon-512.png` (note a circular mask clips the card's corners — the card is 288x384 centred, so its corners sit 240 px from the centre, outside the 205-px safe zone).
+A canvas has no DOM controls. `phaser/widgets.ts` draws Button, IconButton, Switch, Slider and Picker; a tap is a release that has not travelled. The hand (`phaser/table/Hand.ts`) resolves every press to one gesture with the pure functions in `render/handGesture.ts`: a **tap** toggles a card, a sideways **swipe** paints a range of cards selected or unselected, an upward **flick** from a selected legal play plays it, and a **hold** picks a card up to rearrange the fan.
 
-## 10. The logical canvas
+## Performance
 
-The game is designed once, on a fixed logical canvas, and scaled to whatever is showing it — a phone held sideways (iPhone Safari first) or a desktop Chrome window. The rules (`render/scale.ts` `LOGICAL_H`, `fitScale`; `platform/useFitScale.ts`; `base.css` `.game`):
+- **Render on demand** (`phaser/onDemand.ts`): every frame updates, but the draw is skipped unless a tween is running or something was marked dirty (a store change, input, a resize) in the last moments.
+- **One texture for the cards** (`phaser/cardSheet.ts`), so a hand and a trick batch into one draw on mobile, and a **card pool** (`phaser/cardPool.ts`) so a round creates no card objects.
+- **Painted textures** (`phaser/paint.ts`) are cached by key; the table prepaints what it will need, and in dev a texture first painted mid-round logs a warning.
+- **Lost WebGL context** (`phaser/contextLoss.ts`): the table pauses until the context is restored, then redraws.
+- `?perf=1` (dev or production) shows a frame-time overlay and exposes `window.__perf.report()`. `?draw=always`, `?pixels=nearest|linear|smooth` and `?snap=0` are comparison switches.
 
-- The canvas is **440 logical px tall** (the largest iPhone sideways, 956x440, is the 1:1 case) and `viewportWidth / k` wide, where **k = viewportHeight / 440**. No letterbox, no cap: on an iPhone SE (667x375) k = 0.852 and the canvas is 782 wide; on an iPhone 15 (852x393) k = 0.893, 954 wide; in a 1280x800 window k = 1.818, 704 wide — a desktop grows everything and gets a *narrower* canvas, which is what fills the screen.
-- It is applied as `transform: scale(k)` with `transform-origin: 0 0` on `.game`, whose logical width and height are set explicitly (`--logical-w`, `height: 440px`), so the scaled box is exactly the viewport. Not CSS `zoom` (viewport units misbehave under it) and no rem tricks: every number in the CSS and the layout code stays a plain px.
-- `useFitScale` is a `useSyncExternalStore` over `resize` and `visualViewport` `resize`; it hands `{ k, logicalWidth }` to `App.tsx`, which writes `--k` and `--logical-w` on `.game` and toggles `.upscaled` (k ≥ 1: the sprites may draw pixelated; downscaled pixel art is smoothed) and `.wide` (≥ 900 logical px: the title's corner decor). `ScaleContext` carries k down.
-- **Every DOM measurement becomes logical px**: `useElementSize` / `useElementWidth` divide `getBoundingClientRect` by k and floor; the hand's drag (`ui/Hand.tsx`) divides pointer x by k at the press origin and on every move. The fan, the trick rows and the saloon room lay out from those numbers and never see k. Rest transforms stay whole logical px.
-- The safe-area insets enter through `table.css` as `var(--inset-*, env(safe-area-inset-*))`: a native shell sets `--inset-left/right/bottom` on `.game` (§11; divided by k, since they are consumed inside the scaled box); a plain browser falls back to `env()`, which is read inside the box too — so on a phone (k < 1) the Dynamic Island inset renders at inset × k physical px, a few px short, until measured on hardware.
+## Offline
 
-What `e2e/play.mjs` asserts (2026-10-07; WebKit at iPhone SE 667x375 @2 and iPhone 15 852x393 @3, mobile contexts, and Chromium at a 1280x800 @2 desktop window; `?seed=3`, two rounds each):
+A production build installs a service worker (`platform/offline.ts`) that caches the whole game. `vite.config.ts`'s `tally-offline` plugin walks the built `dist/`, asks `platform/precache.ts` which files to cache, and writes `dist/sw.js` as that plan plus `src/platform/sw.js`:
 
-| Check | SE @2 | i15 @3 | desktop @2 |
-| --- | --- | --- | --- |
-| `.game` rect = viewport (±1 px), `--k` as computed | 667x375, k 0.852, 782.6 wide | 852x393, k 0.893, 953.9 wide, `.wide` | 1280x800, k 1.818, 704 wide, `.upscaled` |
-| hand card = 96k x 128k (±0.5 px) | 81.82x109.09 | 85.75x114.33 | 174.55x232.73 |
-| 13-card fan: step ≥ 34 logical px, span ≤ strip (both rects scaled) | step 44, 531.8 ≤ 532.3 | step 58, 707.4 ≤ 710.9 | step 37, 981.8 ≤ 992.7 |
-| rest transforms whole logical px; nothing scrolls | yes; 667x375 of 667x375 | yes; 852x393 | yes; 1280x800 |
+- **core** (the page, JS, CSS, woff2 font, images, SFX, icons, web manifest) must all cache or the install fails;
+- **music** (the five loops, ~12 MB) caches best-effort, one file at a time, and a miss is filled in when the game first fetches it;
+- navigations are network-first with a 3 s timeout, falling back to the cached page; listed files are cache-first;
+- a new version installs in the background and waits, so a deploy never swaps files under a match. It takes over on the next cold launch, or when the player taps "New version ready" on the title.
 
-Plus, per browser: 13 cards dealt and the 3♦ leftmost; a `page.mouse` drag in screen px drops the 3♦ at the right end of the fan with nothing selected; the hand and the buttons fit; zero-sum posters and carried totals over two rounds; settings from the title show no "Quit game"; a switch flips; `tallytwo.settings` written; no console errors (Playwright's Chromium has no AAC decoder, so its "unavailable" audio warnings are reported, not counted). 52 checks, 0 failed.
+The build fails if the precache is over 16 MB, and `npm run check:sw` re-checks `dist/sw.js` against `dist/`. The worker is not registered inside a native shell, which bundles `dist/` instead (`docs/SHELL.md` §7). The title's "Play offline · add to Home Screen" line (`platform/install.ts`) opens Chromium's install dialog or shows the iOS Share steps.
 
-Not yet run on hardware: the lock-screen audio interruption, Add to Home Screen + Airplane mode, and the safe-area insets of a Dynamic Island phone held sideways. These need a physical iPhone.
+## Hosts
 
-## 11. Shell bridge
+A native WKWebView, an Android WebView or an iframe parent can wrap the game. `platform/bridge.ts` detects the host and carries the postMessage protocol in `platform/bridgeProtocol.ts`: the game sends `ready`, `score`, `matchOver` and `haptic`, asks for and saves its settings through the host, and takes `pause`, `resume` and safe-area `insets` from it. `docs/SHELL.md` is the contract and the embed recipes.
 
-The web app can run inside a WKWebView, an Android WebView or an iframe and talk to that host through one small postMessage protocol; `docs/SHELL.md` is the contract and the embed recipes. The pieces, all WEB bucket under `src/platform/`:
+## Tests
 
-- `bridgeProtocol.ts` — PURE in spirit (no DOM; `bridgeProtocol.test.ts` runs under node): the envelope `{ tally: 1, type, payload, id? }`, the outbound types (`ready`, `score`, `matchOver`, `haptic`, and the requests `settings:get` / `settings:set`), the inbound ones (`pause`, `resume`, `settings`, `insets`), `encode()`, and `decode()`, which validates every inbound message — wrong `tally`, unknown type, malformed payload → `null`; a string is `JSON.parse`d inside a try, never evaluated.
-- `bridge.ts` — detects the host once at module load (`window.webkit.messageHandlers.tally` → `ios`, `window.TallyBridge` → `android`, `window.parent !== window` → `iframe`, else `null`) and delivers: JSON strings to the native handlers, a structured object to `parent.postMessage(msg, "*")`. Inbound arrives through `window.tallyReceive(json)` (native) or a `message` event whose `source` is the parent (iframe); both go through `decode()`. `request()` carries an id and resolves on the `settings` reply with that id or rejects after the timeout; the last `pause`/`resume` and `insets` are remembered so a hook that mounts late still sees them. With no host nothing is installed and `send` is a no-op: standalone, the app is unchanged. `createBridge(win)` takes the window as a parameter so `bridge.test.ts` drives it with fakes.
-- `bridgeStorage.ts` — a `StoragePort` that asks the host (`settings:get`, 1500 ms) and writes through (`settings:set`), falling back to `webStorage` when the host does not answer, and staying on the fallback after a first timeout. Safari partitions an iframe's localStorage and a WKWebView's data goes with the app cache, so a native host must own the blob. `App.tsx` picks `bridge.host ? bridgeStorage : webStorage` in one line.
-- `useBridge.ts` — `useBridgePause()` (folded into `paused` in `Screens` beside `usePageVisibility()`), `useBridgeInsets(ref)` (sets `--inset-top/right/bottom/left` on the `.game` element as `calc(<px> / var(--k))`, since the host reports physical px and table.css consumes them inside the scaled canvas as `var(--inset-left, env(safe-area-inset-left))`) and `useBridgeReady()` (`ready` once per page, StrictMode's double effect absorbed by a module flag).
-- The game's side: `GameProvider` takes a `shell?: ShellPort` prop (`useGame.ts`: `haptic(kind)`, `score(round, totals)`, `matchOver(winner, totals)`) next to `audio`, defaulting to a no-op, so the HOOKS bucket still imports nothing from `platform/`; `App.tsx` passes `bridgeShell` from `bridge.ts`. The events fire inside `act()`'s cosmetic `try`, after the `r.next !== state` guard, so each transition reports once: `haptic("deal")` on a deal roll, `haptic("slap" | "win")` on a PLAY that reduced (`win` when `next.phase === "roundover"`), `score` on SCORE_ROUND, `matchOver` when `matchOver(next)` (§7) is true. No game logic changed; `boundary.test.ts` still partitions the tree.
-- Webview hygiene: `styles/shell.css` (`overscroll-behavior: none`, `-webkit-touch-callout: none` on html/body — no rubber-banding, pull-to-refresh or long-press callouts) and `maximum-scale=1, user-scalable=no` on the viewport meta in `index.html` (no pinch-zoom; double-tap zoom was already off through body's `touch-action: manipulation`). These apply standalone too.
+| Command | What it covers |
+| --- | --- |
+| `npm test` | Vitest in node, no DOM: the engine's rules and replay, the AI's legality and determinism, the store's turn loop on a fake clock, the selectors, settings parsing, the audio port against a fake `AudioContext`, the music latch, the layouts and gestures, the bridge and storage ports, the service worker against fake caches, the asset table against the disk, and the layering rules. |
+| `npm run sim -- 300` | 300 AI-only games through the real `reduce()`, which throws on any illegal action: 0 illegal actions and 0 stalls, plus win rates per difficulty. |
+| `npm run e2e` | `e2e/play.mjs`: one round through the real canvas in headless Chromium, as a sideways iPhone SE and as a desktop window (about 30 s). See the README. |

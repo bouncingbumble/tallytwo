@@ -264,9 +264,9 @@ export class TableScene extends BaseScene {
   }
 
   /**
-   * The round's last play: once it has landed it holds, then slaps
-   * down with a jolt of the camera; on Greenhorn the losers' leftover cards then come out of their
-   * portraits face-up (the store waits ROUND_END.revealHoldMs longer before the poster for it).
+   * The round's last play: once it has landed it holds, then slaps down with a jolt of the camera;
+   * on Greenhorn the losers' leftover cards then come out of their portraits face-up (the store
+   * waits ROUND_END.revealHoldMs longer before the poster for it).
    */
   #roundEnd(seat: number, cards: number, g: NonNullable<GameView["game"]>): void {
     const reveal = revealLeftovers(g, this.app.settings.opts.difficulty);
@@ -301,9 +301,9 @@ export class TableScene extends BaseScene {
   }
 
   /**
-   * The player's turn arriving: the hand row glows once, and the
-   * asked-for control is nudged. If nothing is touched for TURN.idleNudgeMs, one more nudge —
-   * one reminder, never a nag. The turn moving on cancels it.
+   * The player's turn arriving: the hand row glows once, and the asked-for control is nudged. If
+   * nothing is touched for TURN.idleNudgeMs, one more nudge — one reminder, never a nag. The turn
+   * moving on cancels it.
    */
   #turnCue(ev: TableEvents, v: GameView): void {
     if (ev.turnStarted === null) return;
@@ -331,9 +331,9 @@ export class TableScene extends BaseScene {
   }
 
   /**
-   * The one-time "swipe to pick several" coach mark: a plaque over
-   * the hand and a finger sweeping across the first cards. Gone on the first swipe or after
-   * GESTURE.coachMs, and never shown again (Settings swipeHintSeen).
+   * The one-time "swipe to pick several" coach mark: a plaque over the hand and a finger sweeping
+   * across the first cards. Gone on the first swipe or after GESTURE.coachMs, and never shown again
+   * (Settings swipeHintSeen).
    */
   #showCoach(): void {
     if (this.#coach || this.#coachDone) return;

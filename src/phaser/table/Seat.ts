@@ -4,8 +4,8 @@
  * pointing at the portrait. Active / low / out change the ring, the count's colour and the alpha.
  * The portrait comes from portraitFor() in selectors.ts, so this file never reaches into ai/.
  *
- * Motion that explains state, all one-shot except the thinking dots,
- * which step on a timer so a long think draws a few frames a second, not every frame:
+ * Motion that explains state, all one-shot except the thinking dots, which step on a timer so a
+ * long think draws a few frames a second, not every frame:
  * - the ring flares in when the seat's turn starts, and stepping dots say it is thinking;
  * - the portrait lunges toward the felt as the seat plays, and pops when it takes a trick;
  * - "passed" drops in like a stamp; the count ticks with a pop, wobbles as it reaches 3;

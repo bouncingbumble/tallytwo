@@ -1,6 +1,6 @@
 /**
- * The juice kit: small one-call effects every scene shares, so a
- * "no" shake or a pop looks and times the same everywhere. Each one:
+ * The juice kit: small one-call effects every scene shares, so a "no" shake or a pop looks and
+ * times the same everywhere. Each one:
  *
  * - takes its duration from timing.ts MOTION and does nothing at all under reduced motion;
  * - ends exactly where it started (a shake returns to its x, a pop to scale 1), so a rest pose is

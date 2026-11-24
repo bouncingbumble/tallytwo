@@ -1,9 +1,9 @@
 /**
- * Which scenes run: the crash or error sheet over everything; the
- * title when there is no game, else the table with the poster over it once the round is scored;
- * the settings or how-to sheet on top; the rotate gate over all of it on an upright phone. Also
- * the pause (a hidden tab, the shell's `pause`, the rotate gate, a lost WebGL context), the
- * canvas size, and a rebuild of every running scene when the viewport changes.
+ * Which scenes run: the crash or error sheet over everything; the title when there is no game, else
+ * the table with the poster over it once the round is scored; the settings or how-to sheet on top;
+ * the rotate gate over all of it on an upright phone. Also the pause (a hidden tab, the shell's
+ * `pause`, the rotate gate, a lost WebGL context), the canvas size, and a rebuild of every running
+ * scene when the viewport changes.
  *
  * It also owns the moves between screens, so the scenes stay unaware of them: the title's own exit
  * is its doors (the camera goes in through them and darkens, Title.ts); the table then fades up out

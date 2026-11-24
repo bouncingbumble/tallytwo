@@ -1,11 +1,10 @@
 /**
- * Render on demand. A card table is still most of the time — the player thinking, the AI's
- * think delay — but Phaser redraws the whole canvas every frame regardless, where the DOM build
- * only composited when something changed. So every frame still updates (input, timers, tweens
- * all advance), but the draw is skipped unless something could have changed the picture: a
- * tween running, or anything marked dirty in the last DIRTY_MS (a store change, a pointer
- * event, a scene start, a timer firing, a resize). A WebGL canvas that is not drawn to keeps
- * showing its last frame, so a skipped draw costs nothing and shows nothing wrong.
+ * Render on demand. A card table is still most of the time — the player thinking, the AI's think
+ * delay — but Phaser redraws the whole canvas every frame regardless. So every frame still updates
+ * (input, timers, tweens all advance), but the draw is skipped unless something could have changed
+ * the picture: a tween running, or anything marked dirty in the last DIRTY_MS (a store change, a
+ * pointer event, a scene start, a timer firing, a resize). A WebGL canvas that is not drawn to
+ * keeps showing its last frame, so a skipped draw costs nothing and shows nothing wrong.
  */
 import Phaser from "phaser";
 
