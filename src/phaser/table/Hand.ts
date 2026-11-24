@@ -215,12 +215,13 @@ export class HandView {
   }
 
   /** Rects of the cards in fan order, absolute logical px (the e2e probe). */
-  probe(): { value: Card; x: number; y: number; w: number; h: number }[] {
+  probe(): { value: Card; x: number; y: number; w: number; h: number; dim: boolean; faceAlpha: number }[] {
     const v = this.#view;
     const hand = this.#hand(v?.game ? v.game.players[HUMAN].hand : []);
     return hand.map((card) => {
       const c = this.#views.get(card)!;
-      return { value: card, x: this.layer.x + c.x - CARD_W / 2, y: this.layer.y + c.y - CARD_H / 2, w: CARD_W, h: CARD_H };
+      const { dim, faceAlpha } = c.look;
+      return { value: card, x: this.layer.x + c.x - CARD_W / 2, y: this.layer.y + c.y - CARD_H / 2, w: CARD_W, h: CARD_H, dim, faceAlpha };
     });
   }
 }

@@ -71,6 +71,11 @@ function ringPainter(inset: boolean) {
   };
 }
 
+/** A card that cannot complete a legal move: about the old brightness(.62) saturate(.6) over the felt, but opaque. */
+const DIM_TINT = 0x8a8780;
+/** An earlier play in the trick: a gentler darkening than dim (was the whole group at alpha 0.72). */
+const RECEDE_TINT = 0xa9aba2;
+
 /**
  * Every layer is an Image (shadow, face, ring), so a hand of cards draws as one batch — a
  * Graphics per card would be re-tessellated every frame and break the batch twice per card.
@@ -88,6 +93,7 @@ export class CardView extends Phaser.GameObjects.Container {
   #dim = false;
   #lit = false;
   #lifted = false;
+  #recede = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, value: Card, w: number, h: number) {
     super(scene, x, y);
@@ -113,24 +119,36 @@ export class CardView extends Phaser.GameObjects.Container {
     this.#shadowDeep.setVisible(deep);
     this.#ringIn.setVisible(this.#selected);
     this.#ringOut.setVisible(!this.#selected && this.#lit);
-    // brightness(.62) saturate(.6), opacity .85
-    if (this.#dim) this.face.setTint(0x9a968f);
+    // Darkened by tint only, never by alpha: the cards overlap, so a see-through face shows the
+    // card under it and the saloon behind (docs/MOBILE_UX_PLAN.md F1). The face stays opaque.
+    if (this.#dim) this.face.setTint(DIM_TINT);
+    else if (this.#recede) this.face.setTint(RECEDE_TINT);
     else this.face.clearTint();
-    this.face.setAlpha(this.#dim ? 0.85 : 1);
   }
 
-  setLook(o: { selected?: boolean; dim?: boolean; lit?: boolean; lifted?: boolean }): this {
+  /**
+   * selected: lifted ring; dim: cannot complete a legal move; lit: the play to beat; lifted: being
+   * dragged; recede: an earlier play in the trick, pushed back behind the latest.
+   */
+  setLook(o: { selected?: boolean; dim?: boolean; lit?: boolean; lifted?: boolean; recede?: boolean }): this {
     const sel = o.selected ?? this.#selected;
     const dim = o.dim ?? this.#dim;
     const lit = o.lit ?? this.#lit;
     const lifted = o.lifted ?? this.#lifted;
-    if (sel === this.#selected && dim === this.#dim && lit === this.#lit && lifted === this.#lifted) return this;
+    const recede = o.recede ?? this.#recede;
+    if (sel === this.#selected && dim === this.#dim && lit === this.#lit && lifted === this.#lifted && recede === this.#recede) return this;
     this.#selected = sel;
     this.#dim = dim;
     this.#lit = lit;
     this.#lifted = lifted;
+    this.#recede = recede;
     this.#draw();
     return this;
+  }
+
+  /** How the face is drawn, for the e2e probe: its alpha must stay 1. */
+  get look(): { dim: boolean; recede: boolean; faceAlpha: number } {
+    return { dim: this.#dim, recede: this.#recede, faceAlpha: this.face.alpha * this.alpha };
   }
 }
 

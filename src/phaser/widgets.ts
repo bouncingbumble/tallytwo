@@ -8,7 +8,7 @@ import Phaser from "phaser";
 import { dropShadow, insetStroke, painted, roundRect, text, vgrad } from "./paint";
 import { C, CSS, FS_EM, TAP } from "./theme";
 import { EASE, MOTION } from "../game/timing";
-import { press } from "./fx";
+import { press, shake } from "./fx";
 import { ms } from "./motion";
 import { markDirty } from "./onDemand";
 import { zoomOf } from "./viewport";
@@ -40,16 +40,20 @@ function tapZone(scene: Phaser.Scene, w: number, h: number, onTap: (p: Phaser.In
 }
 
 export type ButtonKind = "normal" | "primary" | "ghost" | "ghostDark";
+/** What a button is drawn as: its kind, or `disabled` for a filled kind that is switched off. */
+type FaceKind = ButtonKind | "disabled";
 
-const FACE: Record<ButtonKind, { top: string; bottom: string; base: string | null; text: string; ring: string | null; bold: boolean }> = {
+const FACE: Record<FaceKind, { top: string; bottom: string; base: string | null; text: string; ring: string | null; bold: boolean }> = {
   normal: { top: CSS.oakLight, bottom: CSS.oak, base: "#1a0f07", text: CSS.bone, ring: null, bold: false },
   primary: { top: "#f0b457", bottom: "#c97f22", base: "#6b3f12", text: "#231204", ring: null, bold: true },
+  // switched off: flat, dark and colourless, so it never reads as the thing to press (F3)
+  disabled: { top: "#33241a", bottom: "#2a1d13", base: "#150c06", text: "#8c7b63", ring: null, bold: false },
   ghost: { top: "", bottom: "", base: null, text: CSS.bone, ring: "rgba(201, 176, 138, 0.35)", bold: false },
   ghostDark: { top: "", bottom: "", base: null, text: CSS.paperInk, ring: "rgba(42, 26, 15, 0.35)", bold: false },
 };
 
 /** One button face, up or pressed: the CSS .btn (radius 4, a 3-px base under it, a 1-px highlight). */
-function buttonPainter(kind: ButtonKind, pressed: boolean) {
+function buttonPainter(kind: FaceKind, pressed: boolean) {
   const f = FACE[kind];
   return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
     if (f.ring) {
@@ -65,6 +69,7 @@ function buttonPainter(kind: ButtonKind, pressed: boolean) {
     ctx.fillStyle = vgrad(ctx, y, y + h, f.top, f.bottom);
     roundRect(ctx, 0, y, w, h, 4);
     ctx.fill();
+    if (kind === "disabled") return; // no highlight: nothing to catch the light
     ctx.fillStyle = kind === "primary" ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.12)";
     ctx.fillRect(3, y + 1, w - 6, 1);
   };
@@ -75,6 +80,10 @@ export interface ButtonOpts {
   size?: number;
   font?: string;
   onClick: () => void;
+  /** A tap while disabled: the button shakes "no" and this runs (e.g. flash the status line). */
+  onDisabledTap?: () => void;
+  /** Other kinds setKind() will switch to: painted up front so a switch never rasterises mid-game. */
+  alsoKinds?: readonly ButtonKind[];
 }
 
 export class Button extends Phaser.GameObjects.Container {
@@ -87,6 +96,8 @@ export class Button extends Phaser.GameObjects.Container {
   #face: Phaser.GameObjects.Container;
   #enabled = true;
   #kind: ButtonKind;
+  /** What the face is drawn as right now. */
+  #shown: FaceKind;
   #zone: Phaser.GameObjects.Zone;
 
   constructor(scene: Phaser.Scene, x: number, y: number, w: number, h: number, label: string, o: ButtonOpts) {
@@ -94,11 +105,11 @@ export class Button extends Phaser.GameObjects.Container {
     this.w = w;
     this.h = Math.max(TAP, h);
     this.#kind = o.kind ?? "normal";
-    const bh = this.h - (FACE[this.#kind].base ? 3 : 0);
+    this.#shown = this.#kind;
     const cx = w / 2;
     const cy = this.h / 2;
-    this.#up = painted(scene, `btn-${this.#kind}-up`, -cx, -cy, w, bh, buttonPainter(this.#kind, false), 3);
-    this.#down = painted(scene, `btn-${this.#kind}-down`, -cx, -cy, w, bh, buttonPainter(this.#kind, true), 3).setVisible(false);
+    [this.#up, this.#down] = this.#paintFace(this.#kind);
+    const bh = this.#bh(this.#kind);
     this.#label = text(scene, 0, bh / 2 - cy, label, { size: o.size ?? FS_EM, color: FACE[this.#kind].text, bold: FACE[this.#kind].bold, font: o.font, align: "center", wrap: w - 12 }).setOrigin(0.5, 0.5);
     this.#zone = tapZone(
       scene,
@@ -106,29 +117,80 @@ export class Button extends Phaser.GameObjects.Container {
       this.h,
       () => {
         if (this.#enabled) o.onClick();
+        else {
+          shake(scene, this.#face);
+          o.onDisabledTap?.();
+        }
       },
       (down) => this.#press(down && this.#enabled),
     );
     this.#face = scene.add.container(cx, cy, [this.#up, this.#down, this.#label]);
     this.add([this.#face, this.#zone]);
     scene.add.existing(this);
+    // paint the faces a later setKind / setEnabled can show, now rather than mid-game
+    const later = new Set<FaceKind>([...(o.alsoKinds ?? []), ...(FACE[this.#kind].base ? ["disabled" as const] : [])]);
+    later.delete(this.#kind);
+    for (const k of later) for (const img of this.#paintFace(k)) img.destroy();
+  }
+
+  /** The face's height: a filled kind stands on a 3-px base. */
+  #bh(k: FaceKind): number {
+    return this.h - (FACE[k].base ? 3 : 0);
+  }
+
+  /** The up and pressed images of kind `k`, centred like the face (painted() caches the textures). */
+  #paintFace(k: FaceKind): [Phaser.GameObjects.Image, Phaser.GameObjects.Image] {
+    const cx = this.w / 2;
+    const cy = this.h / 2;
+    const bh = this.#bh(k);
+    const up = painted(this.scene, `btn-${k}-up`, -cx, -cy, this.w, bh, buttonPainter(k, false), 3);
+    const down = painted(this.scene, `btn-${k}-down`, -cx, -cy, this.w, bh, buttonPainter(k, true), 3).setVisible(false);
+    return [up, down];
+  }
+
+  /** Show the face for the current kind and enabled state. Ghost kinds have no disabled face: they fade. */
+  #restyle(): void {
+    const filled = FACE[this.#kind].base !== null;
+    const want: FaceKind = this.#enabled || !filled ? this.#kind : "disabled";
+    this.setAlpha(this.#enabled || filled ? 1 : 0.5);
+    if (want === this.#shown) return;
+    this.#shown = want;
+    this.#up.destroy();
+    this.#down.destroy();
+    [this.#up, this.#down] = this.#paintFace(want);
+    this.#face.addAt([this.#up, this.#down], 0);
+    const f = FACE[want];
+    this.#label.setStyle({ color: f.text, fontStyle: f.bold ? "bold" : "normal" }); // one re-raster for both
+    this.#press(false);
+    markDirty();
   }
 
   #press(down: boolean): void {
     const was = this.#down.visible;
     this.#up.setVisible(!down);
     this.#down.setVisible(down);
-    this.#label.setY((this.h - (FACE[this.#kind].base ? 3 : 0)) / 2 - this.h / 2 + (down ? 3 : 0));
+    this.#label.setY(this.#bh(this.#shown) / 2 - this.h / 2 + (down ? 3 : 0));
     if (down !== was) press(this.scene, this.#face, down);
   }
 
   setEnabled(on: boolean): this {
     if (on === this.#enabled) return this;
     this.#enabled = on;
-    this.setAlpha(on ? 1 : 0.5);
     if (this.#zone.input) this.#zone.input.cursor = on ? "pointer" : "default";
-    if (!on) this.#press(false);
+    this.#restyle();
     return this;
+  }
+
+  /** Switch between filled kinds (normal ↔ primary): which action is being asked for (selectors.primaryAction). */
+  setKind(kind: ButtonKind): this {
+    if (kind === this.#kind) return this;
+    this.#kind = kind;
+    this.#restyle();
+    return this;
+  }
+
+  get kind(): ButtonKind {
+    return this.#kind;
   }
 
   get enabled(): boolean {

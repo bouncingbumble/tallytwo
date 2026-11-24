@@ -35,6 +35,7 @@ import {
   matchWinner,
   musicFor,
   portraitFor,
+  primaryAction,
   replayLog,
   roundDeltas,
   roundWinner,
@@ -197,6 +198,18 @@ test("canPass: false on your own lead with moves, true when following or stuck, 
   expect(canPass(stuck, legalFor(stuck))).toBe(true);
   expect(canPass(aiLead(), [])).toBe(false);
   expect(canPass(null, [])).toBe(false);
+});
+
+test("primaryAction: Play once the selection is a legal play, Pass when stuck, else neither", () => {
+  const following = humanFacing("3C AS", "9C");
+  const legal = legalFor(following);
+  expect(primaryAction(null, canPass(following, legal), legal)).toBe(null); // can beat it, nothing chosen yet
+  expect(primaryAction(exactMove(legal, cards("AS")), canPass(following, legal), legal)).toBe("play");
+  const stuck = humanFacing("3C 4C", "2S");
+  expect(primaryAction(null, canPass(stuck, legalFor(stuck)), legalFor(stuck))).toBe("pass");
+  const lead = humanHolds("3C AS");
+  expect(primaryAction(null, canPass(lead, legalFor(lead)), legalFor(lead))).toBe(null); // your lead: pick something
+  expect(primaryAction(null, false, [])).toBe(null); // off turn
 });
 
 test("exactMove: the legal move whose cards equal the selection", () => {

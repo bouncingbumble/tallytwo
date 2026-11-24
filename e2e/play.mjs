@@ -254,6 +254,17 @@ async function runDevice(browserType, dev, label) {
   const sel = await page.evaluate(() => window.__tally.store.view.selection.length);
   note(label, `drag: the 3♦ dropped at the right end (rightmost now ${p2.table.hand.at(-1).value}); ${sel} selected; whole-px rest`, p2.table.hand.at(-1).value === 0 && sel === 0 && p2.table.hand.every((c) => Number.isInteger(c.x)));
 
+  // select the 3♦ (now rightmost) so the cards that cannot join it dim: dimmed faces stay opaque
+  // (docs/MOBILE_UX_PLAN.md F1: a see-through face shows the overlapped card under it). Then deselect.
+  const r0 = p2.table.hand.at(-1);
+  await page.mouse.click((r0.x + 48) * k, (r0.y + 64) * k);
+  await sleep(400);
+  const pDim = await probe(page);
+  const dimmed = pDim.table.hand.filter((c) => c.dim).length;
+  note(label, `dimmed cards stay opaque: ${dimmed} dimmed, every face alpha 1`, dimmed > 0 && pDim.table.hand.every((c) => c.faceAlpha === 1));
+  await page.mouse.click((r0.x + 48) * k, (r0.y + 64) * k);
+  await sleep(400);
+
   for (let r = 1; r <= ROUNDS; r++) {
     await playRound(page, k, shots);
     await waitTarget(page, "poster.next");

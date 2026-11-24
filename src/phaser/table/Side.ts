@@ -6,11 +6,12 @@
  */
 import Phaser from "phaser";
 import { COPY } from "../../game/copy";
-import { HUMAN, hintFor, humanTurn } from "../../game/selectors";
+import { HUMAN, hintFor, humanTurn, primaryAction } from "../../game/selectors";
 import type { GameStore, GameView } from "../../game/store";
 import type { Rect } from "../../render/tableLayout";
 import { maxLines, painted, roundRect, setTextColor, text } from "../paint";
 import { CSS, FS_BODY, FS_EM, FS_MIN, TAP } from "../theme";
+import { pop } from "../fx";
 import { target } from "../probe";
 import { Button, IconButton } from "../widgets";
 
@@ -53,14 +54,18 @@ export class SideView {
     this.#signText = text(scene, 0, 0, "", { size: FS_BODY, color: CSS.bone, wrap: textW, lineHeight: 1.25 });
     this.#status = text(scene, 0, 0, "", { size: FS_MIN, color: CSS.dust, align: "center", wrap: r.w - clearR - 4 }).setOrigin(0.5, 0);
     const { act } = store;
+    // a tap on a switched-off control: it shakes "no" and the status line, which says why, pops
+    const why = () => pop(scene, this.#status, 1.08);
     this.#play = new Button(scene, x, 0, r.w, TAP, COPY.controls.play, {
       kind: "primary",
       onClick: () => {
         const e = store.view.exact;
         if (e) act({ type: "PLAY", player: HUMAN, cards: e.cards });
       },
+      onDisabledTap: why,
     });
-    this.#pass = new Button(scene, x, 0, r.w, TAP, COPY.controls.pass, { onClick: () => act({ type: "PASS", player: HUMAN }) });
+    // Pass turns primary when it is the only move there is (selectors.primaryAction)
+    this.#pass = new Button(scene, x, 0, r.w, TAP, COPY.controls.pass, { onClick: () => act({ type: "PASS", player: HUMAN }), onDisabledTap: why, alsoKinds: ["primary"] });
     this.#hint = new Button(scene, x, 0, r.w, TAP, COPY.controls.hint, {
       onClick: () => {
         const v = store.view;
@@ -92,7 +97,7 @@ export class SideView {
     }
     this.#hint.setVisible(this.#hints);
     this.#play.setEnabled(v.exact !== null);
-    this.#pass.setEnabled(v.canPass);
+    this.#pass.setEnabled(v.canPass).setKind(primaryAction(v.exact, v.canPass, v.legal) === "pass" ? "primary" : "normal");
     this.#hint.setEnabled(humanTurn(g) && v.legal.length > 0);
 
     // the sign: who, then what

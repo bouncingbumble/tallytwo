@@ -69,8 +69,8 @@ export class TrickView {
       const grp = this.#groups.get(seat);
       if (!grp) continue;
       const latest = g.lastPlay !== null && g.lastBy === seat;
-      for (const c of grp.cards) c.setLook({ lit: latest });
-      grp.container.setAlpha(latest ? 1 : 0.72);
+      // receding by tint, not group alpha: a play's cards overlap, so alpha would show each through the next (F1)
+      for (const c of grp.cards) c.setLook({ lit: latest, recede: !latest });
       if (latest) this.layer.bringToTop(grp.container);
     }
     this.#empty.setText(plays.length === 0 ? emptyFeltText(g) : "").setVisible(plays.length === 0);

@@ -63,6 +63,17 @@ export function liveCards(legal: readonly Combo[], selection: readonly Card[]): 
 export const canPass = (g: GameState | null, legal: readonly Combo[]): boolean => !!g && humanTurn(g) && (g.lastPlay !== null || legal.length === 0);
 
 /**
+ * Which control wears the primary (amber) look: the one move the player is being asked for
+ * (docs/MOBILE_UX_PLAN.md F3). Play once the selection is a legal play; Pass when nothing in hand
+ * can beat the table; otherwise neither, so a disabled Play never reads as the call to action.
+ */
+export function primaryAction(exact: Combo | null, canPassNow: boolean, legal: readonly Combo[]): "play" | "pass" | null {
+  if (exact) return "play";
+  if (canPassNow && legal.length === 0) return "pass";
+  return null;
+}
+
+/**
  * The status line under the hand (P:836-842). With Hints off, a table nothing in hand can beat
  * reads like any other ("Pick cards that beat it, or pass.") instead of giving it away.
  */

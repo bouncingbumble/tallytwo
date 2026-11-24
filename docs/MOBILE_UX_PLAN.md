@@ -1,6 +1,6 @@
 # Plan: Mobile UI/UX and motion pass
 
-Status: **proposed; decisions taken 2026-11** (§12): flick-to-play on by default; opponents are dealt to; no haptics for now (visual feedback only); losers' leftover cards are revealed only on Greenhorn; swipe-to-select adopted (reorder moves to press-and-hold, then drag).
+Status: **in progress on branch `ux`** (on top of `perf`). Phase 0 and Phase 1 are done (see "Progress" at the end); Phase 2 is next. Decisions taken 2026-11 (§12): flick-to-play on by default; opponents are dealt to; no haptics for now (visual feedback only); losers' leftover cards are revealed only on Greenhorn; swipe-to-select adopted (reorder moves to press-and-hold, then drag).
 
 Scope: `src/phaser/**`, `src/game/timing.ts`, `src/render/*Layout.ts`, a few new selectors in `src/game/selectors.ts`, and two new settings. The shell bridge is untouched. The engine, AI, stores, and audio stay as they are. This plan builds on the Phaser port (`PHASER_MIGRATION.md`) and keeps its contracts: the 440-px logical canvas, integer rest poses, the size floors (`theme.ts` `FS_MIN` / `TAP`), no rules in scenes, and no layout numbers outside `render/`.
 
@@ -242,3 +242,22 @@ Phase 1 is shippable on its own and fixes what players notice first. Phases 2 an
 | Haptics | **None for now**; the hook point stays a no-op (§2.4) |
 | Reveal losers' leftover cards | **Greenhorn only** (`difficulty: "easy"`) |
 | Swipe-to-select | **Adopted**, on by default; reorder becomes hold-then-drag (§4.2) |
+
+## Progress
+
+**Phase 0, done.**
+- Motion tokens: `MOTION`, `EASE`, `DOORS_FRAMES_MS` and `COPIED_MS` in `game/timing.ts`. `boundary.test.ts` fails on a number literal in any `phaser/` tween or timer.
+- Settings › Motion has three values: **Auto / Full / Reduced**, not the two first planned. Auto follows the device's reduce-motion flag live; the prototype's `reduceMotion: true` maps to Reduced.
+- `phaser/fx.ts` provides `pop`, `shake`, `pulse` and `press`. Buttons squish under a finger.
+- Baseline screenshots were captured with `e2e/play.mjs`. The perf branch already supplies the frame-time baseline (`e2e/perf.mjs`).
+
+Deviations from the plan:
+- The `Sequencer` / tap-to-skip (§2.5) moves to Phase 4, where the first skippable sequence (the deal) is built.
+- The no-op haptic hook (§2.4) was not added: there was nothing to hang it on yet.
+- `flyTo` / `countUp` / `stagger` join `fx.ts` with their first users (Phases 2 and 4).
+
+**Phase 1, done.**
+- **F1:** greyed and older trick cards are darkened by tint only and stay opaque. The e2e check "dimmed cards stay opaque" covers it.
+- **F2:** not reproduced on the perf build (frames captured through a play's flight, render-on-demand on). The perf branch's single card texture removed the `destination-out` shadow layer. It still needs a check on a real iPhone.
+- **F3:** `selectors.primaryAction` (tested) decides the amber button. Pass turns amber when nothing in hand can beat the table. A switched-off filled button has a flat dark face instead of 50 % alpha. `Button.setKind()` paints the alternative faces up front.
+- **F9 (part):** a tap on a disabled button shakes it, and the status line pops.
