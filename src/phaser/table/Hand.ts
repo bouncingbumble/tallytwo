@@ -29,7 +29,8 @@ import { CARD_H, CARD_W, HOLD_SCALE, PEEK_SCALE, SELECT_LIFT, fanLayout } from "
 import { DRAG_THRESHOLD, FLICK_MAX, type Gesture, cardIndexAt, flickPlays, paintSelection, resolveGesture } from "../../render/handGesture";
 import { LOGICAL_H, PLAY_CARD_W } from "../../render/scale";
 import type { Rect } from "../../render/tableLayout";
-import { CardView } from "../cards";
+import type { CardView } from "../cards";
+import { poolOf } from "../cardPool";
 import { pop, wobble } from "../fx";
 import { SETTLE_MS, SLIDE_MS, ms } from "../motion";
 import type { FlyOrigin } from "./Trick";
@@ -143,7 +144,7 @@ export class HandView {
       this.#count = raw.length;
       this.#settle = false;
       this.#endPress();
-      for (const c of this.#views.values()) c.destroy();
+      for (const c of this.#views.values()) poolOf(this.scene).give(c);
       this.#views.clear();
       this.#pose.clear();
     } else if (raw.length !== this.#count) {
@@ -155,7 +156,7 @@ export class HandView {
     const held = new Set(raw);
     for (const [card, view] of this.#views) {
       if (!held.has(card)) {
-        view.destroy();
+        poolOf(this.scene).give(view);
         this.#views.delete(card);
         this.#pose.delete(card);
       }
@@ -166,7 +167,7 @@ export class HandView {
     if (fresh) this.#dealing = animate && ms(DEAL.flyMs) > 0;
     hand.forEach((card) => {
       if (this.#views.has(card)) return;
-      const c = new CardView(this.scene, 0, CARD_H / 2, card, CARD_W, CARD_H);
+      const c = poolOf(this.scene).take(card, CARD_W, CARD_H, 0, CARD_H / 2);
       if (this.#dealing) c.setVisible(false);
       this.layer.add(c);
       this.#views.set(card, c);

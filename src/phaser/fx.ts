@@ -39,6 +39,11 @@ function release(obj: Movable, kind: string, h: FxHandle): void {
   if (m?.get(kind) === h) m.delete(kind);
 }
 
+/** Forget every effect on `obj` without ending it (its tweens are killed by the caller): a pooled card handed back. */
+export function cancel(obj: Movable): void {
+  running.delete(obj);
+}
+
 /**
  * A scale tween relative to the object's resting scale, which is restored at the end. An image
  * drawn with setDisplaySize rests at a scale far from 1 (a 3x portrait at ~0.28), so "1" is never

@@ -4,7 +4,9 @@
  * last second, and `window.__perf` hands the whole run to a script (e2e/perf.mjs) or the console:
  *
  *   __perf.report()   frames, drawn frames, fps, frame interval and main-thread work per frame
- *                     (p50/p95/p99/max), draw calls and texture uploads per drawn frame, long tasks
+ *                     (p50/p95/p99/max), draw calls and texture uploads per drawn frame, long tasks,
+ *                     live tweens at the peak, and how long frames keep being drawn once the
+ *                     last tween has ended (render on demand going idle; docs/MOBILE_UX_PLAN.md §8)
  *   __perf.reset()    start a new measurement window
  *
  * "work" is the time inside one game-loop callback (update + draw submission): the part of a
@@ -33,6 +35,14 @@ export interface PerfReport {
   ai: Stats & { count: number };
   /** Main-thread time of each dispatched action, including every scene's re-render of it (store.act). */
   act: Stats & { count: number };
+  /** Tweens alive at once across the running scenes: the most, and the mean over frames that had any. */
+  tweens: { peak: number; mean: number };
+  /**
+   * After the last tween of a burst ended, how long (ms) frames went on being drawn: from that
+   * frame to the last one drawn before the first skipped one. Render on demand's idle tail, one
+   * sample per burst.
+   */
+  idleTail: Stats & { count: number };
 }
 
 export interface Stats {
@@ -87,6 +97,13 @@ export function installPerf(game: Phaser.Game, hooks: PerfHooks = {}): void {
   let frameCalls = 0;
   let frameUploads = 0;
   let didDraw = false;
+  // tweens and the idle tail
+  let tweenPeak = 0;
+  let tweenSum = 0;
+  let tweenFrames = 0;
+  let lastTweenAt = 0;
+  let lastDrawnAt = 0;
+  let tails: number[] = [];
 
   const reset = () => {
     t0 = performance.now();
@@ -97,6 +114,8 @@ export function installPerf(game: Phaser.Game, hooks: PerfHooks = {}): void {
     actTimes = [];
     frames = drawn = uploads = uploadBytes = maxUploads = uploadsInSlow = 0;
     longCount = longMax = longTotal = 0;
+    tweenPeak = tweenSum = tweenFrames = lastTweenAt = lastDrawnAt = 0;
+    tails = [];
   };
 
   // draw calls
@@ -165,6 +184,21 @@ export function installPerf(game: Phaser.Game, hooks: PerfHooks = {}): void {
       calls.push(frameCalls);
     }
     maxUploads = Math.max(maxUploads, frameUploads);
+    let live = 0;
+    for (const sc of game.scene.getScenes(true)) live += sc.tweens.getTweens().length;
+    const now = performance.now();
+    if (live > 0) {
+      tweenPeak = Math.max(tweenPeak, live);
+      tweenSum += live;
+      tweenFrames++;
+      lastTweenAt = now;
+    } else if (lastTweenAt && didDraw) {
+      lastDrawnAt = now;
+    } else if (lastTweenAt) {
+      // the first frame not drawn since the burst's last tween: the tail ran to the last drawn one
+      tails.push(Math.max(0, lastDrawnAt - lastTweenAt));
+      lastTweenAt = 0;
+    }
     if (frameUploads && work > 16) uploadsInSlow++;
     // a frame gap stands in for a long task where PerformanceObserver cannot see them (WebKit)
     if (!longTaskObserved && intervals.length && intervals[intervals.length - 1] > 50 && !document.hidden) {
@@ -210,6 +244,8 @@ export function installPerf(game: Phaser.Game, hooks: PerfHooks = {}): void {
       hitches: intervals.filter((x) => x > iv.p50 * 1.5).length,
       ai: { ...stats(aiTimes), count: aiTimes.length },
       act: { ...stats(actTimes), count: actTimes.length },
+      tweens: { peak: tweenPeak, mean: tweenFrames ? Math.round((tweenSum / tweenFrames) * 10) / 10 : 0 },
+      idleTail: { ...stats(tails), count: tails.length },
     };
   };
   window.__perf = { report, reset };
@@ -231,7 +267,8 @@ export function installPerf(game: Phaser.Game, hooks: PerfHooks = {}): void {
       `fps ${((frames - mark.frames) / secs).toFixed(0)}  drawn ${((drawn - mark.drawn) / secs).toFixed(0)}/s\n` +
       `frame p95 ${iv.p95.toFixed(1)}  max ${iv.max.toFixed(1)} ms\n` +
       `work  p95 ${wk.p95.toFixed(2)}  max ${wk.max.toFixed(2)} ms\n` +
-      `draws ${dc.max}  uploads ${uploads - mark.up}  long ${longCount}`;
+      `draws ${dc.max}  uploads ${uploads - mark.up}  long ${longCount}\n` +
+      `tweens peak ${tweenPeak}  idle tail p95 ${stats(tails).p95.toFixed(0)} ms`;
     mark = { frames, drawn, i: intervals.length, w: works.length, c: calls.length, up: uploads, t: now };
   }, 500);
 }

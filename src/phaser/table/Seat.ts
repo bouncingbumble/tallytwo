@@ -20,7 +20,7 @@ import type { Bark } from "../../game/store";
 import { EASE, MOTION, ROUND_END, TURN } from "../../game/timing";
 import { PLAY_CARD_H, PLAY_CARD_W } from "../../render/scale";
 import { FACE_H, FACE_W, type Rect } from "../../render/tableLayout";
-import { CardView } from "../cards";
+import { poolOf } from "../cardPool";
 import { pop, wobble } from "../fx";
 import { BARK_ANIM_MS, ms, reducedMotion } from "../motion";
 import { markDirty } from "../onDemand";
@@ -239,44 +239,38 @@ export class SeatView extends Phaser.GameObjects.Container {
     }
   }
 
+  /** The bark's text, at most BARK_LINES lines. */
+  #barkText(s: string): Phaser.GameObjects.Text {
+    const w = this.#barkW();
+    const t = text(this.scene, w / 2, 0, s, { size: FS_MIN, color: CSS.barkInk, align: "center", wrap: w - 16, lineHeight: 1.2 }).setOrigin(0.5, 0);
+    maxLines(t, BARK_LINES);
+    return t;
+  }
+
+  #barkW(): number {
+    return this.r.w - (INFO_X + 2) - 6;
+  }
+
+  /**
+   * Paint the bubble at every height a bark can have (one line to BARK_LINES), now, so no bark
+   * rasterises a texture mid-round (docs/MOBILE_UX_PLAN.md §8).
+   */
+  prewarm(): void {
+    for (let n = 1; n <= BARK_LINES; n++) {
+      const t = this.#barkText(Array.from({ length: n }, () => "M").join("\n"));
+      painted(this.scene, "bark", 0, 0, this.#barkW(), Math.round(t.height) - 4 + 12, paintBark, 10).destroy();
+      t.destroy();
+    }
+  }
+
   /** The speech bubble: bone, 15-px ink, a tail pointing back at the portrait; fades in and out in place. */
   #makeBark(s: string): Phaser.GameObjects.Container {
     const scene = this.scene;
-    const w = this.r.w - (INFO_X + 2) - 6;
-    const t = text(scene, w / 2, 0, s, { size: FS_MIN, color: CSS.barkInk, align: "center", wrap: w - 16, lineHeight: 1.2 }).setOrigin(0.5, 0);
-    maxLines(t, 4);
+    const w = this.#barkW();
+    const t = this.#barkText(s);
     const h = Math.round(t.height) - 4 + 12;
     t.setY(4);
-    const bubble = painted(
-      scene,
-      "bark",
-      0,
-      0,
-      w,
-      h,
-      (ctx, bw, bh) => {
-        ctx.save();
-        ctx.shadowColor = "rgba(0,0,0,0.5)";
-        ctx.shadowBlur = 6;
-        ctx.shadowOffsetY = 2;
-        ctx.fillStyle = CSS.bone;
-        roundRect(ctx, 0, 0, bw, bh, 6);
-        ctx.fill();
-        ctx.restore();
-        ctx.strokeStyle = CSS.black;
-        ctx.lineWidth = 1;
-        roundRect(ctx, -0.5, -0.5, bw + 1, bh + 1, 6.5);
-        ctx.stroke();
-        ctx.fillStyle = CSS.bone;
-        ctx.beginPath();
-        ctx.moveTo(0.5, bh / 2 - 6);
-        ctx.lineTo(-7, bh / 2);
-        ctx.lineTo(0.5, bh / 2 + 6);
-        ctx.closePath();
-        ctx.fill();
-      },
-      10,
-    );
+    const bubble = painted(scene, "bark", 0, 0, w, h, paintBark, 10);
     const c = scene.add.container(INFO_X + 2 + w / 2, this.r.h / 2, [bubble, t]);
     bubble.setPosition(-w / 2 - 10, -h / 2 - 10);
     t.setPosition(0, -h / 2 + 4);
@@ -381,8 +375,11 @@ export class SeatView extends Phaser.GameObjects.Container {
    * one after another, and stay until the poster covers the table.
    */
   revealLeftovers(cards: readonly Card[], delay: number): void {
-    this.#leftovers?.destroy();
     const scene = this.scene;
+    if (this.#leftovers) {
+      poolOf(scene).giveAll(this.#leftovers);
+      this.#leftovers.destroy();
+    }
     const w = Math.round(PLAY_CARD_W * LEFTOVER_SCALE);
     const h = Math.round(PLAY_CARD_H * LEFTOVER_SCALE);
     const room = this.r.w - INFO_X - 6 - w;
@@ -391,7 +388,7 @@ export class SeatView extends Phaser.GameObjects.Container {
     this.#leftovers = fan;
     this.add(fan);
     cards.forEach((card, i) => {
-      const c = new CardView(scene, i * step + w / 2, 0, card, PLAY_CARD_W, PLAY_CARD_H).setScale(LEFTOVER_SCALE);
+      const c = poolOf(scene).take(card, PLAY_CARD_W, PLAY_CARD_H, i * step + w / 2, 0).setScale(LEFTOVER_SCALE);
       fan.add(c);
       const d = ms(MOTION.emphasis);
       if (!d) return;
@@ -406,4 +403,30 @@ export class SeatView extends Phaser.GameObjects.Container {
   faceCentre(): { x: number; y: number } {
     return { x: this.r.x + 4 + FACE_W / 2, y: this.r.y + 1 + FACE_H / 2 };
   }
+}
+
+/** How many lines a bark may run to. */
+const BARK_LINES = 4;
+
+/** The bark bubble: bone with a soft shadow, a black edge, and a tail back towards the portrait. */
+function paintBark(ctx: CanvasRenderingContext2D, bw: number, bh: number): void {
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.5)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = CSS.bone;
+  roundRect(ctx, 0, 0, bw, bh, 6);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = CSS.black;
+  ctx.lineWidth = 1;
+  roundRect(ctx, -0.5, -0.5, bw + 1, bh + 1, 6.5);
+  ctx.stroke();
+  ctx.fillStyle = CSS.bone;
+  ctx.beginPath();
+  ctx.moveTo(0.5, bh / 2 - 6);
+  ctx.lineTo(-7, bh / 2);
+  ctx.lineTo(0.5, bh / 2 + 6);
+  ctx.closePath();
+  ctx.fill();
 }

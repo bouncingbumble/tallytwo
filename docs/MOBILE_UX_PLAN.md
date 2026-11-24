@@ -345,3 +345,27 @@ Not done in Phase 2:
   - None of this runs under reduced motion.
 - **Settings:** Motion, Swipe to select and Flick to play were already in place (Phases 0 and 2).
 - **Fix:** the hand's first render after a rebuild places its cards directly instead of sliding them in from the layer's corner.
+
+**Phase 6, done.**
+- **Card pool** (`phaser/cardPool.ts`):
+  - The table builds its card objects once, at create: 13 hand faces, 24 play-size faces (plus 36 more on Greenhorn for the leftovers) and 56 backs.
+  - The hand, the trick, the seats' leftovers and the deal take views from the pool and give them back. `CardView.reset(card)` swaps the face frame and clears the look. `fx.cancel` forgets a pooled view's running effects.
+  - A new deal rebuilds the table, so the pool is rebuilt per round. In DEV, a view made after the prewarm is a console warning, which the e2e counts as a failure.
+  - The How to play sheet still makes its own eight cards; it is not part of a round.
+- **No painting mid-round** (`paint.ts` `paintStrict`, `PERF_GUARD.paintGraceMs`): from 2 s into a round, a `painted()` cache miss on the table is a DEV warning. Three textures had been painted from text sizes mid-round:
+  - the bark bubble, now prewarmed for 1–4 lines;
+  - the sign box, now prewarmed for 1–2 "who" lines × 1–3 text lines;
+  - the coach plaque, now prewarmed when it may be shown.
+  e2e over 3 rounds: no warnings.
+- **Render on demand:** camera effects count as animating, and tweens on hidden objects do not (Phase 5).
+  - `?perf=1` now reports the peak live tweens, plus the idle tail: how long frames keep being drawn after a burst's last tween ends.
+  - `e2e/perf.mjs` gates both: at most 120 tweens, and the tail p95 within 300 ms (plus one median frame, since headless frames here run 150–300 ms apart).
+  - `e2e/perf/ux-phase6.json`: 58 tweens at the peak (the deal), idle tail p95 263–288 ms, 54 draws max. This run was headless Chromium on a slow box for both profiles (`WEBKIT=0`), so the timings are not comparable with earlier runs.
+- **WebGL context loss** (`phaser/contextLoss.ts`):
+  - Phaser 4 re-creates every GPU texture from its source on `webglcontextrestored`. Every texture here is an image or a canvas (painted textures, the card sheet, text), so nothing has to be baked again.
+  - The game adds a pause while the context is gone (`glLost`, part of the director's pause), the art filters put back on the new textures, and a forced frame.
+  - The e2e covers it (Phase 7). It still needs a device check: background the app during the deal.
+- **Not done:**
+  - **The per-frame script budget (≤ 8 ms on an SE-class device)** is only measurable on the device (the `?perf=1` overlay); headless numbers are reported, not gated.
+  - **GC pauses during a trick clear are not measured.** Pooling removes the allocation they came from (about 80 CardViews and 56 backs per round), but no browser API used here reports GC.
+- **`e2e/play.mjs WEBKIT=0`** runs the phone profiles in Chromium where WebKit is not installed. 112/112 checks pass across the four profiles.

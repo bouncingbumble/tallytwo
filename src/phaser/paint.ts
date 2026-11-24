@@ -11,6 +11,16 @@ import { resolution } from "./viewport";
 export type Painter = (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
 
 /**
+ * The DEV guard (docs/MOBILE_UX_PLAN.md §8): once a round is under way (the table passes its
+ * scene and a time), a painted() texture that is not already cached means a canvas draw and a GPU
+ * upload mid-motion — prewarm it instead. It warns, and the e2e counts warnings as failures.
+ */
+let strict: { scene: Phaser.Scene; from: number } | null = null;
+export function paintStrict(scene: Phaser.Scene | null, from = 0): void {
+  strict = scene ? { scene, from } : null;
+}
+
+/**
  * An Image of a `w` x `h` logical-px box painted by `draw`, with `pad` px of room around it for
  * shadows and glows. The image is placed so the box's top-left is at (x, y).
  */
@@ -20,6 +30,7 @@ export function painted(scene: Phaser.Scene, key: string, x: number, y: number, 
   const H = Math.max(1, Math.round(h));
   const full = `paint:${key}:${W}x${H}:${pad}@${R}`;
   if (!scene.textures.exists(full)) {
+    if (import.meta.env.DEV && strict?.scene === scene && performance.now() >= strict.from) console.warn(`painted: "${key}" ${W}x${H} rasterised mid-round (prewarm it)`);
     const tex = scene.textures.createCanvas(full, Math.ceil((W + 2 * pad) * R), Math.ceil((H + 2 * pad) * R));
     if (tex) {
       const ctx = tex.getContext();

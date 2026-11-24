@@ -14,7 +14,7 @@ import { DEAL, EASE } from "../../game/timing";
 import { CARD_W } from "../../render/fanLayout";
 import { HUMAN } from "../../game/selectors";
 import { PLAY_CARD_H, PLAY_CARD_W } from "../../render/scale";
-import { backImage } from "../cards";
+import { poolOf } from "../cardPool";
 import { ms } from "../motion";
 import type { HandView } from "./Hand";
 import type { SeatView } from "./Seat";
@@ -129,10 +129,8 @@ export class DealRun {
   finish(): void {
     if (!this.#running) return;
     this.#running = false;
-    for (const o of this.#objs) {
-      this.#scene.tweens.killTweensOf(o);
-      o.destroy();
-    }
+    const pool = poolOf(this.#scene);
+    for (const o of this.#objs) pool.giveBack(o);
     this.#objs = [];
     this.#hand.endDeal();
     for (const s of this.#seats) s.setDealt(null);
@@ -140,7 +138,7 @@ export class DealRun {
   }
 
   #back(x: number, y: number): Phaser.GameObjects.Image {
-    const b = backImage(this.#scene, x, y, PLAY_CARD_W, PLAY_CARD_H);
+    const b = poolOf(this.#scene).takeBack(x, y, PLAY_CARD_W, PLAY_CARD_H);
     this.#layer.add(b);
     return b;
   }

@@ -11,15 +11,17 @@ import Phaser from "phaser";
 import type { GameView } from "../../game/store";
 import { COPY } from "../../game/copy";
 import { HUMAN, type TableEvents, humanTurn, revealLeftovers, tableEvents } from "../../game/selectors";
-import { EASE, GESTURE, MOTION, ROUND_END, TURN, playLandMs } from "../../game/timing";
-import { SELECT_LIFT, fanLayout } from "../../render/fanLayout";
+import { EASE, GESTURE, MOTION, PERF_GUARD, ROUND_END, TURN, playLandMs } from "../../game/timing";
+import { CARD_H, CARD_W, SELECT_LIFT, fanLayout } from "../../render/fanLayout";
+import { PLAY_CARD_H, PLAY_CARD_W } from "../../render/scale";
+import { poolOf } from "../cardPool";
 import { shouldCoach } from "../../render/handGesture";
 import { env } from "../../platform/env";
 import { type TableLayout, clearFor, tableLayout } from "../../render/tableLayout";
 import { CardView } from "../cards";
 import { flipFrom } from "../fx";
 import { ANNOUNCE_ANIM_MS, ms } from "../motion";
-import { artPattern, insetStroke, painted, roundRect, text } from "../paint";
+import { artPattern, insetStroke, paintStrict, painted, roundRect, text } from "../paint";
 import { C, CSS, FS_BODY, WESTERN } from "../theme";
 import { fit } from "../viewport";
 import { DealRun } from "../table/Deal";
@@ -29,6 +31,16 @@ import { SeatView } from "../table/Seat";
 import { SideView } from "../table/Side";
 import { TrickView } from "../table/Trick";
 import { BaseScene, type SceneData } from "./base";
+
+/**
+ * The card pool's prewarm (cardPool.ts): the hand; the trick (four plays of up to five on the felt
+ * plus a won trick sweeping away); on Greenhorn the losers' leftovers too; and the deal's backs
+ * (the deck shown plus 52).
+ */
+const POOL_HAND = 13;
+const POOL_TRICK = 24;
+const POOL_LEFTOVERS = 36;
+const POOL_BACKS = 56;
 
 /** The your-turn glow's height above the hand row (logical px). */
 const TURN_GLOW_H = 26;
@@ -130,6 +142,10 @@ export class TableScene extends BaseScene {
     });
 
     const { game, sheet } = this.app;
+    if (!this.#prewarm) {
+      const play = POOL_TRICK + (this.app.settings.opts.difficulty === "easy" ? POOL_LEFTOVERS : 0);
+      poolOf(this).prewarm({ faces: [[CARD_W, CARD_H, POOL_HAND], [PLAY_CARD_W, PLAY_CARD_H, play]], backs: [PLAY_CARD_W, PLAY_CARD_H, POOL_BACKS] });
+    }
     // the trick under the badges: a play flies out from behind its portrait, or from the very spot in the hand
     this.#trick = new TrickView(this, t, (seat, card) => (seat === HUMAN ? (this.#hand?.poseOf(card) ?? null) : (this.#seats.find((s) => s.seat === seat)?.faceCentre() ?? null)));
     for (const seat of [1, 2, 3]) this.#seats.push(new SeatView(this, seat, t.badges[seat]));
@@ -180,6 +196,11 @@ export class TableScene extends BaseScene {
     }
     this.input.enabled = true;
     this.cameras.main.setVisible(true);
+    // everything a round can show, painted now: then nothing is painted mid-round (DEV-checked)
+    for (const s of this.#seats) s.prewarm();
+    this.#prewarmCoach();
+    paintStrict(this, performance.now() + PERF_GUARD.paintGraceMs);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => paintStrict(null));
     this.watch(game, () => this.#render());
     this.watch(this.app.settings, () => this.#render(true));
     this.#render();
@@ -311,15 +332,7 @@ export class TableScene extends BaseScene {
   #showCoach(): void {
     if (this.#coach || this.#coachDone) return;
     const fan = this.#t.fan;
-    const label = text(this, 0, 0, COPY.controls.swipeCoach, { size: FS_BODY, color: CSS.barkInk, align: "center" }).setOrigin(0.5);
-    const w = Math.ceil(label.width) + 28;
-    const h = Math.ceil(label.height) + 10;
-    const plate = painted(this, "coach", -w / 2, -h / 2, w, h, (ctx, pw, ph) => {
-      ctx.fillStyle = CSS.bone;
-      roundRect(ctx, 0, 0, pw, ph, ph / 2);
-      ctx.fill();
-      insetStroke(ctx, pw, ph, ph / 2, 2, CSS.amber);
-    });
+    const { plate, label, w, h } = this.#coachPlate();
     const x0 = fan.x + 40;
     const fy = fan.y + 64;
     const finger = this.add.circle(x0, fy, 11, C.amber, 0.85).setStrokeStyle(2, C.bone);
@@ -332,6 +345,28 @@ export class TableScene extends BaseScene {
       this.tweens.add({ targets: finger, x: x0 + 3 * fanLayout(13, fan.w).step, duration: sweep, ease: EASE.inOut, yoyo: true, repeat: 2 });
     }
     this.after(GESTURE.coachMs, () => this.#endCoach());
+  }
+
+  /** The coach mark's plaque: its label and the bone pill behind it. */
+  #coachPlate(): { plate: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text; w: number; h: number } {
+    const label = text(this, 0, 0, COPY.controls.swipeCoach, { size: FS_BODY, color: CSS.barkInk, align: "center" }).setOrigin(0.5);
+    const w = Math.ceil(label.width) + 28;
+    const h = Math.ceil(label.height) + 10;
+    const plate = painted(this, "coach", -w / 2, -h / 2, w, h, (ctx, pw, ph) => {
+      ctx.fillStyle = CSS.bone;
+      roundRect(ctx, 0, 0, pw, ph, ph / 2);
+      ctx.fill();
+      insetStroke(ctx, pw, ph, ph / 2, 2, CSS.amber);
+    });
+    return { plate, label, w, h };
+  }
+
+  /** Paint the coach mark's plaque now if it may be shown this round (it can first appear well into one). */
+  #prewarmCoach(): void {
+    if (this.app.settings.opts.swipeHintSeen || !this.app.settings.opts.hints) return;
+    const { plate, label } = this.#coachPlate();
+    plate.destroy();
+    label.destroy();
   }
 
   #endCoach(): void {

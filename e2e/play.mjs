@@ -381,7 +381,11 @@ async function runDevice(browserType, dev, label) {
 }
 
 const only = process.env.DEVICES ? process.env.DEVICES.split(",") : null;
-for (const dev of DEVICES.filter((d) => d.mobile && (!only || only.includes(d.name)))) await runDevice(webkit, dev, `webkit-${dev.name}`);
+// WEBKIT=0: the phone profiles in Chromium, where Playwright's WebKit is not installed (a CI box);
+// the touch, size and gesture checks still hold, WebKit's own rendering is not covered
+const phones = process.env.WEBKIT === "0" ? chromium : webkit;
+const phoneLabel = process.env.WEBKIT === "0" ? "chromium" : "webkit";
+for (const dev of DEVICES.filter((d) => d.mobile && (!only || only.includes(d.name)))) await runDevice(phones, dev, `${phoneLabel}-${dev.name}`);
 for (const dev of DEVICES.filter((d) => !d.mobile && (!only || only.includes(d.name)))) await runDevice(chromium, dev, `chromium-${dev.name}`);
 
 const fails = findings.filter((f) => !f.ok);

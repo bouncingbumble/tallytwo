@@ -56,6 +56,18 @@ export class SideView {
     const textW = r.w - clearR - 12;
     this.#signWho = text(scene, 0, 0, "", { size: FS_MIN, color: CSS.dust, wrap: textW, lineHeight: 1.25 });
     this.#signText = text(scene, 0, 0, "", { size: FS_BODY, color: CSS.bone, wrap: textW, lineHeight: 1.25 });
+    // the sign's box at every height it can have, painted now rather than mid-round (§8)
+    const lines = (n: number) => Array.from({ length: n }, () => "M").join("\n");
+    for (let who = 1; who <= SIGN_WHO_LINES; who++) {
+      this.#signWho.setText(lines(who));
+      const whoH = Math.round(this.#signWho.height) - 4;
+      for (let n = 1; n <= SIGN_LINES; n++) {
+        this.#signText.setText(lines(n));
+        painted(scene, "sign", 0, 0, r.w - clearR, whoH + 1 + Math.round(this.#signText.height) - 4 + 8, paintSign).destroy();
+      }
+    }
+    this.#signWho.setText("");
+    this.#signText.setText("");
     this.#status = text(scene, 0, 0, "", { size: FS_MIN, color: CSS.dust, align: "center", wrap: r.w - clearR - 4 }).setOrigin(0.5, 0);
     const { act } = store;
     // a tap on a switched-off control: it shakes "no" and the status line, which says why, pops
@@ -112,20 +124,12 @@ export class SideView {
       this.#signWho.setText(v.sign.who).setPosition(r.x + 6, signY + 4);
       const whoH = Math.round(this.#signWho.height) - 4;
       this.#signText.setText(v.sign.text).setPosition(r.x + 6, signY + 4 + whoH + 1);
-      maxLines(this.#signText, 3);
+      maxLines(this.#signText, SIGN_LINES);
       this.#fadeIn(this.#signWho);
       this.#fadeIn(this.#signText);
       const h = whoH + 1 + Math.round(this.#signText.height) - 4 + 8;
       this.#signBg?.destroy();
-      this.#signBg = painted(this.scene, "sign", r.x, signY, r.w - this.#clearR, h, (ctx, w, bh) => {
-        ctx.fillStyle = "rgba(18, 10, 4, 0.45)";
-        roundRect(ctx, 0, 0, w, bh, 4);
-        ctx.fill();
-        ctx.strokeStyle = "rgba(201, 176, 138, 0.14)";
-        ctx.lineWidth = 1;
-        roundRect(ctx, 0.5, 0.5, w - 1, bh - 1, 3.5);
-        ctx.stroke();
-      });
+      this.#signBg = painted(this.scene, "sign", r.x, signY, r.w - this.#clearR, h, paintSign);
       this.scene.children.moveBelow(this.#signBg as Phaser.GameObjects.GameObject, this.#signWho as Phaser.GameObjects.GameObject);
       this.#signBg.setData("bottom", signY + h);
     }
@@ -167,4 +171,19 @@ export class SideView {
     else return false;
     return true;
   }
+}
+
+/** How many lines the sign's text may run to, and its "who" line when a long name wraps. */
+const SIGN_LINES = 3;
+const SIGN_WHO_LINES = 2;
+
+/** The sign's box: a dark wash with a faint edge. */
+function paintSign(ctx: CanvasRenderingContext2D, w: number, bh: number): void {
+  ctx.fillStyle = "rgba(18, 10, 4, 0.45)";
+  roundRect(ctx, 0, 0, w, bh, 4);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(201, 176, 138, 0.14)";
+  ctx.lineWidth = 1;
+  roundRect(ctx, 0.5, 0.5, w - 1, bh - 1, 3.5);
+  ctx.stroke();
 }

@@ -20,7 +20,8 @@ import { EASE, MOTION, PLAY_FLY_MS, PLAY_FLY_STAGGER_MS, ROUND_END } from "../..
 import type { GameView } from "../../game/store";
 import { PLAY_CARD_H, PLAY_CARD_W } from "../../render/scale";
 import { type Rect, SLOT_ALIGN, type TableLayout, pileLayout } from "../../render/tableLayout";
-import { CardView } from "../cards";
+import type { CardView } from "../cards";
+import { poolOf } from "../cardPool";
 import { pop } from "../fx";
 import { ms } from "../motion";
 import { text } from "../paint";
@@ -131,7 +132,7 @@ export class TrickView {
       const key = play ? `${dealId}-${play.at}` : "";
       const old = this.#groups.get(seat);
       if (old && old.key !== key) {
-        old.container.destroy();
+        this.#drop(old.container);
         this.#groups.delete(seat);
       }
       if (play && !this.#groups.has(seat)) this.#groups.set(seat, this.#make(seat, key, play.cards, this.#t.slots[seat], animate));
@@ -158,7 +159,7 @@ export class TrickView {
       this.#onWon?.(winner);
     };
     if (!go) {
-      for (const [, grp] of groups) grp.container.destroy();
+      for (const [, grp] of groups) this.#drop(grp.container);
       arrive();
       return;
     }
@@ -176,10 +177,16 @@ export class TrickView {
           delay: hold + i * PLAY_FLY_STAGGER_MS,
           duration: go,
           ease: EASE.exit,
-          onComplete: i === cards.length - 1 ? () => (arrive(), container.destroy()) : undefined,
+          onComplete: i === cards.length - 1 ? () => (arrive(), this.#drop(container)) : undefined,
         });
       });
     }
+  }
+
+  /** A group is done with: its cards back to the pool, then the container goes. */
+  #drop(container: Phaser.GameObjects.Container): void {
+    poolOf(this.scene).giveAll(container);
+    container.destroy();
   }
 
   #make(seat: number, key: string, cards: readonly number[], slot: Rect, animate: boolean): Group {
@@ -202,7 +209,7 @@ export class TrickView {
       this.#restack();
     };
     const views = cards.map((v, i) => {
-      const c = new CardView(scene, xs[i] + hw, hh, v, PLAY_CARD_W, PLAY_CARD_H);
+      const c = poolOf(scene).take(v, PLAY_CARD_W, PLAY_CARD_H, xs[i] + hw, hh);
       container.add(c);
       if (!fly) return c;
       const rot = (i % 2 ? 1 : -1) * (3 + i * 1.5);

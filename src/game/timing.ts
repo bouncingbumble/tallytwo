@@ -178,6 +178,12 @@ export const TITLE = {
   pulseCycles: 3,
 } as const;
 
+/**
+ * Performance guards (docs/MOBILE_UX_PLAN.md §8): from this long into a round, a texture painted
+ * for the first time is a DEV warning (phaser/paint.ts paintStrict).
+ */
+export const PERF_GUARD = { paintGraceMs: 2000 } as const;
+
 /** The doors' sprite frames: ajar, then open, inside DOORS_MS. */
 export const DOORS_FRAMES_MS = { ajar: 200, open: 420 } as const;
 /** A button that copied something says "Copied" this long. */

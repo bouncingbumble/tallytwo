@@ -16,6 +16,11 @@
 // SwiftShader (no GPU), so treat "interval" as relative; "work", draw calls, uploads and long
 // tasks are the comparable numbers. Real-device numbers come from the ?perf=1 overlay on the
 // phone itself.
+//
+// docs/MOBILE_UX_PLAN.md §8 adds two gates on every device: at most MAX_TWEENS tweens alive at
+// once (the deal is the peak), and render on demand going idle within MAX_IDLE_TAIL ms of the last
+// tween of a burst (p95). WEBKIT=0 runs the iPhone profile in Chromium where WebKit is not
+// installed (its draw-call gate then measures Chromium's batching, which is not iOS's).
 import { chromium, webkit } from "playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
 
@@ -84,12 +89,15 @@ async function run(dev) {
 }
 
 const MAX_IOS_DRAWS = 60;
+const MAX_TWEENS = 120;
+const MAX_IDLE_TAIL = 300;
 const results = {};
 let failed = 0;
 const gate = (ok, msg) => {
   console.log(`${ok ? "  ok " : "FAIL "} ${msg}`);
   if (!ok) failed++;
 };
+if (process.env.WEBKIT === "0") for (const d of DEVICES) if (d.type === webkit) d.type = chromium;
 for (const dev of DEVICES.filter((d) => !process.env.ONLY || d.name.includes(process.env.ONLY))) {
   try {
     const { report: p, errors } = await run(dev);
@@ -98,12 +106,16 @@ for (const dev of DEVICES.filter((d) => !process.env.ONLY || d.name.includes(pro
       `${dev.name.padEnd(18)} ${p.seconds}s  fps ${p.fps}  drawn ${p.drawn}/${p.frames}  ` +
         `interval p95 ${p.interval.p95} max ${p.interval.max}  work p50 ${p.work.p50} p95 ${p.work.p95} p99 ${p.work.p99} max ${p.work.max}  ` +
         `draws p50 ${p.drawCalls.p50} max ${p.drawCalls.max}  uploads ${p.uploads.total} (${(p.uploads.bytes / 1e6).toFixed(1)} MB, ${p.uploads.inFramesOver16ms} in slow frames)  ` +
-        `long ${p.longTasks.count} (max ${p.longTasks.maxMs} ms)  hitches ${p.hitches}  ai p50 ${p.ai.p50} max ${p.ai.max} (${p.ai.count})  act p50 ${p.act.p50} p95 ${p.act.p95} max ${p.act.max} (${p.act.count})` +
+        `long ${p.longTasks.count} (max ${p.longTasks.maxMs} ms)  hitches ${p.hitches}  tweens peak ${p.tweens.peak}  idle tail p95 ${p.idleTail.p95}  ai p50 ${p.ai.p50} max ${p.ai.max} (${p.ai.count})  act p50 ${p.act.p50} p95 ${p.act.p95} max ${p.act.max} (${p.act.count})` +
         (errors.length ? `  ERRORS ${errors.length}: ${errors[0]}` : ""),
     );
     gate(p.ai.count === 0, `[${dev.name}] no AI move computed on the main thread (${p.ai.count})`);
     gate(errors.length === 0, `[${dev.name}] no page errors (${errors.length})`);
-    if (dev.mobile) gate(p.drawCalls.max <= MAX_IOS_DRAWS, `[${dev.name}] draw calls per frame ${p.drawCalls.max} <= ${MAX_IOS_DRAWS} (one texture per batch on iOS)`);
+    gate(p.tweens.peak <= MAX_TWEENS, `[${dev.name}] live tweens at the peak ${p.tweens.peak} <= ${MAX_TWEENS}`);
+    // a slow headless frame can land just past the limit, so one median frame interval is allowed on top
+    const tailLimit = MAX_IDLE_TAIL + p.interval.p50;
+    gate(p.idleTail.p95 <= tailLimit, `[${dev.name}] drawing stops within ${MAX_IDLE_TAIL} ms (+ a frame, ${Math.round(tailLimit)}) of the last tween (p95 ${p.idleTail.p95} ms, max ${p.idleTail.max}, ${p.idleTail.count} bursts)`);
+    if (dev.mobile && dev.type === webkit) gate(p.drawCalls.max <= MAX_IOS_DRAWS, `[${dev.name}] draw calls per frame ${p.drawCalls.max} <= ${MAX_IOS_DRAWS} (one texture per batch on iOS)`);
   } catch (e) {
     console.log(`${dev.name}: FAILED ${e.message}`);
     failed++;

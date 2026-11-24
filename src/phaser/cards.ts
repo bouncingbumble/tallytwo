@@ -96,7 +96,8 @@ const RECEDE_TINT = 0xa9aba2;
  * Graphics per card would be re-tessellated every frame and break the batch twice per card.
  */
 export class CardView extends Phaser.GameObjects.Container {
-  readonly value: Card;
+  /** The card shown; a pooled view is handed a new one by reset(). */
+  value: Card;
   readonly face: Phaser.GameObjects.Image;
   readonly cw: number;
   readonly ch: number;
@@ -166,6 +167,20 @@ export class CardView extends Phaser.GameObjects.Container {
     this.#playable = playable;
     this.#draw();
     return this;
+  }
+
+  /**
+   * Make this view card `v`, fresh: the face swapped to v's frame (every face frame is the same
+   * size, so the display size stands), no look, at rest (scale 1, angle 0, opaque, showing). The
+   * card pool (cardPool.ts) calls this when it hands a view out again.
+   */
+  reset(v: Card): this {
+    if (v !== this.value) {
+      this.value = v;
+      this.face.setFrame(`face-${frameOf(v)}`, false, false);
+    }
+    this.setLook({ selected: false, dim: false, lit: false, lifted: false, recede: false, playable: false });
+    return this.setScale(1).setAngle(0).setAlpha(1).setVisible(true);
   }
 
   /** How the face is drawn, for the e2e probe: its alpha must stay 1. */

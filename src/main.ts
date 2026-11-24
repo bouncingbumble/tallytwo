@@ -20,6 +20,7 @@ import { env, installEnv } from "./platform/env";
 import { install, watchInstall } from "./platform/install";
 import { registerOffline, updates } from "./platform/offline";
 import { webStorage } from "./platform/webStorage";
+import { guardContext } from "./phaser/contextLoss";
 import { direct } from "./phaser/director";
 import { bindMotion } from "./phaser/motion";
 import { markDirty, renderOnDemand } from "./phaser/onDemand";
@@ -115,6 +116,7 @@ function boot(): void {
   phaser.events.once("booted", () => {
     sizeGame(phaser);
     phaser.scene.stop("Boot");
+    guardContext(phaser);
     direct(phaser);
     // ?draw=always turns render-on-demand off (a comparison switch for profiling)
     if (new URLSearchParams(location.search).get("draw") !== "always") renderOnDemand(phaser);
