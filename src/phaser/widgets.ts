@@ -8,7 +8,7 @@ import Phaser from "phaser";
 import { dropShadow, insetStroke, painted, roundRect, text, vgrad } from "./paint";
 import { C, CSS, FS_EM, TAP } from "./theme";
 import { EASE, MOTION } from "../game/timing";
-import { press, shake } from "./fx";
+import { pop, press, shake } from "./fx";
 import { ms } from "./motion";
 import { markDirty } from "./onDemand";
 import { zoomOf } from "./viewport";
@@ -191,6 +191,11 @@ export class Button extends Phaser.GameObjects.Container {
 
   get kind(): ButtonKind {
     return this.#kind;
+  }
+
+  /** A one-shot "this one": the face grows a little and back (a turn arriving, an idle reminder). */
+  nudge(): void {
+    pop(this.scene, this.#face, 1.08, MOTION.emphasis);
   }
 
   get enabled(): boolean {

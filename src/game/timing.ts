@@ -118,10 +118,24 @@ export const MOTION = {
   settle: 640,
   /** A looping pulse's period (an idle reminder). */
   pulse: 1200,
+  /** A won trick stays put this long so the winning play is read, then sweeps to its winner. */
+  trickHold: 250,
+  trickSweep: 420,
   /** The bark bubble's run (motion.css barkin 1.9s): in over the first 10 %, out over the last 15 %. */
   bark: 1900,
   /** The final-round banner's run (motion.css announce 3.2s). */
   announce: 3200,
+} as const;
+
+/**
+ * Whose turn it is (docs/MOBILE_UX_PLAN.md §5). The thinking dots step instead of tweening, so a
+ * long AI think draws a few frames a second instead of every frame (render on demand).
+ */
+export const TURN = {
+  /** The thinking dots move on this often. */
+  dotStepMs: 400,
+  /** On the player's turn with no touch for this long, the asked-for control is nudged once. */
+  idleNudgeMs: 8000,
 } as const;
 
 /** The doors' sprite frames: ajar, then open, inside DOORS_MS. */

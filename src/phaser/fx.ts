@@ -39,25 +39,34 @@ function release(obj: Movable, kind: string, h: FxHandle): void {
   if (m?.get(kind) === h) m.delete(kind);
 }
 
-/** A quick grow-and-back: something changed or was chosen. */
-export function pop(scene: Phaser.Scene, obj: Movable, amount = 1.12, duration: number = MOTION.micro): FxHandle {
-  const d = ms(duration);
-  if (!d) return NONE;
-  running.get(obj)?.get("pop")?.skip();
-  obj.setScale(1);
-  const t = scene.tweens.add({ targets: obj, scale: amount, duration: d / 2, yoyo: true, ease: EASE.fadeIn });
+/**
+ * A scale tween relative to the object's resting scale, which is restored at the end. An image
+ * drawn with setDisplaySize rests at a scale far from 1 (a 3x portrait at ~0.28), so "1" is never
+ * assumed.
+ */
+function scaleBy(scene: Phaser.Scene, obj: Movable, kind: string, amount: number, half: number, ease: string, repeat = 0): FxHandle {
+  running.get(obj)?.get(kind)?.skip(); // a run already going puts its object back first
+  const sx = obj.scaleX;
+  const sy = obj.scaleY;
+  const t = scene.tweens.add({ targets: obj, scaleX: sx * amount, scaleY: sy * amount, duration: half, yoyo: true, repeat, ease });
   const h: FxHandle = {
     skip() {
       t.stop();
-      obj.setScale(1);
-      release(obj, "pop", h);
+      obj.setScale(sx, sy);
+      release(obj, kind, h);
     },
   };
   t.once("complete", () => {
-    obj.setScale(1);
-    release(obj, "pop", h);
+    obj.setScale(sx, sy);
+    release(obj, kind, h);
   });
-  return claim(obj, "pop", h);
+  return claim(obj, kind, h);
+}
+
+/** A quick grow-and-back: something changed or was chosen. */
+export function pop(scene: Phaser.Scene, obj: Movable, amount = 1.12, duration: number = MOTION.micro): FxHandle {
+  const d = ms(duration);
+  return d ? scaleBy(scene, obj, "pop", amount, d / 2, EASE.fadeIn) : NONE;
 }
 
 /** A sideways "no": a damped wobble of `px` that settles back on the object's x. */
@@ -122,18 +131,7 @@ export function wobble(scene: Phaser.Scene, obj: Movable, deg = 5, duration: num
  */
 export function pulse(scene: Phaser.Scene, obj: Movable, amount = 1.05, period: number = MOTION.pulse): FxHandle {
   const d = ms(period);
-  if (!d) return NONE;
-  running.get(obj)?.get("pulse")?.skip();
-  obj.setScale(1);
-  const t = scene.tweens.add({ targets: obj, scale: amount, duration: d / 2, yoyo: true, repeat: -1, ease: EASE.inOut });
-  const h: FxHandle = {
-    skip() {
-      t.stop();
-      obj.setScale(1);
-      release(obj, "pulse", h);
-    },
-  };
-  return claim(obj, "pulse", h);
+  return d ? scaleBy(scene, obj, "pulse", amount, d / 2, EASE.inOut, -1) : NONE;
 }
 
 /** Squish under a finger (down) and spring back (up). The caller owns when. */

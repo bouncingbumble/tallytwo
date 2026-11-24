@@ -162,6 +162,46 @@ export function trickPlays(g: GameState): TrickPlay[] {
   return [...bySeat.values()].sort((a, b) => a.seat - b.seat);
 }
 
+/** What one state change means at the table, for the cues that explain it (docs/MOBILE_UX_PLAN.md §5). */
+export interface TableEvents {
+  /** The seat whose turn just began, or null. */
+  turnStarted: number | null;
+  /** A seat that just played (its play is the last record), or null. */
+  played: number | null;
+  /** A seat that just passed, or null. */
+  passed: number | null;
+  /** The seat that just took the trick (three passes cleared it), or null. */
+  trickWonBy: number | null;
+}
+
+const NO_EVENTS: TableEvents = { turnStarted: null, played: null, passed: null, trickWonBy: null };
+
+/**
+ * The table events between two states of the same deal. A new deal, a rebuild (prev null) or
+ * the round ending report no move events; a turn that starts on a fresh deal still counts.
+ */
+export function tableEvents(prev: GameState | null, next: GameState | null): TableEvents {
+  if (!prev || !next || next === prev) return NO_EVENTS;
+  const turnStarted = turnBegan(prev, next);
+  const rec = oneMove(prev, next) ? next.history.at(-1) : undefined;
+  if (!rec) return { ...NO_EVENTS, turnStarted };
+  const played = rec.cards.length > 0;
+  const cleared = next.trickStart > prev.trickStart && next.lastPlay === null;
+  return { turnStarted, played: played ? rec.by : null, passed: played ? null : rec.by, trickWonBy: cleared ? next.lastBy : null };
+}
+
+const sameDeal = (a: GameState, b: GameState): boolean => a.round === b.round && a.seed === b.seed;
+
+/** Exactly one move (a play or a pass) separates the two states of one deal. */
+const oneMove = (prev: GameState, next: GameState): boolean => sameDeal(prev, next) && next.history.length === prev.history.length + 1;
+
+/** The seat whose turn began between the two states: a live round whose turn moved, or a fresh deal. */
+function turnBegan(prev: GameState, next: GameState): number | null {
+  if (next.phase !== "playing") return null;
+  const moved = !sameDeal(prev, next) || prev.phase !== "playing" || prev.turn !== next.turn;
+  return moved ? next.turn : null;
+}
+
 /** This round's deltas, available from roundover on (the poster's "Round" column). */
 export const roundDeltas = (g: GameState | null): number[] | null => (g && g.phase !== "playing" ? roundScore(g.players.map((p) => p.hand.length)) : null);
 

@@ -1,6 +1,6 @@
 # Plan: Mobile UI/UX and motion pass
 
-Status: **in progress on branch `ux`** (on top of `perf`). Phases 0, 1 and 2 are done (see "Progress" at the end); Phase 3 is next. Decisions taken 2026-11 (§12): flick-to-play on by default; opponents are dealt to; no haptics for now (visual feedback only); losers' leftover cards are revealed only on Greenhorn; swipe-to-select adopted (reorder moves to press-and-hold, then drag).
+Status: **in progress on branch `ux`** (on top of `perf`). Phases 0–3 are done (see "Progress" at the end); Phase 4 is next. Decisions taken 2026-11 (§12): flick-to-play on by default; opponents are dealt to; no haptics for now (visual feedback only); losers' leftover cards are revealed only on Greenhorn; swipe-to-select adopted (reorder moves to press-and-hold, then drag).
 
 Scope: `src/phaser/**`, `src/game/timing.ts`, `src/render/*Layout.ts`, a few new selectors in `src/game/selectors.ts`, and two new settings. The shell bridge is untouched. The engine, AI, stores, and audio stay as they are. This plan builds on the Phaser port (`PHASER_MIGRATION.md`) and keeps its contracts: the 440-px logical canvas, integer rest poses, the size floors (`theme.ts` `FS_MIN` / `TAP`), no rules in scenes, and no layout numbers outside `render/`.
 
@@ -281,3 +281,19 @@ Not done in Phase 2:
 - **The fan arc for narrow fans (§4.1).** It is only needed below a 44-px step: desktop (34 px) and the iPhone SE (41 px). The exposed-strip hit-testing already covers taps there.
 - **A first-time status reason for invalid taps (§4.7).** The status line already says why ("doesn't beat it", "not a hand").
 - **`CardView` pooling.** This stays in Phase 6; the hand hands cards over by pose instead (same on screen, no shared objects).
+
+**Phase 3, done.**
+- **Table events** (`selectors.tableEvents`, pure, 3 tests): from two consecutive states, whose turn just began, who played, who passed, and who took the trick (three passes cleared it). One call per render feeds every cue. A rebuild replays nothing.
+- **Your turn (F4):** an amber glow swells once along the top of the hand row, and the asked-for control (`primaryAction`, else Hint) is nudged. After 8 s with no touch there is one more nudge (or the glow again). Any touch or the turn moving on cancels it.
+- **Opponents:**
+  - the ring flares in when their turn starts;
+  - thinking dots step every 400 ms while they are on turn (still under reduced motion);
+  - the portrait lunges toward the felt as they play;
+  - "passed" drops in like a stamp (scale 1.4 → 1, `land`);
+  - the count pops as it ticks down, and wobbles as it reaches 3;
+  - a red **LAST CARD** tag pops onto the portrait at one card (words as well as colour).
+- **Trick clear (F6):** the trick holds for 250 ms while the winning play pops, then sweeps into the winner's portrait (or the hand for the player), shrinking and fading. The winner's portrait pops on arrival. The felt's "`<name>` leads" line shows once the cards have gone. A play made during the sweep starts the next trick beside it.
+- **Sign and status:** a change eases up 4 px as it fades in (120 ms), instead of snapping.
+- **Fix:** `fx.pop` / `pulse` now scale relative to the object's resting scale. A portrait drawn with `setDisplaySize` rests near 0.28, and popping it from 1 had blown it up to fill the corner.
+- **Perf gate:** on the iPhone profile, 3 hitches, ≤ 48 draws, worst frame 117 ms. The dots raise frames drawn from 76 % to 82 % of frames.
+- **Deviation:** no looping "breathing" ring. A loop would make render-on-demand draw every frame of every AI think (most of a game), so the ring flares in once and the dots step on a timer instead. The primary-button pop at turn start only happens when a control *is* primary (usually Pass when stuck); at an ordinary turn start the hand glow is the cue.

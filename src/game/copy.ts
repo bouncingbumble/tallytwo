@@ -38,6 +38,8 @@ export const COPY = {
   seat: {
     passed: "passed",
     tally: "Tally",
+    /** Tagged on a badge whose player is down to one card. */
+    lastCard: "LAST CARD",
   },
   finalRound: {
     you: "you",

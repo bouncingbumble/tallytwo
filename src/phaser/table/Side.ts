@@ -11,12 +11,16 @@ import type { GameStore, GameView } from "../../game/store";
 import type { Rect } from "../../render/tableLayout";
 import { maxLines, painted, roundRect, setTextColor, text } from "../paint";
 import { CSS, FS_BODY, FS_EM, FS_MIN, TAP } from "../theme";
+import { EASE, MOTION } from "../../game/timing";
 import { pop } from "../fx";
+import { ms } from "../motion";
 import { target } from "../probe";
 import { Button, IconButton } from "../widgets";
 
 const GAP = 6;
 const BTN_GAP = 6;
+/** A changed sign or status eases up this far as it fades in. */
+const TEXT_RISE = 4;
 
 export class SideView {
   readonly scene: Phaser.Scene;
@@ -109,6 +113,8 @@ export class SideView {
       const whoH = Math.round(this.#signWho.height) - 4;
       this.#signText.setText(v.sign.text).setPosition(r.x + 6, signY + 4 + whoH + 1);
       maxLines(this.#signText, 3);
+      this.#fadeIn(this.#signWho);
+      this.#fadeIn(this.#signText);
       const h = whoH + 1 + Math.round(this.#signText.height) - 4 + 8;
       this.#signBg?.destroy();
       this.#signBg = painted(this.scene, "sign", r.x, signY, r.w - this.#clearR, h, (ctx, w, bh) => {
@@ -134,6 +140,31 @@ export class SideView {
       const lines = Math.max(0, Math.floor((controlsTop - GAP - statusY) / (FS_MIN * 1.3)));
       if (lines === 0) this.#status.setText("");
       else maxLines(this.#status, lines);
+      this.#fadeIn(this.#status);
     }
+  }
+
+  /** A text that just changed eases in from a few px lower instead of snapping (MOTION.micro). */
+  #fadeIn(t: Phaser.GameObjects.Text): void {
+    const d = ms(MOTION.micro);
+    if (!d) return;
+    const y = t.y;
+    this.scene.tweens.killTweensOf(t);
+    t.setAlpha(0).setY(y + TEXT_RISE);
+    this.scene.tweens.add({ targets: t, alpha: 1, y, duration: d, ease: EASE.enter });
+  }
+
+  /**
+   * The control the player is being asked for, nudged once: Play or Pass when one is primary
+   * (selectors.primaryAction), else Hint when it is on and has something to show. False when
+   * nothing qualifies, so the table can point at the hand instead.
+   */
+  nudge(v: GameView): boolean {
+    const primary = primaryAction(v.exact, v.canPass, v.legal);
+    if (primary === "play") this.#play.nudge();
+    else if (primary === "pass") this.#pass.nudge();
+    else if (this.#hints && this.#hint.enabled) this.#hint.nudge();
+    else return false;
+    return true;
   }
 }

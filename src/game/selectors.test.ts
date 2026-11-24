@@ -44,6 +44,7 @@ import {
   sortHand,
   statusFor,
   suitSortRuns,
+  tableEvents,
   tallyLeaders,
   tensionFor,
 } from "./selectors";
@@ -88,6 +89,38 @@ const playOut = (g: GameState, rng: Rng): GameState => {
   return g;
 };
 const sameCards = (a: readonly number[], b: readonly number[]): boolean => a.length === b.length && a.every((c, i) => c === b[i]);
+
+/* ---- table events ---- */
+
+test("tableEvents: a play, a pass, the turn moving on; nothing from a rebuild or no change", () => {
+  const g0 = humanLead();
+  expect(tableEvents(null, g0)).toEqual({ turnStarted: null, played: null, passed: null, trickWonBy: null });
+  expect(tableEvents(g0, g0).turnStarted).toBe(null);
+  const lead = legalFor(g0).find((m) => m.cards.length === 1)!;
+  const g1 = reduce(g0, { type: "PLAY", player: HUMAN, cards: lead.cards.slice() });
+  expect(tableEvents(g0, g1)).toEqual({ turnStarted: g1.turn, played: HUMAN, passed: null, trickWonBy: null });
+  const g2 = reduce(g1, { type: "PASS", player: g1.turn });
+  expect(tableEvents(g1, g2)).toMatchObject({ passed: g1.turn, played: null, turnStarted: g2.turn });
+});
+
+test("tableEvents: three passes clear the trick; the winner takes it and the turn", () => {
+  let g = humanLead();
+  const lead = legalFor(g).find((m) => m.cards.length === 1)!;
+  g = reduce(g, { type: "PLAY", player: HUMAN, cards: lead.cards.slice() });
+  for (let i = 0; i < 2; i++) g = reduce(g, { type: "PASS", player: g.turn });
+  const before = g;
+  const after = reduce(g, { type: "PASS", player: g.turn });
+  expect(after.lastPlay).toBe(null);
+  expect(tableEvents(before, after)).toEqual({ turnStarted: HUMAN, played: null, passed: before.turn, trickWonBy: HUMAN });
+});
+
+test("tableEvents: a new deal starts a turn but reports no move; the round ending starts none", () => {
+  const over = playOut(deal(21, DEFAULT_RULES), aiRngFor(21));
+  const last = advance(deal(21, DEFAULT_RULES), 0, aiRngFor(21));
+  expect(tableEvents(last, over).turnStarted).toBe(null); // not the same history length: no move, and the round is over
+  const fresh = deal(22, DEFAULT_RULES);
+  expect(tableEvents(over, fresh)).toEqual({ turnStarted: fresh.turn, played: null, passed: null, trickWonBy: null });
+});
 
 /* ---- turn guards ---- */
 

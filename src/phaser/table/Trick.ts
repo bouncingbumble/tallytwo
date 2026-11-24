@@ -15,12 +15,13 @@
  * into the trick's layer once they land.
  */
 import Phaser from "phaser";
-import { emptyFeltText, trickPlays } from "../../game/selectors";
-import { EASE, PLAY_FLY_MS, PLAY_FLY_STAGGER_MS } from "../../game/timing";
+import { type TrickPlay, emptyFeltText, trickPlays } from "../../game/selectors";
+import { EASE, MOTION, PLAY_FLY_MS, PLAY_FLY_STAGGER_MS } from "../../game/timing";
 import type { GameView } from "../../game/store";
 import { PLAY_CARD_H, PLAY_CARD_W } from "../../render/scale";
 import { type Rect, SLOT_ALIGN, type TableLayout, pileLayout } from "../../render/tableLayout";
 import { CardView } from "../cards";
+import { pop } from "../fx";
 import { ms } from "../motion";
 import { text } from "../paint";
 import { CSS, FS_BODY } from "../theme";
@@ -55,6 +56,9 @@ export class TrickView {
   #over: Phaser.GameObjects.Container | null = null;
   /** The seat whose play is the one to beat (drawn on top), or null. */
   #latest: number | null = null;
+  /** Where a won trick sweeps to (absolute logical px), and who to tell when it gets there. */
+  #sweepTo: ((seat: number) => { x: number; y: number }) | null = null;
+  #onWon: ((seat: number) => void) | null = null;
 
   constructor(scene: Phaser.Scene, t: TableLayout, origin: (seat: number, card: number) => FlyOrigin | null) {
     this.scene = scene;
@@ -70,15 +74,42 @@ export class TrickView {
     this.#over = c;
   }
 
-  /** Bring the felt in line with the view; `animate` false on a rebuild (a resize), so nothing flies twice. */
-  update(v: GameView, animate: boolean): void {
+  /** Where a won trick goes (the winner's portrait, or the hand for the player) and the callback when it arrives. */
+  setSweep(to: (seat: number) => { x: number; y: number }, won: (seat: number) => void): void {
+    this.#sweepTo = to;
+    this.#onWon = won;
+  }
+
+  /**
+   * Bring the felt in line with the view; `animate` false on a rebuild (a resize), so nothing flies
+   * twice. `wonBy`: the trick just cleared to that seat (selectors.tableEvents), so the cards on the
+   * felt sweep to it instead of vanishing.
+   */
+  update(v: GameView, animate: boolean, wonBy: number | null = null): void {
     const g = v.game;
     if (!g) return;
+    const swept = wonBy !== null && animate && this.#groups.size > 0;
+    if (swept) this.#sweep(wonBy);
     const plays = trickPlays(g);
+    this.#reconcile(plays, v.dealId, animate);
+    // the latest lit, the others receding: by tint, not group alpha, since a play's cards overlap (F1)
+    this.#latest = g.lastPlay !== null ? g.lastBy : null;
+    for (const [seat, grp] of this.#groups) {
+      const latest = seat === this.#latest;
+      for (const c of grp.cards) c.setLook({ lit: latest, recede: !latest });
+    }
+    this.#restack();
+    this.#empty.setText(plays.length === 0 ? emptyFeltText(g) : "").setVisible(plays.length === 0 && !swept);
+    // "<name> leads" appears once the won cards have gone
+    if (swept && plays.length === 0) this.scene.time.delayedCall(ms(MOTION.trickHold + MOTION.trickSweep), () => this.#empty.setVisible(this.#groups.size === 0));
+  }
+
+  /** One group per seat with a play on the felt: a seat that played again gets a new one, a seat with none loses its. */
+  #reconcile(plays: readonly TrickPlay[], dealId: number, animate: boolean): void {
     const bySeat = new Map(plays.map((p) => [p.seat, p]));
     for (const seat of SEATS) {
       const play = bySeat.get(seat);
-      const key = play ? `${v.dealId}-${play.at}` : "";
+      const key = play ? `${dealId}-${play.at}` : "";
       const old = this.#groups.get(seat);
       if (old && old.key !== key) {
         old.container.destroy();
@@ -86,16 +117,50 @@ export class TrickView {
       }
       if (play && !this.#groups.has(seat)) this.#groups.set(seat, this.#make(seat, key, play.cards, this.#t.slots[seat], animate));
     }
-    // the latest lit, the others receding: by tint, not group alpha, since a play's cards overlap (F1)
-    this.#latest = g.lastPlay !== null ? g.lastBy : null;
-    for (const seat of SEATS) {
-      const grp = this.#groups.get(seat);
-      if (!grp) continue;
-      const latest = seat === this.#latest;
-      for (const c of grp.cards) c.setLook({ lit: latest, recede: !latest });
+  }
+
+  /**
+   * A won trick (docs/MOBILE_UX_PLAN.md §5.4): every play on the felt holds for MOTION.trickHold
+   * (the winning one pops so it is read), then sweeps into the winner's portrait or the hand,
+   * shrinking and fading. The groups leave the live set at once, so a play made meanwhile starts
+   * a fresh trick beside them.
+   */
+  #sweep(winner: number): void {
+    const scene = this.scene;
+    const to = this.#sweepTo?.(winner) ?? { x: this.#t.plays.x + this.#t.plays.w / 2, y: this.#t.plays.y };
+    const hold = ms(MOTION.trickHold);
+    const go = ms(MOTION.trickSweep);
+    const groups = [...this.#groups.entries()];
+    this.#groups.clear();
+    let told = false;
+    const arrive = () => {
+      if (told) return;
+      told = true;
+      this.#onWon?.(winner);
+    };
+    if (!go) {
+      for (const [, grp] of groups) grp.container.destroy();
+      arrive();
+      return;
     }
-    this.#restack();
-    this.#empty.setText(plays.length === 0 ? emptyFeltText(g) : "").setVisible(plays.length === 0);
+    for (const [seat, grp] of groups) {
+      const { container, cards } = grp;
+      if (seat === winner) for (const c of cards) pop(scene, c, 1.1, hold);
+      cards.forEach((c, i) => {
+        scene.tweens.add({
+          targets: c,
+          x: to.x - container.x,
+          y: to.y - container.y,
+          scale: 0.45,
+          angle: 0,
+          alpha: 0,
+          delay: hold + i * PLAY_FLY_STAGGER_MS,
+          duration: go,
+          ease: EASE.exit,
+          onComplete: i === cards.length - 1 ? () => (arrive(), container.destroy()) : undefined,
+        });
+      });
+    }
   }
 
   #make(seat: number, key: string, cards: readonly number[], slot: Rect, animate: boolean): Group {

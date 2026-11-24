@@ -10,8 +10,8 @@
 import Phaser from "phaser";
 import type { GameView } from "../../game/store";
 import { COPY } from "../../game/copy";
-import { HUMAN, humanTurn } from "../../game/selectors";
-import { EASE, GESTURE, MOTION } from "../../game/timing";
+import { HUMAN, type TableEvents, humanTurn, tableEvents } from "../../game/selectors";
+import { EASE, GESTURE, MOTION, TURN } from "../../game/timing";
 import { SELECT_LIFT, fanLayout } from "../../render/fanLayout";
 import { shouldCoach } from "../../render/handGesture";
 import { env } from "../../platform/env";
@@ -27,6 +27,9 @@ import { SideView } from "../table/Side";
 import { TrickView } from "../table/Trick";
 import { BaseScene } from "./base";
 
+/** The your-turn glow's height above the hand row (logical px). */
+const TURN_GLOW_H = 26;
+
 export class TableScene extends BaseScene {
   #t!: TableLayout;
   #seats: SeatView[] = [];
@@ -38,6 +41,9 @@ export class TableScene extends BaseScene {
   #animate = false;
   #prewarm = false;
   #coach: Phaser.GameObjects.Container | null = null;
+  #turnGlow: Phaser.GameObjects.Image | null = null;
+  /** The one idle reminder on the player's turn. */
+  #idle: Phaser.Time.TimerEvent | null = null;
   /** The coach mark has been shown and dismissed in this run of the scene. */
   #coachDone = false;
   #last: GameView | null = null;
@@ -121,7 +127,28 @@ export class TableScene extends BaseScene {
     this.#trick = new TrickView(this, t, (seat, card) => (seat === HUMAN ? (this.#hand?.poseOf(card) ?? null) : (this.#seats.find((s) => s.seat === seat)?.faceCentre() ?? null)));
     for (const seat of [1, 2, 3]) this.#seats.push(new SeatView(this, seat, t.badges[seat]));
 
+    // won tricks sweep into the winner's portrait, or down into the hand for the player
+    this.#trick.setSweep(
+      (seat) => (seat === HUMAN ? { x: t.fan.x + t.fan.w / 2, y: t.fan.y + TURN_GLOW_H } : (this.#seats.find((s) => s.seat === seat)?.faceCentre() ?? { x: t.felt.x, y: t.felt.y })),
+      (seat) => (seat === HUMAN ? this.#glowHand() : this.#seats.find((s) => s.seat === seat)?.wonTrick()),
+    );
+
     drawSaloon(this, t.handRow);
+    // the your-turn glow along the top of the hand row, under the cards; dark until a turn arrives
+    this.#turnGlow = painted(this, "turn-glow", t.handRow.x, t.handRow.y - TURN_GLOW_H, t.handRow.w, TURN_GLOW_H, (ctx, w, h) => {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, "rgba(232, 163, 61, 0)");
+      g.addColorStop(1, "rgba(240, 180, 87, 0.75)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    }).setAlpha(0);
+    this.#idle?.remove(false);
+    this.#idle = null;
+    // any touch on the player's turn is attention enough: no reminder
+    this.input.on("pointerdown", () => {
+      this.#idle?.remove(false);
+      this.#idle = null;
+    });
     const opts = () => this.app.settings.opts;
     this.#hand = new HandView(this, t.fan, game, () => ({ swipe: opts().swipe, flick: opts().flick }));
     // the player's own play flies above the hand it leaves, then settles into the trick
@@ -153,13 +180,46 @@ export class TableScene extends BaseScene {
     if (!v.game) return;
     if (v === this.#last && !force) return;
     const animate = this.#animate || this.#last !== null;
+    // what just happened, for the cues that explain it (null on a rebuild: nothing replays)
+    const ev = this.#last ? tableEvents(this.#last.game, v.game) : null;
     this.#last = v;
-    for (const s of this.#seats) s.update(v.game, v.barks);
-    this.#trick.update(v, animate);
+    for (const s of this.#seats) s.update(v.game, v.barks, ev);
+    this.#trick.update(v, animate, ev?.trickWonBy ?? null);
     this.#hand.update(v, animate);
     this.#side.update(v, this.app.settings.opts.hints);
     this.#updateAnnouncement(v);
+    if (ev) this.#turnCue(ev, v);
     if (shouldCoach(this.app.settings.opts, humanTurn(v.game), v.game.players[HUMAN].hand.length)) this.#showCoach();
+  }
+
+  /**
+   * The player's turn arriving (docs/MOBILE_UX_PLAN.md §5.1): the hand row glows once, and the
+   * asked-for control is nudged. If nothing is touched for TURN.idleNudgeMs, one more nudge —
+   * one reminder, never a nag. The turn moving on cancels it.
+   */
+  #turnCue(ev: TableEvents, v: GameView): void {
+    if (ev.turnStarted === null) return;
+    this.#idle?.remove(false);
+    this.#idle = null;
+    if (ev.turnStarted !== HUMAN) return;
+    this.#glowHand();
+    this.#side.nudge(v);
+    this.#idle = this.after(TURN.idleNudgeMs, () => {
+      this.#idle = null;
+      const now = this.app.game.view;
+      if (!humanTurn(now.game)) return;
+      if (!this.#side.nudge(now)) this.#glowHand();
+    });
+  }
+
+  /** One soft amber swell along the top of the hand row. */
+  #glowHand(): void {
+    const g = this.#turnGlow;
+    const d = ms(MOTION.emphasis);
+    if (!g || !d) return;
+    this.tweens.killTweensOf(g);
+    g.setAlpha(0);
+    this.tweens.add({ targets: g, alpha: 1, duration: d, yoyo: true, ease: EASE.inOut, onComplete: () => g.setAlpha(0) });
   }
 
   /**
