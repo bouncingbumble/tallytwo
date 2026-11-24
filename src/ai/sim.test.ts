@@ -44,6 +44,9 @@ function playGame(seed: number, diffs: Difficulty[]) {
   return { winner: g.phase === "roundover" ? g.turn : -1, errors, stalled: g.phase === "playing", actions, final: g };
 }
 
+/** Card sharp's look-ahead makes these runs take ~8 s on a GitHub Actions runner (~2 s locally): above vitest's 5-s default. */
+const SLOW_MS = 60_000;
+
 describe("simulation gate", () => {
   beforeEach(clearPartitionCache);
 
@@ -85,7 +88,7 @@ describe("simulation gate", () => {
         } else passes = 0;
       }
     }
-  });
+  }, SLOW_MS);
 
   test("a game is deterministic for its seed (warm and cold cache)", () => {
     const a = playGame(1000, MATCHUPS[0]);

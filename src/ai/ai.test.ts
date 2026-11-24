@@ -25,6 +25,9 @@ const SEATS = [
   { name: "D", kind: "ai" as const, personality: "marshal" },
 ];
 
+/** Card sharp's look-ahead makes these runs take ~8 s on a GitHub Actions runner (~2 s locally): above vitest's 5-s default. */
+const SLOW_MS = 60_000;
+
 describe("personalities", () => {
   test("getPersonality narrows the key and the portrait", () => {
     expect(() => getPersonality(undefined)).toThrow();
@@ -64,7 +67,7 @@ describe("chooseMove", () => {
       }
     }
     expect(positions).toBeGreaterThan(200);
-  });
+  }, SLOW_MS);
 
   test("aiTurn wraps the answer as PLAY or PASS and refuses the human seat", () => {
     const g = deal(7, R, SEATS);
