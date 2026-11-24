@@ -11,7 +11,7 @@
  *   normal  Normal pace at 2x (× 2)
  *   fast    the old Fast pace at 4x (× 1), its speed then cut by 30% (FAST_SPEED: every
  *           wait ÷ 0.7) and then made 1.5x slower again (FAST_SLOWDOWN), so the fastest table
- *           is brisk but still easy to follow
+ *           is brisk but still easy to follow; the AI's think time alone is × FAST_THINK_SCALE (2.5)
  */
 export type GameSpeed = "slow" | "normal" | "fast";
 export const GAME_SPEEDS: readonly GameSpeed[] = ["slow", "normal", "fast"];
@@ -27,17 +27,22 @@ export const FAST_SPEED = 0.7;
 /** ...and then 1.5x slower again (2026: "Fast game speed is too fast, should be 1.5x slower"). */
 export const FAST_SLOWDOWN = 1.5;
 
+/** Fast's AI think time alone is scaled by this (2026: "opponent think time for fast should be 2.5"). */
+export const FAST_THINK_SCALE = 2.5;
+
 export interface SpeedTier {
-  /** AI think range in prototype ms, before `scale`. */
+  /** AI think range in prototype ms, before `thinkScale`. */
   think: readonly [number, number];
-  /** Every prototype wait at the table is multiplied by this. */
+  /** The AI think range is multiplied by this. */
+  thinkScale: number;
+  /** Every other prototype wait at the table is multiplied by this. */
   scale: number;
 }
 
 export const SPEED: Record<GameSpeed, SpeedTier> = {
-  slow: { think: THINK.normal, scale: 4 },
-  normal: { think: THINK.normal, scale: 2 },
-  fast: { think: THINK.fast, scale: FAST_SLOWDOWN / FAST_SPEED },
+  slow: { think: THINK.normal, thinkScale: 4, scale: 4 },
+  normal: { think: THINK.normal, thinkScale: 2, scale: 2 },
+  fast: { think: THINK.fast, thinkScale: FAST_THINK_SCALE, scale: FAST_SLOWDOWN / FAST_SPEED },
 };
 
 /** r is a uniform random in [0, 1) — Math.random in the game, a fixed value in tests. Prototype ms, before paced(). */
@@ -48,6 +53,9 @@ export const thinkMs = (speed: GameSpeed, r: number): number => {
 
 /** A prototype wait at the table, scaled by the Game speed tier, whole ms. */
 export const paced = (ms: number, speed: GameSpeed): number => Math.round(ms * SPEED[speed].scale);
+
+/** An AI think wait at the table: thinkMs() scaled by the tier's thinkScale, whole ms. */
+export const pacedThink = (speed: GameSpeed, r: number): number => Math.round(thinkMs(speed, r) * SPEED[speed].thinkScale);
 
 
 /** From the last card hitting the felt to the poster. */

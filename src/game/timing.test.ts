@@ -10,6 +10,7 @@ import {
   DOORS_MS,
   FAST_SLOWDOWN,
   FAST_SPEED,
+  FAST_THINK_SCALE,
   FINAL_ROUND_MS,
   FIRST_STEP_MS,
   GAME_SPEEDS,
@@ -19,6 +20,7 @@ import {
   SPEED,
   THINK,
   paced,
+  pacedThink,
   playLandMs,
   thinkMs,
 } from "./timing";
@@ -63,15 +65,19 @@ test("one Game speed setting: slow is the old 1x table, normal 2x, fast the old 
   expect(FAST_SPEED).toBe(0.7);
   expect(FAST_SLOWDOWN).toBe(1.5);
   // the old fastest table was Fast pace at 4x: prototype ms × 1. Fast runs at 70% of that speed, then 1.5x slower again.
-  expect(paced(thinkMs("fast", 0), "fast")).toBe(600);
-  expect(paced(thinkMs("fast", 1), "fast")).toBe(1114);
   expect(paced(FIRST_STEP_MS, "fast")).toBe(1500);
+  // the AI's think time is scaled on its own: x2.5 on Fast, the tier's scale elsewhere
+  expect(FAST_THINK_SCALE).toBe(2.5);
+  expect(pacedThink("fast", 0)).toBe(700);
+  expect(pacedThink("fast", 1)).toBe(1300);
+  expect(pacedThink("slow", 0)).toBe(2600);
+  expect(pacedThink("normal", 1)).toBe(2500);
   expect(paced(0, "slow")).toBe(0);
   // strictly faster tier by tier
   for (const ms of [FIRST_STEP_MS, ROUND_OVER_MS.ai, thinkMs("slow", 0.5)]) {
     expect(paced(ms, "slow")).toBeGreaterThan(paced(ms, "normal"));
   }
-  expect(paced(thinkMs("normal", 0.5), "normal")).toBeGreaterThan(paced(thinkMs("fast", 0.5), "fast"));
+  expect(pacedThink("normal", 0.5)).toBeGreaterThan(pacedThink("fast", 0.5));
 });
 
 test("a play lands when its last card has spread: the flight plus one stagger per extra card", () => {

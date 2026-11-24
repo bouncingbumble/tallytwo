@@ -20,7 +20,7 @@
 import { useEffect } from "react";
 import { useSettings } from "../settings/useSettings";
 import { HUMAN } from "./selectors";
-import { FIRST_STEP_MS, ROUND_OVER_MS, paced, playLandMs, thinkMs } from "./timing";
+import { FIRST_STEP_MS, ROUND_OVER_MS, paced, pacedThink, playLandMs } from "./timing";
 import { useGame } from "./useGame";
 
 export function useTurnLoop(paused: boolean): void {
@@ -43,7 +43,7 @@ export function useTurnLoop(paused: boolean): void {
     const seat = game.turn;
     if (game.players[seat].kind === "human") return; // the player's move, however long it takes
     const extra = game.history.length === 0 ? FIRST_STEP_MS : 0;
-    const t = setTimeout(() => actAi(seat, opts.difficulty), landing + clamp(thinkMs(opts.gameSpeed, Math.random()) + extra));
+    const t = setTimeout(() => actAi(seat, opts.difficulty), landing + pacedThink(opts.gameSpeed, Math.random()) + clamp(extra));
     return () => clearTimeout(t);
   }, [game, paused, crash, opts.gameSpeed, opts.difficulty, act, actAi]);
 }
