@@ -24,6 +24,7 @@ import { art, standing } from "../art";
 import type { FxHandle } from "../fx";
 import { ms, reducedMotion } from "../motion";
 import { painted, text } from "../paint";
+import { lampGlow, saloonWall } from "../walls";
 import { C, CSS, FS_BODY, TAP, WESTERN } from "../theme";
 import { target } from "../probe";
 import { Button } from "../widgets";
@@ -33,6 +34,8 @@ import { TableScene } from "./Table";
 const SCENE_W = 340;
 const SCENE_H = 226;
 const FLOOR_H = 28;
+/** The planked wainscot between the floor and the chair rail. */
+const WAINSCOT_H = 120;
 /** The title has settled (its first frames drawn, nothing animating) by then. */
 const PREWARM_AFTER_MS = 400;
 
@@ -54,12 +57,19 @@ export class TitleScene extends BaseScene {
     const { W, H } = this;
 
     // the room: lamplight from above over dark boards
+    const wide = W >= WIDE_W;
     painted(this, "title-bg", 0, 0, W, H, (ctx, w, h) => {
+      // papered above a chair rail, planked below it, in shadow but for the lamplight
+      saloonWall(ctx, w, h, h - FLOOR_H - WAINSCOT_H, h - FLOOR_H);
       const lin = ctx.createLinearGradient(0, 0, 0, h);
-      lin.addColorStop(0, "#2e1b0c");
-      lin.addColorStop(1, "#1a0f07");
+      lin.addColorStop(0, "rgba(30, 16, 7, 0.55)");
+      lin.addColorStop(1, "rgba(18, 10, 4, 0.72)");
       ctx.fillStyle = lin;
       ctx.fillRect(0, 0, w, h);
+      if (wide) {
+        lampGlow(ctx, 28 + 19, 34, 90, 0.32);
+        lampGlow(ctx, w - 28 - 19, 34, 90, 0.26);
+      }
       const rx = w * 0.6;
       const ry = h * 0.35 * 2;
       ctx.save();
@@ -87,7 +97,7 @@ export class TitleScene extends BaseScene {
       ctx.fillRect(0, 0, w, 1);
     });
 
-    if (W >= WIDE_W) {
+    if (wide) {
       art(this, 28, 22, "sconce");
       art(this, W - 28 - 38, 22, "sconce_silver");
       art(this, W - 26 - 94, H - 18 - 48, "chips_pile");
@@ -100,6 +110,20 @@ export class TitleScene extends BaseScene {
     const gap = 40;
     const total = SCENE_W + gap + menuW;
     const left = Math.max(24, Math.floor((W - total) / 2));
+
+    // the room either side of the saloon front, where there is room for it: a piano under a
+    // wanted poster on the left, the back-door sign over a stool on the right
+    const right = W - (left + total);
+    if (left >= 120) {
+      const px = Math.floor((left - 96) / 2);
+      standing(this, px, floor, "piano");
+      art(this, px + 17, floor - 94 - 96, "wanted");
+    }
+    if (right >= 120) {
+      const rx = left + total + Math.floor((right - 46) / 2);
+      art(this, rx, floor - 196, "sign_backdoor");
+      standing(this, left + total + Math.floor((right - 33) / 2) - (wide ? 30 : 0), floor, "stool_grey");
+    }
 
     // the saloon front: the props stand on the scene's bottom edge
     const sx = left;

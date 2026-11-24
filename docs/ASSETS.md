@@ -34,7 +34,7 @@ What this build actually wires, and how it got here. The 47 slots are the origin
 | 26 | display-splash-screen | — (B-7 kept); the web manifest's `background_color` (#241408) is the only splash, a shell draws its own | deferred |
 | 27 | display-saloon-doors | `doors_closed` / `doors_ajar` / `doors_open` — the B-4 batwing pairs (93x79 art, drawn at exactly 2x) as three swing frames (`ui/Doors.tsx`) | wired |
 | 28 | display-lamp-lighting | `lamp` (B-4 oil lamp), `sconce` / `sconce_silver` (B-6 wall sconces) | wired |
-| 29 | display-signage | `sign_saloon` (B-4 red board), `sign_hanging` (B-4 hanging board), `sign_backdoor` (B-6); the in-game sign stays CSS (`.sign`) | wired |
+| 29 | display-signage | `sign_saloon` (B-4 red board), `sign_hanging` (B-4 hanging board; no longer drawn — it overlapped the poker table), `sign_backdoor` (B-6, also on the title); the in-game sign stays CSS (`.sign`) | wired |
 | 30 | display-scoreboard | — (B-8 dropped; B-4 kept); the CSS poster table | deferred |
 | 31 | display-tally-icons | — (B-11 kept) | deferred |
 | 32 | display-elimination-marker | — (no knockout mode exists) | deferred |

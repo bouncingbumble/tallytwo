@@ -101,18 +101,21 @@ export class TableScene extends BaseScene {
     this.#announce = null;
     this.#announceId = 0;
 
-    // the wood around everything, darkened
+    // the felt and the hand strip run off the left edge of the screen (their contents keep clear of
+    // the rounded corner and the notch), so their left rims are painted out of sight
+    const bleed = t.felt.x + 10;
+    // the wood around everything, darkened but still showing its boards
     painted(this, "table-bg", 0, 0, W, H, (ctx, w, h) => {
       ctx.fillStyle = artPattern(this, ctx, "wood", 96) ?? CSS.oakDeep;
       ctx.fillRect(0, 0, w, h);
       const g = ctx.createLinearGradient(0, 0, 0, h);
-      g.addColorStop(0, "rgba(42, 26, 15, 0.92)");
-      g.addColorStop(1, "rgba(28, 17, 8, 0.97)");
+      g.addColorStop(0, "rgba(42, 26, 15, 0.72)");
+      g.addColorStop(1, "rgba(28, 17, 8, 0.86)");
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
     });
     // the felt: the tile under a lamp-lit vignette, a dark rim and an inner shadow
-    painted(this, "felt", t.felt.x, t.felt.y, t.felt.w, t.felt.h, (ctx, w, h) => {
+    painted(this, "felt", t.felt.x - bleed, t.felt.y, t.felt.w + bleed, t.felt.h, (ctx, w, h) => {
       roundRect(ctx, 0, 0, w, h, 8);
       ctx.save();
       ctx.clip();
@@ -156,9 +159,9 @@ export class TableScene extends BaseScene {
       (seat) => (seat === HUMAN ? this.#glowHand() : this.#seats.find((s) => s.seat === seat)?.wonTrick()),
     );
 
-    drawSaloon(this, t.handRow);
+    drawSaloon(this, { ...t.handRow, x: t.handRow.x - bleed, w: t.handRow.w + bleed });
     // the your-turn glow along the top of the hand row, under the cards; dark until a turn arrives
-    this.#turnGlow = painted(this, "turn-glow", t.handRow.x, t.handRow.y - TURN_GLOW_H, t.handRow.w, TURN_GLOW_H, (ctx, w, h) => {
+    this.#turnGlow = painted(this, "turn-glow", t.handRow.x - bleed, t.handRow.y - TURN_GLOW_H, t.handRow.w + bleed, TURN_GLOW_H, (ctx, w, h) => {
       const g = ctx.createLinearGradient(0, 0, 0, h);
       g.addColorStop(0, "rgba(232, 163, 61, 0)");
       g.addColorStop(1, "rgba(240, 180, 87, 0.75)");

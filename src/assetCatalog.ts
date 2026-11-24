@@ -24,7 +24,7 @@ export const ASSET_USES = {
   doors_ajar: "Title doors, swinging frame",
   doors_open: "Title doors, open frame",
   sign_saloon: "Title screen SALOON sign",
-  sign_hanging: "Hanging sign behind table",
+  sign_hanging: "Hanging sign, currently unused",
   sign_backdoor: "Back-door sign behind table",
   back_bar: "Liquor cabinet behind table",
   barrel: "Barrel decor, title and table",
