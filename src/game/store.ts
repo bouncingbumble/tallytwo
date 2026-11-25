@@ -33,8 +33,6 @@ import { aiRngState } from "./seeds";
 import type { ThinkPort, ThinkResult } from "./think";
 import {
   HUMAN,
-  type Sign,
-  type Status,
   barkLinesFor,
   canPass as canPassFor,
   canToggle,
@@ -47,8 +45,6 @@ import {
   matchOver,
   matchWinner,
   revealLeftovers,
-  signFor,
-  statusFor,
 } from "./selectors";
 import { BARK_CHANCE, BARK_MS, FINAL_ROUND_MS, FIRST_STEP_MS, type GameSpeed, ROUND_END, ROUND_OVER_MS, paced, pacedThink, playLandMs } from "./timing";
 
@@ -82,7 +78,6 @@ export const NO_SHELL: ShellPort = { haptic() {}, score() {}, matchOver() {} };
 export interface LoopOpts {
   gameSpeed: GameSpeed;
   difficulty: Difficulty;
-  hints: boolean;
 }
 
 /** Everything a scene draws from. A new object whenever anything in it changed, else the same one. */
@@ -98,8 +93,6 @@ export interface GameView {
   /** Cards that can still complete a legal move with the selection; null when nothing is selected. */
   live: ReadonlySet<Card> | null;
   canPass: boolean;
-  status: Status;
-  sign: Sign;
   barks: readonly Bark[];
   announcement: Announcement | null;
   crash: CrashReport | null;
@@ -151,7 +144,7 @@ export class GameStore extends Observable {
   #loopCancel: (() => void) | null = null;
   #loopKey: readonly unknown[] = [];
 
-  constructor({ audio, clock, shell = NO_SHELL, opts = { gameSpeed: "normal", difficulty: "medium", hints: false }, random = Math.random, think }: GameStoreDeps) {
+  constructor({ audio, clock, shell = NO_SHELL, opts = { gameSpeed: "normal", difficulty: "medium" }, random = Math.random, think }: GameStoreDeps) {
     super();
     this.audio = audio;
     this.#clock = clock;
@@ -188,8 +181,6 @@ export class GameStore extends Observable {
       // Off turn there are no legal moves to measure the selection against, so nothing is dimmed.
       live: humanTurn(game) ? liveCards(legal, selection) : null,
       canPass: canPassFor(game, legal),
-      status: statusFor(game, legal, selection, this.#opts.hints),
-      sign: signFor(game),
       barks: this.#barks,
       announcement: this.#announcement,
       crash: this.#crash,
@@ -348,7 +339,7 @@ export class GameStore extends Observable {
 
   setOpts = (opts: LoopOpts): void => {
     const o = this.#opts;
-    if (o.gameSpeed === opts.gameSpeed && o.difficulty === opts.difficulty && o.hints === opts.hints) return;
+    if (o.gameSpeed === opts.gameSpeed && o.difficulty === opts.difficulty) return;
     this.#opts = { ...opts };
     this.#changed();
   };

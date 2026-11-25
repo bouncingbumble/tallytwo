@@ -4,6 +4,7 @@
  * imports them; ?seed= parsing lives here too (URLSearchParams is a DOM type). Then the Phaser
  * game boots and the director decides which scenes run.
  */
+import { describe } from "./engine/combos";
 import "@fontsource/rye";
 import "./styles/shell.css";
 import Phaser from "phaser";
@@ -59,7 +60,7 @@ function boot(): void {
   const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
   if (session) session.type = "ambient";
   const settings = new SettingsStore(bridge.host ? bridgeStorage : webStorage); // a shell owns durable storage (docs/SHELL.md)
-  const pick = () => ({ gameSpeed: settings.opts.gameSpeed, difficulty: settings.opts.difficulty, hints: settings.opts.hints });
+  const pick = () => ({ gameSpeed: settings.opts.gameSpeed, difficulty: settings.opts.difficulty });
   // game timers fire at the start of a frame (platform/clock.ts), pumped from the Phaser loop below
   const clock = frameClock();
   const game = new GameStore({ audio, clock, shell: bridgeShell, opts: pick(), think: workerThink() });
@@ -81,14 +82,15 @@ function boot(): void {
   // next tap anywhere is the gesture Safari wants.
   document.addEventListener("pointerdown", () => audio.resume());
 
-  // A screen-reader line for what the canvas shows: the status and the sign.
+  // A screen-reader line for what the canvas shows: who played what last.
   const live = document.createElement("div");
   live.setAttribute("aria-live", "polite");
   live.className = "sr-only";
   document.body.appendChild(live);
   game.subscribe(() => {
     const v = game.view;
-    const say = v.game ? `${v.sign.who}: ${v.sign.text}. ${v.status.text}` : "";
+    const g = v.game;
+    const say = g?.lastPlay && g.lastBy !== null ? `${g.players[g.lastBy].name} played ${describe(g.lastPlay)}.` : "";
     if (live.textContent !== say) live.textContent = say;
   });
 

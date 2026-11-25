@@ -2,7 +2,7 @@
  * The live round, a phone held sideways (render/tableLayout.ts):
  *
  *     felt        the opponents and the trick; round and tally top-left, the menu top-right;
- *                 just above the hand, the sign and status on the left and the buttons on the right
+ *                 just above the hand, the buttons on the right
  *     hand        the fan over the saloon
  *
  * One store subscription renders everything from GameView. A restart (a resize) rebuilds from the
@@ -401,12 +401,13 @@ export class TableScene extends BaseScene {
   #showCoach(): void {
     if (this.#coach || this.#coachDone) return;
     const fan = this.#t.fan;
-    const { plate, label, w, h } = this.#coachPlate();
+    const { plate, label, w } = this.#coachPlate();
     const x0 = fan.x + 40;
     const fy = fan.y + 64;
     const finger = this.add.circle(x0, fy, 11, C.amber, 0.85).setStrokeStyle(2, C.bone);
-    // above the band (the sign and the buttons) that sits over the hand
-    const tag = this.add.container(Math.min(fan.x + fan.w / 2, x0 + w / 2), this.#t.info.y - 6 - h / 2, [plate, label]);
+    // just above the hand, level with the buttons and to their left
+    const band = this.#t.controls;
+    const tag = this.add.container(Math.min(band.x - 8 - w / 2, x0 + w / 2), band.y + band.h / 2, [plate, label]);
     this.#coach = this.add.container(0, 0, [tag, finger]);
     const sweep = ms(MOTION.settle);
     if (sweep) {

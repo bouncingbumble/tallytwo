@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 import { fanLayout } from "./fanLayout";
 import { LOGICAL_H } from "./scale";
 import { fitScale } from "./scale";
-import { BADGE_H, EDGE, HAND_H, HAND_REACH, SLOT_H, clearFor, controlsWidth, pileLayout, tableLayout } from "./tableLayout";
+import { BADGE_H, EDGE, HAND_H, HAND_REACH, MINE_W, SLOT_H, clearFor, controlsWidth, pileLayout, tableLayout } from "./tableLayout";
 
 const at = (vw: number, vh: number, buttons = 1) => tableLayout({ width: fitScale(vw, vh).logicalWidth, clearL: 0, clearR: 0, buttons });
 
@@ -47,15 +47,17 @@ test.each([
     const t = at(vw, vh, n);
     // the band sits above where a lifted card reaches, and below Marshal's and Lucky's plays
     expect(t.controls.y + t.controls.h).toBeLessThanOrEqual(t.handRow.y - HAND_REACH);
-    expect(t.info.y).toBe(t.controls.y);
     expect(t.slots[1].y + SLOT_H).toBeLessThanOrEqual(t.controls.y);
-    // the buttons at the right edge, the panel at the left, the player's play between them
+    // the buttons at the right edge; the player's play clear of them, room for five cards
     expect(t.controls.w).toBe(controlsWidth(n));
     expect(t.controls.x + t.controls.w).toBe(t.menu.x + t.menu.w);
-    expect(t.info.x).toBe(t.corner.x);
-    expect(t.slots[0].x).toBeGreaterThan(t.info.x + t.info.w);
     expect(t.slots[0].x + t.slots[0].w).toBeLessThan(t.controls.x);
-    expect(t.slots[0].w).toBeGreaterThanOrEqual(150);
+    expect(t.slots[0].w).toBe(MINE_W);
+    // and centred under the top opponent's when the buttons leave room (one or two of them)
+    const mineC = t.slots[0].x + t.slots[0].w / 2;
+    const topC = t.plays.x + t.plays.w / 2;
+    if (n < 3) expect(Math.abs(mineC - topC)).toBeLessThanOrEqual(1);
+    else expect(mineC).toBeLessThanOrEqual(topC + 1);
     // the middle chip between the corner and the menu; the side chips at the edges, clear of the band
     expect(t.badges[2].x).toBeGreaterThanOrEqual(t.corner.x + t.corner.w);
     expect(t.badges[2].x + t.badges[2].w).toBeLessThanOrEqual(t.menu.x);
@@ -63,7 +65,7 @@ test.each([
     expect(t.badges[3].x + t.badges[3].w).toBe(t.menu.x + t.menu.w);
     for (const s of [1, 3]) {
       expect(t.badges[s].y).toBeGreaterThanOrEqual(t.corner.y + t.corner.h);
-      expect(t.badges[s].y + t.badges[s].h).toBeLessThanOrEqual(t.info.y);
+      expect(t.badges[s].y + t.badges[s].h).toBeLessThanOrEqual(t.controls.y);
       expect(t.badges[s].h).toBeGreaterThan(t.badges[s].w);
     }
     // the trick between the side chips

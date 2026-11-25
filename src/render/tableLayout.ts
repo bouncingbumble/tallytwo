@@ -4,11 +4,11 @@
  *
  *     corner      chip       menu      an oval of felt on the wood, edge to edge: round and tally
  *     chip  ... trick ...    chip      on a plaque in the top-left corner, the menu on one in the
- *     sign      mine      buttons      top-right; the middle opponent across the top, the other
+ *                mine      buttons      top-right; the middle opponent across the top, the other
  *     hand .....................      two standing at the left and right edges, each beside where
- *                                      their cards land; just above the hand a band: the sign and
- *                                      status on the left, the buttons on the right, and the
- *                                      player's own play landing between them
+ *                                      their cards land; the player's own play in the middle
+ *                                      under the top one's, and the buttons just above the hand
+ *                                      on the right
  *
  * The table runs edge to edge with only EDGE (16) to clear the rounded corners. The notch /
  * Dynamic Island is cleared only where it is: the corner and the trick step in by `clearL` when
@@ -61,11 +61,9 @@ export const BAND_GAP = 4;
 export const CTRL_BTN_W = 92;
 export const CTRL_GAP = 6;
 export const controlsWidth = (n: number): number => n * CTRL_BTN_W + Math.max(0, n - 1) * CTRL_GAP;
-/** The sign and status panel at the band's left: as wide as it can be, leaving a five-card play room. */
-export const INFO_MIN_W = 196;
-export const INFO_MAX_W = 280;
-const FIVE_PLAY_W = PLAY_CARD_W + 4 * PILE_STEP;
-/** Gap between the band's panel, the player's play and the buttons. */
+/** The player's play: room for a five-card hand at full spread. */
+export const MINE_W = PLAY_CARD_W + 4 * PILE_STEP;
+/** The least gap between the player's play and the buttons. */
 export const BAND_SPLIT = 8;
 /** The middle row of plays steps down from the top row by at most this much. */
 export const MIDDLE_STAGGER = 57;
@@ -92,8 +90,6 @@ export interface TableLayout {
   plays: Rect;
   /** Each seat's play slot (absolute): Dusty (2) on top, Marshal (1) and Lucky (3) in the middle, the human (0) at the bottom. */
   slots: Record<number, Rect>;
-  /** The sign and status, at the left of the band just above the hand. */
-  info: Rect;
   /** The buttons, at the right of the band just above the hand (right-aligned inside it). */
   controls: Rect;
   /** The hand row (the saloon fills it). */
@@ -143,25 +139,23 @@ export function tableLayout({ width, clearL, clearR, buttons }: TableInput): Tab
   const plays = { x: px, y: playsY, w: Math.max(0, innerR - SIDE_CHIP_W - BADGE_GAP - px), h: playsH };
   const controlsW = Math.min(controlsWidth(Math.max(1, buttons)), innerW);
   const controls = { x: innerR - controlsW, y: bandY, w: controlsW, h: BAND_H };
-  const infoW = Math.min(INFO_MAX_W, Math.max(INFO_MIN_W, innerW - controlsW - 2 * BAND_SPLIT - FIVE_PLAY_W));
-  const info = { x: innerX, y: bandY, w: Math.min(infoW, Math.max(0, innerW - controlsW - BAND_SPLIT)), h: BAND_H };
 
   // Row tops: the bottom row flush with the bottom; the middle row staggered down from the top,
-  // but never into the band (its plays sit right above the sign and the buttons), whole px.
+  // but never into the band (the right side's play sits right above the buttons), whole px.
   const bottom = Math.max(0, plays.h - SLOT_H);
   const middle = Math.max(0, Math.min(MIDDLE_STAGGER, bandY - BAND_GAP - SLOT_H - plays.y));
   const halfW = Math.floor(plays.w / 2) - 4;
-  // the player's own play lands in the band, between the sign and the buttons
-  const mineX = info.x + info.w + BAND_SPLIT;
+  // the player's own play: centred under the top one's, nudged left only to keep off the buttons
+  const mineX = Math.max(plays.x, Math.min(Math.round(plays.x + (plays.w - MINE_W) / 2), controls.x - BAND_SPLIT - MINE_W));
   const slots: Record<number, Rect> = {
     2: { x: plays.x, y: plays.y, w: plays.w, h: SLOT_H },
     1: { x: plays.x, y: plays.y + middle, w: halfW, h: SLOT_H },
     3: { x: plays.x + plays.w - halfW, y: plays.y + middle, w: halfW, h: SLOT_H },
-    0: { x: mineX, y: plays.y + bottom, w: Math.max(PLAY_CARD_W, controls.x - BAND_SPLIT - mineX), h: SLOT_H },
+    0: { x: mineX, y: plays.y + bottom, w: Math.max(PLAY_CARD_W, Math.min(MINE_W, controls.x - BAND_SPLIT - mineX)), h: SLOT_H },
   };
 
   const fan = { x: handRow.x + HAND_PAD_X + clearL, y: handRow.y, w: Math.max(0, mainW - 2 * HAND_PAD_X - clearL - clearR), h: HAND_H };
-  return { felt, corner, menu, badges, plays, slots, info, controls, handRow, fan };
+  return { felt, corner, menu, badges, plays, slots, controls, handRow, fan };
 }
 
 /** Where a play sits in its slot: under its player's badge. */

@@ -5,7 +5,7 @@
  */
 import { expect, test } from "vitest";
 import { type Rng, THREE_OF_DIAMONDS, parseCards } from "../engine/cards";
-import { classify, describe as describeCombo } from "../engine/combos";
+import { classify } from "../engine/combos";
 import { type Action, deal, reduce } from "../engine/reducer";
 import { DEFAULT_RULES, type RuleConfig } from "../engine/rules";
 import { roundScore } from "../engine/scoring";
@@ -41,9 +41,7 @@ import {
   roundDeltas,
   roundWinner,
   scoreRows,
-  signFor,
   sortHand,
-  statusFor,
   suitSortRuns,
   tableEvents,
   tallyLeaders,
@@ -144,83 +142,6 @@ test("legalFor: [] off turn, every opening lead includes the 3♦ on turn", () =
   expect(legal.every((m) => m.cards.includes(THREE_OF_DIAMONDS))).toBe(true);
 });
 
-/* ---- the status line, one test per string ---- */
-
-test("status: no game -> empty, neutral", () => {
-  expect(statusFor(null, [], [])).toEqual({ text: "", tone: "neutral" });
-});
-
-test("status: an AI on turn -> `<name> is thinking…`", () => {
-  const g = aiLead();
-  expect(statusFor(g, [], [])).toEqual({ text: COPY.status.thinking(g.players[g.turn].name), tone: "neutral" });
-  expect(COPY.status.thinking("Marshal Cobb")).toBe("Marshal Cobb is thinking…");
-});
-
-test("status: not playing -> empty", () => {
-  expect(statusFor({ ...humanLead(), phase: "roundover" }, [], [])).toEqual({ text: "", tone: "neutral" });
-});
-
-test("status: nothing beats the table -> mustPass, bad", () => {
-  const g = humanFacing("3C 4C", "2S");
-  const legal = legalFor(g);
-  expect(legal).toEqual([]);
-  expect(statusFor(g, legal, [])).toEqual({ text: COPY.status.mustPass, tone: "bad" });
-});
-
-test("status: with Hints off, a table nothing beats reads like any other", () => {
-  const g = humanFacing("3C 4C", "2S");
-  const legal = legalFor(g);
-  expect(statusFor(g, legal, [], false)).toEqual({ text: COPY.status.beatIt, tone: "neutral" });
-  expect(statusFor(g, legal, cards("3C"), false)).toEqual({ text: COPY.status.doesntBeat("Three of Clubs"), tone: "bad" });
-  expect(statusFor(g, legal, [], true)).toEqual({ text: COPY.status.mustPass, tone: "bad" });
-});
-
-test("status: following with nothing selected -> beatIt", () => {
-  const g = humanFacing("3C AS", "9C");
-  const legal = legalFor(g);
-  expect(legal.length).toBe(1);
-  expect(statusFor(g, legal, [])).toEqual({ text: COPY.status.beatIt, tone: "neutral" });
-});
-
-test("status: the forced opening lead with nothing selected -> yourLead3D", () => {
-  const g = humanLead();
-  expect(statusFor(g, legalFor(g), [])).toEqual({ text: COPY.status.yourLead3D, tone: "neutral" });
-});
-
-test("status: an open lead with nothing selected -> yourLead", () => {
-  const g = humanHolds("3C AS");
-  expect(statusFor(g, legalFor(g), [])).toEqual({ text: COPY.status.yourLead, tone: "neutral" });
-});
-
-test("status: a selection that is not a hand -> notAHand(n), bad", () => {
-  const g = humanHolds("3C 4D AS");
-  expect(statusFor(g, legalFor(g), cards("3C 4D"))).toEqual({ text: COPY.status.notAHand(2), tone: "bad" });
-  expect(statusFor(g, legalFor(g), cards("3C 4D AS"))).toEqual({ text: COPY.status.notAHand(3), tone: "bad" });
-  expect(COPY.status.notAHand(2)).toBe("2 cards — that's not a hand.");
-});
-
-test("status: an exact legal move -> its description, good", () => {
-  const g = humanHolds("3C 3H AS");
-  const legal = legalFor(g);
-  expect(statusFor(g, legal, cards("3H 3C"))).toEqual({ text: "Pair of Threes", tone: "good" });
-  expect(statusFor(g, legal, cards("AS"))).toEqual({ text: "Ace of Spades", tone: "good" });
-});
-
-test("status: a hand without the 3♦ on the forced lead -> needs3D, bad", () => {
-  const g = humanLead();
-  const other = g.players[HUMAN].hand.find((c) => c !== THREE_OF_DIAMONDS)!;
-  const desc = describeCombo(classify([other], DEFAULT_RULES));
-  expect(statusFor(g, legalFor(g), [other])).toEqual({ text: COPY.status.needs3D(desc), tone: "bad" });
-  expect(COPY.status.needs3D("Pair of Fours")).toBe("Pair of Fours — must include the 3♦.");
-});
-
-test("status: a hand that does not beat the table -> doesntBeat, bad", () => {
-  const g = humanFacing("3C AS", "9C");
-  expect(statusFor(g, legalFor(g), cards("3C"))).toEqual({ text: COPY.status.doesntBeat("Three of Clubs"), tone: "bad" });
-  expect(COPY.status.doesntBeat("Three of Clubs")).toBe("Three of Clubs — doesn't beat it.");
-});
-
-
 /* ---- the controls ---- */
 
 test("canPass: false on your own lead with moves, true when following or stuck, false off turn", () => {
@@ -305,24 +226,12 @@ test("sortHand: by rank (value order) or by suit then rank", () => {
 
 /* ---- the felt ---- */
 
-test("signFor: Table / waiting / played / fresh lead", () => {
-  expect(signFor(null)).toEqual({ who: COPY.sign.table, text: "" });
-  const g = humanLead();
-  expect(signFor(g)).toEqual({ who: COPY.sign.table, text: COPY.sign.waitingOpening });
-  const g1 = reduce(g, { type: "PLAY", player: HUMAN, cards: [THREE_OF_DIAMONDS] });
-  expect(signFor(g1)).toEqual({ who: COPY.sign.played("You"), text: "Three of Diamonds" });
-  let g4 = g1;
-  for (let i = 0; i < 3; i++) g4 = reduce(g4, { type: "PASS", player: g4.turn });
-  expect(g4.lastPlay).toBeNull();
-  expect(signFor(g4)).toEqual({ who: COPY.sign.table, text: COPY.sign.freshLead });
-});
-
 test("emptyFeltText: cards are down before the first play, then who leads", () => {
   const g = humanLead();
-  expect(emptyFeltText(g)).toBe(COPY.sign.cardsDown);
+  expect(emptyFeltText(g)).toBe(COPY.felt.cardsDown);
   let g4 = reduce(g, { type: "PLAY", player: HUMAN, cards: [THREE_OF_DIAMONDS] });
   for (let i = 0; i < 3; i++) g4 = reduce(g4, { type: "PASS", player: g4.turn });
-  expect(emptyFeltText(g4)).toBe(COPY.sign.clearLeads("You"));
+  expect(emptyFeltText(g4)).toBe(COPY.felt.clearLeads("You"));
 });
 
 test("roundDeltas / roundWinner: null while playing, the scoring and the winner from roundover on", () => {

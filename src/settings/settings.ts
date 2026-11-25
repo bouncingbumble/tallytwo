@@ -26,7 +26,7 @@ export interface Opts {
   difficulty: Difficulty;
   /** Game speed: one setting for the AI's think time and every wait at the table (timing.ts SPEED). */
   gameSpeed: GameSpeed;
-  /** Hints: the Hint button and the "nothing here beats that" status line. Off hides both. */
+  /** Hints: the Hint button. */
   hints: boolean;
   /** "Card sounds": the sfx bus on/off. */
   sfx: boolean;

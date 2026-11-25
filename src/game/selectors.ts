@@ -2,8 +2,8 @@
  * Every `if` about the rules of the game that a scene would otherwise contain. Pure functions
  * over GameState (+ the selection, + a setting); the store memoises them in its view.
  */
-import { type Card, type Rng, THREE_OF_DIAMONDS, rank } from "../engine/cards";
-import { type Combo, classify, describe } from "../engine/combos";
+import { type Card, type Rng, rank } from "../engine/cards";
+import type { Combo } from "../engine/combos";
 import { type Action, DEFAULT_SEATS, deal, reduce } from "../engine/reducer";
 import type { RuleConfig } from "../engine/rules";
 import { roundScore } from "../engine/scoring";
@@ -18,15 +18,6 @@ import { COPY } from "./copy";
 import type { BarkKind } from "./cues";
 
 export type Sheet = "none" | "settings" | "howto";
-export type StatusTone = "neutral" | "bad" | "good";
-export interface Status {
-  text: string;
-  tone: StatusTone;
-}
-export interface Sign {
-  who: string;
-  text: string;
-}
 
 export const HUMAN = 0;
 
@@ -73,33 +64,8 @@ export function primaryAction(exact: Combo | null, canPassNow: boolean, legal: r
   return null;
 }
 
-/**
- * The status line under the hand. With Hints off, a table nothing in hand can beat
- * reads like any other ("Pick cards that beat it, or pass.") instead of giving it away.
- */
-export function statusFor(g: GameState | null, legal: readonly Combo[], selection: readonly Card[], hints = true): Status {
-  if (!g) return { text: "", tone: "neutral" };
-  if (!humanTurn(g)) return { text: g.phase === "playing" ? COPY.status.thinking(g.players[g.turn].name) : "", tone: "neutral" };
-  if (!legal.length && hints) return { text: COPY.status.mustPass, tone: "bad" };
-  const sel = selection.slice().sort((a, b) => a - b);
-  if (!sel.length) return { text: g.lastPlay ? COPY.status.beatIt : needThreeD(g) ? COPY.status.yourLead3D : COPY.status.yourLead, tone: "neutral" };
-  const combo = classify(sel, g.rules);
-  if (!combo) return { text: COPY.status.notAHand(sel.length), tone: "bad" };
-  if (exactMove(legal, sel)) return { text: describe(combo), tone: "good" };
-  if (!legal.length) return { text: COPY.status.doesntBeat(describe(combo)), tone: "bad" };
-  if (needThreeD(g) && !sel.includes(THREE_OF_DIAMONDS)) return { text: COPY.status.needs3D(describe(combo)), tone: "bad" };
-  return { text: COPY.status.doesntBeat(describe(combo)), tone: "bad" };
-}
-
-/** The wooden sign on the felt. */
-export function signFor(g: GameState | null): Sign {
-  if (!g) return { who: COPY.sign.table, text: "" };
-  if (!g.lastPlay || g.lastBy === null) return { who: COPY.sign.table, text: g.history.length ? COPY.sign.freshLead : COPY.sign.waitingOpening };
-  return { who: COPY.sign.played(g.players[g.lastBy].name), text: describe(g.lastPlay) };
-}
-
 /** What the empty felt says. */
-export const emptyFeltText = (g: GameState): string => (g.history.length ? COPY.sign.clearLeads(g.players[g.leader].name) : COPY.sign.cardsDown);
+export const emptyFeltText = (g: GameState): string => (g.history.length ? COPY.felt.clearLeads(g.players[g.leader].name) : COPY.felt.cardsDown);
 
 /** A fresh deal's order: low to high (3 up to 2), cards of a rank by suit (♦ ♣ ♥ ♠) — value order. */
 export function sortHand(hand: readonly Card[]): Card[] {

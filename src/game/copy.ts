@@ -15,21 +15,8 @@ export const COPY = {
     you: "You",
     menu: "Menu",
   },
-  status: {
-    thinking: (name: string) => `${name} is thinking…`,
-    mustPass: "Nothing here beats that — you'll have to pass.",
-    beatIt: "Pick cards that beat it, or pass.",
-    yourLead3D: "Your lead — it must include the 3♦.",
-    yourLead: "Your lead. Play anything.",
-    notAHand: (n: number) => `${n} cards — that's not a hand.`,
-    needs3D: (desc: string) => `${desc} — must include the 3♦.`,
-    doesntBeat: (desc: string) => `${desc} — doesn't beat it.`,
-  },
-  sign: {
-    table: "Table",
-    played: (name: string) => `${name} played`,
-    freshLead: "Fresh lead",
-    waitingOpening: "Waiting on the opening play",
+  /** What the empty felt says. */
+  felt: {
     clearLeads: (name: string) => `Table's clear — ${name} leads.`,
     cardsDown: "Cards are down.",
   },
@@ -81,7 +68,7 @@ export const COPY = {
     normal: "Normal",
     slow: "Slow",
     hints: "Hints",
-    hintsHint: "The Hint button, and a word when nothing you hold beats the table",
+    hintsHint: "A Hint button that picks a play for you",
     sfx: "Card sounds",
     volume: "Volume",
     volumeMusic: "Music",

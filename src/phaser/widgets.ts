@@ -80,7 +80,7 @@ export interface ButtonOpts {
   size?: number;
   font?: string;
   onClick: () => void;
-  /** A tap while disabled: the button shakes "no" and this runs (e.g. flash the status line). */
+  /** A tap while disabled: the button shakes "no" and this runs (e.g. skip an animation). */
   onDisabledTap?: () => void;
   /** Other kinds setKind() will switch to: painted up front so a switch never rasterises mid-game. */
   alsoKinds?: readonly ButtonKind[];

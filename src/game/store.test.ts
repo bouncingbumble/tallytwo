@@ -55,7 +55,7 @@ test("a whole round plays out with the human always passing, and scores itself",
 test("round over -> poster: landing + the paced wait, plus ROUND_END.revealHoldMs on Greenhorn (the leftovers are shown)", () => {
   for (const difficulty of ["medium", "easy"] as const) {
     const clock = manualClock();
-    const store = new GameStore({ audio: silentAudio, clock, random: () => 0.5, opts: { gameSpeed: "normal", difficulty, hints: false } });
+    const store = new GameStore({ audio: silentAudio, clock, random: () => 0.5, opts: { gameSpeed: "normal", difficulty } });
     let overAt: number | null = null;
     let scoredAt: number | null = null;
     store.subscribe(() => {
