@@ -11,7 +11,8 @@ export const COPY = {
   },
   topbar: {
     round: "Round",
-    tally: "Your tally",
+    /** The top-left corner: "You +3". */
+    you: "You",
     menu: "Menu",
   },
   status: {
@@ -34,7 +35,6 @@ export const COPY = {
   },
   seat: {
     passed: "passed",
-    tally: "Tally",
     /** Tagged on a badge whose player is down to one card. */
     lastCard: "LAST CARD",
   },

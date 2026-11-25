@@ -18,7 +18,7 @@ import { PLAY_CARD_H, PLAY_CARD_W } from "../../render/scale";
 import { poolOf } from "../cardPool";
 import { shouldCoach } from "../../render/handGesture";
 import { env } from "../../platform/env";
-import { type TableLayout, clearFor, tableLayout } from "../../render/tableLayout";
+import { TOP_LAYOUTS, type TableLayout, type TopLayout, clearFor, tableLayout } from "../../render/tableLayout";
 import { CardView } from "../cards";
 import { flipFrom } from "../fx";
 import { ANNOUNCE_ANIM_MS, ms } from "../motion";
@@ -42,6 +42,12 @@ const POOL_HAND = 13;
 const POOL_TRICK = 24;
 const POOL_LEFTOVERS = 36;
 const POOL_BACKS = 56;
+
+/** Where the opponents sit: `?top=around` to try the second arrangement, "bar" otherwise. */
+function topLayout(): TopLayout {
+  const q = new URLSearchParams(location.search).get("top");
+  return TOP_LAYOUTS.find((t) => t === q) ?? "bar";
+}
 
 /** The your-turn glow's height above the hand row (logical px). */
 const TURN_GLOW_H = 26;
@@ -99,7 +105,8 @@ export class TableScene extends BaseScene {
     const ins = env.insets.get();
     const { clearL, clearR } = clearFor(ins.left / f.k, ins.right / f.k, env.notch.get());
     this.#buttons = bandButtons(this.app.settings.opts).length;
-    const t = (this.#t = tableLayout({ width: W, clearL, clearR, buttons: this.#buttons }));
+    const top = topLayout();
+    const t = (this.#t = tableLayout({ width: W, clearL, clearR, buttons: this.#buttons, top }));
     this.#seats = [];
     this.#last = null;
     this.#announce = null;
@@ -155,7 +162,8 @@ export class TableScene extends BaseScene {
     }
     // the trick under the badges: a play flies out from behind its portrait, or from the very spot in the hand
     this.#trick = new TrickView(this, t, (seat, card) => (seat === HUMAN ? (this.#hand?.poseOf(card) ?? null) : (this.#seats.find((s) => s.seat === seat)?.faceCentre() ?? null)));
-    for (const seat of [1, 2, 3]) this.#seats.push(new SeatView(this, seat, t.badges[seat]));
+    const facing = (seat: number) => (top === "around" && seat === 1 ? "right" : top === "around" && seat === 3 ? "left" : "down");
+    for (const seat of [1, 2, 3]) this.#seats.push(new SeatView(this, seat, t.badges[seat], facing(seat)));
 
     // won tricks sweep into the winner's portrait, or down into the hand for the player
     this.#trick.setSweep(

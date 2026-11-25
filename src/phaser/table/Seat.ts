@@ -1,7 +1,8 @@
 /**
- * One opponent's badge on the felt: portrait, name, back chips and count, the running
- * tally, the "passed" stamp, and what they just said as a speech bubble over the info column
- * pointing at the portrait. Active / low / out change the ring, the count's colour and the alpha.
+ * One opponent's chip on the felt: portrait, name, back chips and count, the running tally, the
+ * "passed" stamp, and what they just said as a speech bubble pointing at the portrait. A chip
+ * wider than tall is a row (portrait left, name over count and tally); a taller one stands
+ * (portrait on top, the name and count beneath), at the felt's edge in the "around" layout. Active / low / out change the ring, the count's colour and the alpha.
  * The portrait comes from portraitFor() in selectors.ts, so this file never reaches into ai/.
  *
  * Motion that explains state, all one-shot except the thinking dots, which step on a timer so a
@@ -19,7 +20,7 @@ import { type TableEvents, portraitFor } from "../../game/selectors";
 import type { Bark } from "../../game/store";
 import { EASE, MOTION, ROUND_END, TURN } from "../../game/timing";
 import { PLAY_CARD_H, PLAY_CARD_W } from "../../render/scale";
-import { FACE_H, FACE_W, type Rect } from "../../render/tableLayout";
+import { FACE_ASPECT, type Rect } from "../../render/tableLayout";
 import { poolOf } from "../cardPool";
 import { pop, wobble } from "../fx";
 import { BARK_ANIM_MS, ms, reducedMotion } from "../motion";
@@ -52,11 +53,37 @@ function paintDot(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   ctx.fill();
 }
 
-/** Portrait 82 px + gap 6 px + padding 4 px: where the info column (and the bark) starts. */
-const INFO_X = 4 + FACE_W + 6;
-/** The portrait's centre in the badge (it turns and grows about it). */
-const FACE_CX = 4 + FACE_W / 2;
-const FACE_CY = 1 + FACE_H / 2;
+/** Where everything sits in a chip of a given size. */
+interface Geo {
+  standing: boolean;
+  faceW: number;
+  faceH: number;
+  /** The portrait's centre (it turns and grows about it). */
+  faceCx: number;
+  faceCy: number;
+  /** The info: name, then chips and count with the tally at the right. */
+  infoX: number;
+  infoY: number;
+  infoW: number;
+}
+
+export type Facing = "down" | "left" | "right";
+
+/** A standing chip keeps this much under its portrait for the name (two lines) and the count. */
+const STANDING_INFO_H = 62;
+
+function geoFor(w: number, h: number): Geo {
+  if (w >= h) {
+    const faceH = Math.min(88, h - 4);
+    const faceW = Math.round(faceH * FACE_ASPECT);
+    const infoX = 4 + faceW + 6;
+    return { standing: false, faceW, faceH, faceCx: 4 + faceW / 2, faceCy: h / 2, infoX, infoY: 0, infoW: w - infoX - 6 };
+  }
+  const faceW0 = w - 10;
+  const faceH = Math.max(40, Math.min(Math.round(faceW0 / FACE_ASPECT), h - STANDING_INFO_H - 6));
+  const faceW = Math.round(faceH * FACE_ASPECT);
+  return { standing: true, faceW, faceH, faceCx: w / 2, faceCy: 5 + faceH / 2, infoX: 6, infoY: 5 + faceH + 3, infoW: w - 12 };
+}
 /** The losers' leftover cards on Greenhorn: play-size cards at this scale, at most this far apart. */
 const LEFTOVER_SCALE = 0.56;
 const LEFTOVER_STEP = 18;
@@ -70,6 +97,9 @@ const DOT_GAP = 5;
 export class SeatView extends Phaser.GameObjects.Container {
   readonly seat: number;
   readonly r: Rect;
+  readonly #geo: Geo;
+  /** Which way the felt is from this chip: its plays leave that way, its bark sits that side. */
+  readonly #facing: Facing;
   #active: Phaser.GameObjects.Image;
   #face: Phaser.GameObjects.Image | null = null;
   #faceKey: string | null = null;
@@ -77,7 +107,6 @@ export class SeatView extends Phaser.GameObjects.Container {
   /** MAX_CHIPS images of one painted chip: a card back seen edge-on (no Graphics, so nothing re-tessellates per frame). */
   #chips: Phaser.GameObjects.Image[];
   #count: Phaser.GameObjects.Text;
-  #tallyLabel: Phaser.GameObjects.Text;
   #tally: Phaser.GameObjects.Text;
   #passed: Phaser.GameObjects.Container;
   #info: Phaser.GameObjects.Container;
@@ -95,11 +124,13 @@ export class SeatView extends Phaser.GameObjects.Container {
   #g: GameState | null = null;
   #leftovers: Phaser.GameObjects.Container | null = null;
 
-  constructor(scene: Phaser.Scene, seat: number, r: Rect) {
+  constructor(scene: Phaser.Scene, seat: number, r: Rect, facing: Facing = "down") {
     super(scene, r.x, r.y);
     this.seat = seat;
     this.r = r;
     const { w, h } = r;
+    const geo = (this.#geo = geoFor(w, h));
+    this.#facing = facing;
     const bg = painted(scene, "badge", 0, 0, w, h, (ctx, bw, bh) => {
       ctx.fillStyle = vgrad(ctx, 0, bh, "rgba(62, 39, 21, 0.9)", "rgba(43, 26, 12, 0.92)");
       roundRect(ctx, 0, 0, bw, bh, 5);
@@ -126,17 +157,17 @@ export class SeatView extends Phaser.GameObjects.Container {
       },
       14,
     ).setVisible(false);
-    const infoW = w - INFO_X - 4;
-    this.#name = text(scene, 0, 0, "", { size: FS_MIN, color: CSS.dust, wrap: infoW, lineHeight: 1.15 });
+    this.#name = text(scene, 0, 0, "", { size: FS_MIN, color: CSS.bone, wrap: geo.infoW, lineHeight: 1.15, align: geo.standing ? "center" : "left" });
     this.#chips = Array.from({ length: MAX_CHIPS }, () => painted(scene, "chip", 0, 0, CHIP_W, CHIP_H, paintChip).setVisible(false));
     this.#count = text(scene, 0, 0, "", { size: FS_EM, color: CSS.amber, bold: true });
-    this.#tallyLabel = text(scene, 0, 0, COPY.seat.tally + " ", { size: FS_MIN, color: CSS.dust });
-    this.#tally = text(scene, 0, 0, "", { size: FS_MIN, color: CSS.bone, bold: true });
-    this.#info = scene.add.container(INFO_X, 0, [this.#name, ...this.#chips, this.#count, this.#tallyLabel, this.#tally]);
-    // "passed" is stamped across the foot of the portrait, clear of the info column
-    const stamp = text(scene, 37, 0, COPY.seat.passed, { size: FS_MIN, align: "center" }).setOrigin(0.5, 0);
+    // the running tally, at the right of the count's row: dust, so it never reads as the count
+    this.#tally = text(scene, 0, 0, "", { size: FS_MIN, color: CSS.dust, bold: true }).setOrigin(1, 0);
+    this.#info = scene.add.container(geo.infoX, geo.infoY, [this.#name, ...this.#chips, this.#count, this.#tally]);
+    // "passed" is stamped across the foot of the portrait
+    const stamp = text(scene, 0, 0, COPY.seat.passed, { size: FS_MIN, align: "center" }).setOrigin(0.5, 0);
+    const stampW = Math.max(geo.faceW - 4, Math.ceil(stamp.width) + 8);
     const sh = Math.ceil(stamp.height);
-    const stampBg = painted(scene, "passed", 0, 0, 74, sh, (ctx, bw, bh) => {
+    const stampBg = painted(scene, "passed", 0, 0, stampW, sh, (ctx, bw, bh) => {
       ctx.fillStyle = "rgba(18, 10, 4, 0.92)";
       roundRect(ctx, 0, 0, bw, bh, 3);
       ctx.fill();
@@ -146,12 +177,12 @@ export class SeatView extends Phaser.GameObjects.Container {
       insetStroke(ctx, bw, bh, 3, 1, "rgba(201, 176, 138, 0.35)", 1);
     });
     // centred, so the stamp drops in about its middle
-    stampBg.setPosition(-37, -sh / 2);
+    stampBg.setPosition(-stampW / 2, -sh / 2);
     stamp.setPosition(0, -sh / 2);
-    this.#passed = scene.add.container(8 + 37, h - 6 - sh / 2, [stampBg, stamp]).setVisible(false);
+    this.#passed = scene.add.container(geo.faceCx, geo.faceCy + geo.faceH / 2 - sh / 2 - 1, [stampBg, stamp]).setVisible(false);
     // LAST CARD hangs across the top of the portrait, red with bone text
     const lc = text(scene, 0, 0, COPY.seat.lastCard, { size: FS_MIN, color: CSS.bone, bold: true, align: "center" }).setOrigin(0.5);
-    const lw = Math.min(FACE_W - 4, Math.ceil(lc.width) + 10);
+    const lw = Math.ceil(lc.width) + 10;
     const lh = Math.ceil(lc.height);
     const lcBg = painted(scene, "last-card", -lw / 2, -lh / 2, lw, lh, (ctx, bw, bh) => {
       ctx.fillStyle = "#8a2c22";
@@ -159,8 +190,13 @@ export class SeatView extends Phaser.GameObjects.Container {
       ctx.fill();
       insetStroke(ctx, bw, bh, 3, 1, "rgba(242, 232, 213, 0.6)");
     });
-    this.#lastCard = scene.add.container(FACE_CX, 1 + 6 + lh / 2, [lcBg, lc]).setVisible(false);
-    this.#dots = Array.from({ length: DOTS }, (_, i) => painted(scene, "think-dot", w - 10 - (DOTS - i) * (DOT + DOT_GAP) + DOT_GAP, h - 10 - DOT, DOT, DOT, paintDot).setVisible(false));
+    // a row chip hangs it from its bottom edge, under the info; a standing one across the portrait's top
+    this.#lastCard = scene.add.container(geo.standing ? w / 2 : geo.infoX + geo.infoW / 2, geo.standing ? 5 + lh / 2 : h, [lcBg, lc]).setVisible(false);
+    // the thinking dots: top-right of a row chip, at the foot of a standing one
+    const dotsW = DOTS * (DOT + DOT_GAP) - DOT_GAP;
+    const dotX = geo.standing ? (w - dotsW) / 2 : w - 8 - dotsW;
+    const dotY = geo.standing ? h - 8 - DOT : 8;
+    this.#dots = Array.from({ length: DOTS }, (_, i) => painted(scene, "think-dot", dotX + i * (DOT + DOT_GAP), dotY, DOT, DOT, paintDot).setVisible(false));
     this.add([bg, this.#active, this.#info, this.#passed, this.#lastCard, ...this.#dots]);
     scene.add.existing(this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.#dotTimer?.remove(false));
@@ -173,7 +209,8 @@ export class SeatView extends Phaser.GameObjects.Container {
     const key = portraitFor(p);
     if (key !== this.#faceKey) {
       this.#face?.destroy();
-      this.#face = key ? this.scene.add.image(FACE_CX, FACE_CY, key).setOrigin(0.5).setDisplaySize(FACE_W, FACE_H) : null;
+      const geo = this.#geo;
+      this.#face = key ? this.scene.add.image(geo.faceCx, geo.faceCy, key).setOrigin(0.5).setDisplaySize(geo.faceW, geo.faceH) : null;
       if (this.#face) this.addAt(this.#face, 2);
       this.#faceKey = key;
     }
@@ -187,17 +224,19 @@ export class SeatView extends Phaser.GameObjects.Container {
     this.#updateBark(barks);
   }
 
-  /** The info column: name (two lines where the badge is narrow), chips and count, tally; centred. */
+  /** The info: the name (one line on a row chip, two on a standing one), then the chips and count with the tally at the right. */
   #layoutInfo(g: GameState): void {
+    const geo = this.#geo;
     const p = g.players[this.seat];
     const n = this.#dealt ?? p.hand.length;
     if (p.name !== this.#nameText) {
       this.#nameText = p.name;
       this.#name.setText(p.name);
-      maxLines(this.#name, 2);
+      maxLines(this.#name, geo.standing ? 2 : 1);
+      if (geo.standing) this.#name.setX(Math.round((geo.infoW - this.#name.width) / 2));
     }
     const nameH = Math.round(this.#name.height) - 4;
-    const rowY = nameH + 4;
+    const rowY = nameH + 3;
     const shown = Math.min(MAX_CHIPS, n);
     this.#chips.forEach((chip, i) => chip.setVisible(i < shown).setPosition(i * 4 - 1, rowY + 5));
     const chipsW = shown ? 8 + (shown - 1) * 4 + 4 : 0;
@@ -205,12 +244,9 @@ export class SeatView extends Phaser.GameObjects.Container {
     // origin at the centre so the tick pops about its middle
     this.#count.setOrigin(0.5).setPosition(chipsW + Math.round(this.#count.width / 2), rowY + Math.round(this.#count.height / 2));
     this.#countCue(n);
-    const rowH = Math.round(this.#count.height) - 4;
-    const tallyY = rowY + rowH + 4;
-    this.#tallyLabel.setPosition(0, tallyY);
-    this.#tally.setText(signed(g.totals[this.seat])).setPosition(Math.round(this.#tallyLabel.width) - 2, tallyY);
-    const total = tallyY + Math.round(this.#tallyLabel.height) - 4;
-    this.#info.setY(Math.round((this.r.h - total) / 2) - 2);
+    this.#tally.setText(signed(g.totals[this.seat])).setPosition(geo.infoW, rowY + 3);
+    const total = rowY + Math.round(this.#count.height) - 4;
+    if (!geo.standing) this.#info.setY(Math.round((this.r.h - total) / 2) - 2);
   }
 
   /** "passed" (dropped in when it appears) and LAST CARD (popped in when it appears). */
@@ -247,8 +283,9 @@ export class SeatView extends Phaser.GameObjects.Container {
     return t;
   }
 
+  /** A row chip's bark covers its info; a standing chip's sits on the felt beside it, facing in. */
   #barkW(): number {
-    return this.r.w - (INFO_X + 2) - 6;
+    return this.#geo.standing ? 150 : this.r.w - (this.#geo.infoX + 2) - 6;
   }
 
   /**
@@ -271,8 +308,14 @@ export class SeatView extends Phaser.GameObjects.Container {
     const h = Math.round(t.height) - 4 + 12;
     t.setY(4);
     const bubble = painted(scene, "bark", 0, 0, w, h, paintBark, 10);
-    const c = scene.add.container(INFO_X + 2 + w / 2, this.r.h / 2, [bubble, t]);
+    const geo = this.#geo;
+    // on the felt's side of a standing chip; on the right edge the tail points right, at the portrait
+    const flip = geo.standing && this.#facing === "left";
+    const cx = !geo.standing ? geo.infoX + 2 + w / 2 : flip ? -12 - w / 2 : this.r.w + 12 + w / 2;
+    const cy = geo.standing ? geo.faceCy : Math.max(h / 2 + 2 - this.r.y, this.r.h / 2);
+    const c = scene.add.container(cx, cy, [bubble, t]);
     bubble.setPosition(-w / 2 - 10, -h / 2 - 10);
+    if (flip) bubble.setFlipX(true);
     t.setPosition(0, -h / 2 + 4);
     this.add(c);
     const run = ms(BARK_ANIM_MS);
@@ -301,8 +344,13 @@ export class SeatView extends Phaser.GameObjects.Container {
       const d = ms(MOTION.micro);
       if (d) {
         scene.tweens.killTweensOf(face);
-        face.setY(FACE_CY);
-        scene.tweens.add({ targets: face, y: FACE_CY + LUNGE, duration: d / 2, yoyo: true, ease: EASE.enter, onComplete: () => face.setY(FACE_CY) });
+        const geo = this.#geo;
+        // toward the felt: down from a row chip, sideways from a standing one
+        const prop = geo.standing ? "x" : "y";
+        const rest = geo.standing ? geo.faceCx : geo.faceCy;
+        const toward = this.#facing === "left" ? -LUNGE : LUNGE;
+        face.setPosition(geo.faceCx, geo.faceCy);
+        scene.tweens.add({ targets: face, [prop]: rest + toward, duration: d / 2, yoyo: true, ease: EASE.enter, onComplete: () => face.setPosition(geo.faceCx, geo.faceCy) });
       }
     }
   }
@@ -382,9 +430,10 @@ export class SeatView extends Phaser.GameObjects.Container {
     }
     const w = Math.round(PLAY_CARD_W * LEFTOVER_SCALE);
     const h = Math.round(PLAY_CARD_H * LEFTOVER_SCALE);
-    const room = this.r.w - INFO_X - 6 - w;
-    const step = cards.length > 1 ? Math.min(LEFTOVER_STEP, Math.floor(room / (cards.length - 1))) : 0;
-    const fan = scene.add.container(INFO_X, this.r.h - h / 2 - 3);
+    const geo = this.#geo;
+    const room = geo.infoW - w;
+    const step = cards.length > 1 ? Math.max(4, Math.min(LEFTOVER_STEP, Math.floor(room / (cards.length - 1)))) : 0;
+    const fan = scene.add.container(geo.infoX, this.r.h - h / 2 - 3);
     this.#leftovers = fan;
     this.add(fan);
     cards.forEach((card, i) => {
@@ -394,14 +443,14 @@ export class SeatView extends Phaser.GameObjects.Container {
       if (!d) return;
       // out of the portrait: small and turned, then to its place in the fan
       const x = c.x;
-      c.setPosition(FACE_CX - INFO_X, FACE_CY - fan.y).setScale(0.1).setAngle(-12).setAlpha(0);
+      c.setPosition(geo.faceCx - geo.infoX, geo.faceCy - fan.y).setScale(0.1).setAngle(-12).setAlpha(0);
       scene.tweens.add({ targets: c, x, y: 0, scale: LEFTOVER_SCALE, angle: 0, alpha: 1, delay: delay + i * ROUND_END.revealStaggerMs, duration: d, ease: EASE.land });
     });
   }
 
   /** The portrait's centre, absolute logical px: where this seat's plays fly from. */
   faceCentre(): { x: number; y: number } {
-    return { x: this.r.x + 4 + FACE_W / 2, y: this.r.y + 1 + FACE_H / 2 };
+    return { x: this.r.x + this.#geo.faceCx, y: this.r.y + this.#geo.faceCy };
   }
 }
 

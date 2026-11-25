@@ -41,6 +41,7 @@ export class HudView {
   #roundN: Phaser.GameObjects.Text;
   #tallyN: Phaser.GameObjects.Text;
   #round: Phaser.GameObjects.Text;
+  #you: Phaser.GameObjects.Text;
   #signWho: Phaser.GameObjects.Text;
   #signText: Phaser.GameObjects.Text;
   #status: Phaser.GameObjects.Text;
@@ -61,8 +62,9 @@ export class HudView {
     const y = c.y + 4;
     this.#round = text(scene, x, y, COPY.topbar.round + " ", { size: FS_MIN, color: CSS.dust });
     this.#roundN = text(scene, x, y, "", { size: FS_MIN, color: CSS.bone, bold: true });
-    text(scene, x, y + 22, COPY.topbar.tally, { size: FS_MIN, color: CSS.dust });
-    this.#tallyN = text(scene, x, y + 40, "", { size: FS_EM, color: CSS.amber, bold: true });
+    // "You +3" on the second line, the number in the same amber as the opponents' card counts
+    this.#you = text(scene, x, y + 24, COPY.topbar.you + " ", { size: FS_MIN, color: CSS.dust });
+    this.#tallyN = text(scene, x, y + 21, "", { size: FS_EM, color: CSS.amber, bold: true });
     const m = t.menu;
     target(scene, "table.menu", new IconButton(scene, m.x + m.w - TAP + 6, m.y - 4, "menu", onMenu), { w: TAP, h: TAP });
 
@@ -106,7 +108,7 @@ export class HudView {
     const c = this.#t.corner;
     this.#roundN.setText(String(g.round)).setX(c.x + 4 + Math.round(this.#round.width) - 2);
     const total = g.totals[HUMAN];
-    this.#tallyN.setText((total > 0 ? "+" : "") + total);
+    this.#tallyN.setText((total > 0 ? "+" : "") + total).setX(c.x + 4 + Math.round(this.#you.width) - 2);
 
     // the buttons, right-aligned in the band, side by side
     this.#shown = bandButtons(opts);
@@ -129,7 +131,7 @@ export class HudView {
     if (signKey !== this.#signKey) {
       this.#signKey = signKey;
       // "Table" over a line like "Waiting on the opening play" says nothing: only a player is named
-      this.#signWho.setText(v.sign.who === COPY.sign.table ? "" : v.sign.who);
+      this.#signWho.setText(v.sign.who === COPY.sign.table ? "" : v.sign.who).setPosition(r.x + PAD_X, r.y + PAD_Y);
       const whoW = this.#signWho.text ? Math.round(this.#signWho.width) + 6 : 0;
       const inner = r.w - 2 * PAD_X;
       if (!whoW || fitsOneLine(this.#signText, v.sign.text, inner - whoW)) {
