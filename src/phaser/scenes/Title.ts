@@ -33,9 +33,11 @@ import { TableScene } from "./Table";
 
 const SCENE_W = 340;
 const SCENE_H = 226;
-const FLOOR_H = 28;
+/** The floorboards: tall enough that the props, standing STAND_Y above the bottom, stand on them. */
+const FLOOR_H = 52;
+const STAND_Y = 36;
 /** The planked wainscot between the floor and the chair rail. */
-const WAINSCOT_H = 120;
+const WAINSCOT_H = 104;
 /** The title has settled (its first frames drawn, nothing animating) by then. */
 const PREWARM_AFTER_MS = 400;
 
@@ -103,8 +105,8 @@ export class TitleScene extends BaseScene {
       art(this, W - 26 - 94, H - 18 - 48, "chips_pile");
     }
 
-    // marquee and menu side by side, centred, standing on the line 36 px above the bottom
-    const floor = H - 36;
+    // marquee and menu side by side, centred, standing on the floorboards STAND_Y above the bottom
+    const floor = H - STAND_Y;
     const titleSize = Math.round(Math.min(54, Math.max(34, W * 0.07)));
     const menuW = Math.floor(Math.min(260, W * 0.36));
     const gap = 40;
@@ -166,7 +168,8 @@ export class TitleScene extends BaseScene {
     const mx = left + SCENE_W + gap;
     const btnH = 60;
     const menuH = 94 + 14 + 3 * btnH + 2 * 10;
-    const my = floor - menuH;
+    // the menu hangs on the wall, its last button clear of the floorboards
+    const my = H - FLOOR_H - 8 - menuH;
     art(this, mx + Math.floor((menuW - 86) / 2), my, "painting");
     const by = my + 94 + 14;
     const menu = this.add.container(0, 0);
