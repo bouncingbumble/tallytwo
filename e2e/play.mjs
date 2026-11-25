@@ -144,7 +144,7 @@ async function dealAndHand(page, dev, k) {
   for (let i = 0; i < 100 && !(await probe(page)).table?.dealing; i++) await sleep(20);
   const f = (await probe(page)).table.felt;
   await page.mouse.click((f.x + f.w / 2) * k, (f.y + f.h / 2) * k);
-  const dealt = await until(() => probe(page), (q) => !q.table.dealing && q.targets["table.play"]?.visible);
+  const dealt = await until(() => probe(page), (q) => !q.table.dealing && q.targets["table.pass"]?.visible);
   note(dev, "a tap finishes the deal", !dealt.table.dealing);
   await sleep(500); // the hand's last glide to rest
   const p = await probe(page);

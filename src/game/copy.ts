@@ -94,7 +94,7 @@ export const COPY = {
     swipe: "Swipe to select",
     swipeHint: "Slide across your cards to pick several. Off: slide to rearrange",
     flick: "Flick to play",
-    flickHint: "Drag your chosen cards up onto the felt to play them",
+    flickHint: "Drag your chosen cards up onto the felt to play them. Off: a Play button",
     seedLine: (seed: number, round: number) => `Seed ${seed} · round ${round}`,
     copyLog: "Copy game log",
     copied: "Copied",

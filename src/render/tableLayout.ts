@@ -2,15 +2,17 @@
  * The table's geometry, as whole logical px of the 440-px canvas (render/scale.ts). Pure, zero
  * DOM, unit-tested (tableLayout.test.ts).
  *
- *     felt    side        felt: the three opponents' badges along its top edge, the trick's four
- *     hand    side        plays staggered in three rows beneath; side: round, tally, menu, the
- *                         sign, the status, the buttons; hand: the fan over the saloon
+ *     corner  badges  menu     felt, edge to edge: round and tally in the top-left corner, the
+ *     ........trick.......     three opponents' badges along the top edge, the menu top-right,
+ *     sign    mine  buttons    the trick's plays staggered beneath; just above the hand a band:
+ *     hand ...............     the sign and status on the left, the buttons on the right, and
+ *                              the player's own play landing between them
  *
  * The table runs edge to edge with only EDGE (16) to clear the rounded corners. The notch /
- * Dynamic Island is cleared only where it is: the trick's rows step in by `clearL` when it is on
- * the left, the sign and status by `clearR` (and the side column widens) when it is on the right.
+ * Dynamic Island is cleared only where it is: the corner and the trick step in by `clearL` when
+ * it is on the left, the menu and the buttons by `clearR` when it is on the right.
  */
-import { CARD_H, PILE_STEP } from "./fanLayout";
+import { CARD_H, PILE_STEP, SELECT_LIFT } from "./fanLayout";
 import { LOGICAL_H, PLAY_CARD_H, PLAY_CARD_W, PLAY_SLACK_PT } from "./scale";
 
 export interface Rect {
@@ -22,17 +24,18 @@ export interface Rect {
 
 /** Clears the screen's rounded corners on both sides. */
 export const EDGE = 16;
-/** The side column's width before any notch clearance. */
-export const SIDE_W = 136;
-/** Column gap between the felt / hand and the side column. */
-export const COL_GAP = 6;
 /** Row gap between the felt and the hand, and the table's top and bottom padding. */
 export const ROW_GAP = 2;
 export const PAD_Y = 2;
 /** The hand row: the 128-px cards overhang the felt's edge by 6 px. */
 export const HAND_H = CARD_H - 6;
+/** How far the hand's cards reach up over the felt: the overhang, plus a selected card's lift. */
+export const HAND_REACH = 6 + SELECT_LIFT;
 /** The felt's inner padding: top, sides, bottom. */
 export const FELT_PAD = { top: 2, x: 8, bottom: 6 } as const;
+/** The top-left corner (round and tally) and the top-right one (the menu), beside the badges. */
+export const CORNER_W = 104;
+export const MENU_W = 48;
 /** An opponent's badge: an 88-px portrait plus 1 px above and below. */
 export const BADGE_H = 90;
 /** Gap between the badges, and between the badges and the trick area. */
@@ -47,6 +50,21 @@ export const FACE_H = 88;
 export const SLOT_H = PLAY_CARD_H + PLAY_SLACK_PT;
 /** A five-card hand in a narrow slot overlaps more than PILE_STEP, but never below this. */
 export const MIN_PILE_STEP = 12;
+/** The band above the hand: one control tall, clear of a selected card by BAND_GAP. */
+export const BAND_H = 60;
+export const BAND_GAP = 4;
+/** The buttons: Pass, with Play when Flick to play is off and Hint when Hints are on, side by side. */
+export const CTRL_BTN_W = 92;
+export const CTRL_GAP = 6;
+export const controlsWidth = (n: number): number => n * CTRL_BTN_W + Math.max(0, n - 1) * CTRL_GAP;
+/** The sign and status panel at the band's left: as wide as it can be, leaving a five-card play room. */
+export const INFO_MIN_W = 196;
+export const INFO_MAX_W = 280;
+const FIVE_PLAY_W = PLAY_CARD_W + 4 * PILE_STEP;
+/** Gap between the band's panel, the player's play and the buttons. */
+export const BAND_SPLIT = 8;
+/** The middle row of plays steps down from the top row by at most this much. */
+export const MIDDLE_STAGGER = 57;
 
 export interface TableInput {
   /** The canvas width in logical px (render/scale.ts fitScale). */
@@ -54,21 +72,26 @@ export interface TableInput {
   /** Notch clearance on each side, logical px (clearFor). */
   clearL: number;
   clearR: number;
-  /** The home indicator, logical px: only the side column's buttons keep clear of it. */
-  insetBottom: number;
+  /** How many buttons the band shows (1-3). */
+  buttons: number;
 }
 
 export interface TableLayout {
   felt: Rect;
+  /** Round and tally, top-left of the felt. */
+  corner: Rect;
+  /** The menu button's square, top-right of the felt. */
+  menu: Rect;
   /** The opponents' badges, by seat (1, 2, 3 left to right). */
   badges: Record<number, Rect>;
   /** The trick's area under the badges. */
   plays: Rect;
   /** Each seat's play slot (absolute): Dusty (2) on top, Marshal (1) and Lucky (3) in the middle, the human (0) at the bottom. */
   slots: Record<number, Rect>;
-  side: Rect;
-  /** The sign's and status line's right margin (the island on the right). */
-  sideClearR: number;
+  /** The sign and status, at the left of the band just above the hand. */
+  info: Rect;
+  /** The buttons, at the right of the band just above the hand (right-aligned inside it). */
+  controls: Rect;
   /** The hand row (the saloon fills it). */
   handRow: Rect;
   /** Where the fan lays out: the hand row inside its padding. */
@@ -87,36 +110,50 @@ export function clearFor(safeL: number, safeR: number, notch: "left" | "right" |
   return { clearL, clearR };
 }
 
-export function tableLayout({ width, clearL, clearR, insetBottom }: TableInput): TableLayout {
+export function tableLayout({ width, clearL, clearR, buttons }: TableInput): TableLayout {
   const W = Math.floor(width);
-  const sideW = SIDE_W + clearR;
-  const mainW = Math.max(0, W - 2 * EDGE - COL_GAP - sideW);
+  const mainW = Math.max(0, W - 2 * EDGE);
   const feltH = LOGICAL_H - 2 * PAD_Y - ROW_GAP - HAND_H;
   const felt = { x: EDGE, y: PAD_Y, w: mainW, h: feltH };
 
-  const innerX = felt.x + FELT_PAD.x;
-  const innerW = felt.w - 2 * FELT_PAD.x;
-  const colW = Math.floor((innerW - 2 * BADGE_GAP) / 3);
+  const innerX = felt.x + FELT_PAD.x + clearL;
+  const innerR = felt.x + felt.w - FELT_PAD.x - clearR;
+  const innerW = Math.max(0, innerR - innerX);
+  const top = felt.y + FELT_PAD.top;
+  const corner = { x: innerX, y: top, w: CORNER_W, h: BADGE_H };
+  const menu = { x: innerR - MENU_W, y: top, w: MENU_W, h: BADGE_H };
+  const badgesX = corner.x + CORNER_W + BADGE_GAP;
+  const colW = Math.floor((menu.x - BADGE_GAP - badgesX - 2 * BADGE_GAP) / 3);
   const badges: Record<number, Rect> = {};
-  for (let i = 0; i < 3; i++) badges[i + 1] = { x: innerX + i * (colW + BADGE_GAP), y: felt.y + FELT_PAD.top, w: colW, h: BADGE_H };
+  for (let i = 0; i < 3; i++) badges[i + 1] = { x: badgesX + i * (colW + BADGE_GAP), y: top, w: colW, h: BADGE_H };
 
-  const playsY = felt.y + FELT_PAD.top + BADGE_H + BADGE_ROW_GAP;
-  const plays = { x: innerX + clearL, y: playsY, w: Math.max(0, innerW - clearL), h: Math.max(SLOT_H, felt.y + felt.h - FELT_PAD.bottom - playsY) };
-  // Row tops: the bottom row flush with the bottom, the middle row halfway, whole px.
+  const playsY = top + BADGE_H + BADGE_ROW_GAP;
+  const plays = { x: innerX, y: playsY, w: innerW, h: Math.max(SLOT_H, felt.y + felt.h - FELT_PAD.bottom - playsY) };
+
+  // the band: just above where a selected card reaches
+  const handRow = { x: EDGE, y: felt.y + felt.h + ROW_GAP, w: mainW, h: HAND_H };
+  const bandY = handRow.y - HAND_REACH - BAND_GAP - BAND_H;
+  const controlsW = Math.min(controlsWidth(Math.max(1, buttons)), innerW);
+  const controls = { x: innerR - controlsW, y: bandY, w: controlsW, h: BAND_H };
+  const infoW = Math.min(INFO_MAX_W, Math.max(INFO_MIN_W, innerW - controlsW - 2 * BAND_SPLIT - FIVE_PLAY_W));
+  const info = { x: innerX, y: bandY, w: Math.min(infoW, Math.max(0, innerW - controlsW - BAND_SPLIT)), h: BAND_H };
+
+  // Row tops: the bottom row flush with the bottom; the middle row staggered down from the top,
+  // but never into the band (its plays sit right above the sign and the buttons), whole px.
   const bottom = Math.max(0, plays.h - SLOT_H);
-  const middle = Math.floor(bottom / 2);
+  const middle = Math.max(0, Math.min(MIDDLE_STAGGER, bandY - BAND_GAP - SLOT_H - plays.y));
   const halfW = Math.floor(plays.w / 2) - 4;
+  // the player's own play lands in the band, between the sign and the buttons
+  const mineX = info.x + info.w + BAND_SPLIT;
   const slots: Record<number, Rect> = {
     2: { x: plays.x, y: plays.y, w: plays.w, h: SLOT_H },
     1: { x: plays.x, y: plays.y + middle, w: halfW, h: SLOT_H },
     3: { x: plays.x + plays.w - halfW, y: plays.y + middle, w: halfW, h: SLOT_H },
-    0: { x: plays.x, y: plays.y + bottom, w: plays.w, h: SLOT_H },
+    0: { x: mineX, y: plays.y + bottom, w: Math.max(PLAY_CARD_W, controls.x - BAND_SPLIT - mineX), h: SLOT_H },
   };
 
-  const side = { x: EDGE + mainW + COL_GAP, y: PAD_Y, w: sideW, h: LOGICAL_H - 2 * PAD_Y - Math.max(0, Math.round(insetBottom)) };
-  const handRow = { x: EDGE, y: felt.y + felt.h + ROW_GAP, w: mainW, h: HAND_H };
-  const fan = { x: handRow.x + HAND_PAD_X, y: handRow.y, w: Math.max(0, mainW - 2 * HAND_PAD_X), h: HAND_H };
-  return { felt, badges, plays, slots, side, sideClearR: clearR, handRow, fan };
+  const fan = { x: handRow.x + HAND_PAD_X + clearL, y: handRow.y, w: Math.max(0, mainW - 2 * HAND_PAD_X - clearL - clearR), h: HAND_H };
+  return { felt, corner, menu, badges, plays, slots, info, controls, handRow, fan };
 }
 
 /** Where a play sits in its slot: under its player's badge. */

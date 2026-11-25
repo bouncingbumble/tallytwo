@@ -1,8 +1,9 @@
 /**
  * The live round, a phone held sideways (render/tableLayout.ts):
  *
- *     felt    side        felt: the opponents and the trick; side: round, tally, menu, the sign, the status, the buttons
- *     hand    side        the fan over the saloon
+ *     felt        the opponents and the trick; round and tally top-left, the menu top-right;
+ *                 just above the hand, the sign and status on the left and the buttons on the right
+ *     hand        the fan over the saloon
  *
  * One store subscription renders everything from GameView. A restart (a resize) rebuilds from the
  * store with nothing flying; `animate` (the director's start on a deal) lets the first frame deal.
@@ -12,7 +13,7 @@ import type { GameView } from "../../game/store";
 import { COPY } from "../../game/copy";
 import { HUMAN, type TableEvents, humanTurn, revealLeftovers, tableEvents } from "../../game/selectors";
 import { EASE, GESTURE, MOTION, PERF_GUARD, ROUND_END, TURN, playLandMs } from "../../game/timing";
-import { CARD_H, CARD_W, SELECT_LIFT, fanLayout } from "../../render/fanLayout";
+import { CARD_H, CARD_W, fanLayout } from "../../render/fanLayout";
 import { PLAY_CARD_H, PLAY_CARD_W } from "../../render/scale";
 import { poolOf } from "../cardPool";
 import { shouldCoach } from "../../render/handGesture";
@@ -28,7 +29,7 @@ import { DealRun } from "../table/Deal";
 import { HandView } from "../table/Hand";
 import { drawSaloon } from "../table/Saloon";
 import { SeatView } from "../table/Seat";
-import { SideView } from "../table/Side";
+import { HudView, bandButtons } from "../table/Hud";
 import { TrickView } from "../table/Trick";
 import { BaseScene, type SceneData } from "./base";
 
@@ -52,7 +53,9 @@ export class TableScene extends BaseScene {
   #seats: SeatView[] = [];
   #trick!: TrickView;
   #hand!: HandView;
-  #side!: SideView;
+  #hud!: HudView;
+  /** How many buttons the band was laid out for: a change rebuilds the table. */
+  #buttons = 0;
   #announce: Phaser.GameObjects.Container | null = null;
   #announceId = 0;
   #animate = false;
@@ -95,14 +98,15 @@ export class TableScene extends BaseScene {
     const f = fit();
     const ins = env.insets.get();
     const { clearL, clearR } = clearFor(ins.left / f.k, ins.right / f.k, env.notch.get());
-    const t = (this.#t = tableLayout({ width: W, clearL, clearR, insetBottom: ins.bottom / f.k }));
+    this.#buttons = bandButtons(this.app.settings.opts).length;
+    const t = (this.#t = tableLayout({ width: W, clearL, clearR, buttons: this.#buttons }));
     this.#seats = [];
     this.#last = null;
     this.#announce = null;
     this.#announceId = 0;
 
-    // the felt and the hand strip run off the left edge of the screen (their contents keep clear of
-    // the rounded corner and the notch), so their left rims are painted out of sight
+    // the felt and the hand strip run off both edges of the screen (their contents keep clear of
+    // the rounded corners and the notch), so their side rims are painted out of sight
     const bleed = t.felt.x + 10;
     // the wood around everything, darkened but still showing its boards
     painted(this, "table-bg", 0, 0, W, H, (ctx, w, h) => {
@@ -115,7 +119,7 @@ export class TableScene extends BaseScene {
       ctx.fillRect(0, 0, w, h);
     });
     // the felt: the tile under a lamp-lit vignette, a dark rim and an inner shadow
-    painted(this, "felt", t.felt.x - bleed, t.felt.y, t.felt.w + bleed, t.felt.h, (ctx, w, h) => {
+    painted(this, "felt", t.felt.x - bleed, t.felt.y, t.felt.w + 2 * bleed, t.felt.h, (ctx, w, h) => {
       roundRect(ctx, 0, 0, w, h, 8);
       ctx.save();
       ctx.clip();
@@ -159,9 +163,9 @@ export class TableScene extends BaseScene {
       (seat) => (seat === HUMAN ? this.#glowHand() : this.#seats.find((s) => s.seat === seat)?.wonTrick()),
     );
 
-    drawSaloon(this, { ...t.handRow, x: t.handRow.x - bleed, w: t.handRow.w + bleed });
+    drawSaloon(this, { ...t.handRow, x: t.handRow.x - bleed, w: t.handRow.w + 2 * bleed });
     // the your-turn glow along the top of the hand row, under the cards; dark until a turn arrives
-    this.#turnGlow = painted(this, "turn-glow", t.handRow.x - bleed, t.handRow.y - TURN_GLOW_H, t.handRow.w + bleed, TURN_GLOW_H, (ctx, w, h) => {
+    this.#turnGlow = painted(this, "turn-glow", t.handRow.x - bleed, t.handRow.y - TURN_GLOW_H, t.handRow.w + 2 * bleed, TURN_GLOW_H, (ctx, w, h) => {
       const g = ctx.createLinearGradient(0, 0, 0, h);
       g.addColorStop(0, "rgba(232, 163, 61, 0)");
       g.addColorStop(1, "rgba(240, 180, 87, 0.75)");
@@ -185,7 +189,7 @@ export class TableScene extends BaseScene {
     this.#hand.onGesture = (g) => {
       if (g === "paint") this.#endCoach();
     };
-    this.#side = new SideView(this, t.side, t.sideClearR, game, () => sheet.set("settings"));
+    this.#hud = new HudView(this, t, game, () => sheet.set("settings"));
     // the deal's backs fly above everything on the table
     this.#deal = new DealRun(this, this.add.container(0, 0), this.#hand, this.#seats, () => this.#afterDeal());
 
@@ -207,7 +211,12 @@ export class TableScene extends BaseScene {
     // on a fresh deal the felt stays bare until the cards are out (#afterDeal)
     if (this.#animate) this.#trick.setDealing(true);
     this.watch(game, () => this.#render());
-    this.watch(this.app.settings, () => this.#render(true));
+    this.watch(this.app.settings, () => {
+      // Flick to play or Hints switched: the band's buttons change, so the table is laid out again
+      // (as for a new viewport: every card glides from where it was)
+      if (bandButtons(this.app.settings.opts).length !== this.#buttons) this.scene.restart({ resumed: true, carry: this.carry(), animate: false });
+      else this.#render(true);
+    });
     this.#render();
     if (this.resumed) this.#flipFromCarried();
     // a fresh deal (not a rebuild) is dealt out from a deck in the middle of the felt
@@ -287,7 +296,7 @@ export class TableScene extends BaseScene {
     for (const s of this.#seats) s.update(v.game, v.barks, ev);
     this.#trick.update(v, animate, ev?.trickWonBy ?? null);
     this.#hand.update(v, animate);
-    this.#side.update(v, this.app.settings.opts.hints);
+    this.#hud.update(v, this.app.settings.opts);
     this.#updateAnnouncement(v);
     if (ev) this.#cues(ev, v);
     if (!this.#deal.running && shouldCoach(this.app.settings.opts, humanTurn(v.game), v.game.players[HUMAN].hand.length)) this.#showCoach();
@@ -311,12 +320,12 @@ export class TableScene extends BaseScene {
     this.#idle = null;
     if (ev.turnStarted !== HUMAN) return;
     this.#glowHand();
-    this.#side.nudge(v);
+    this.#hud.nudge(v);
     this.#idle = this.after(TURN.idleNudgeMs, () => {
       this.#idle = null;
       const now = this.app.game.view;
       if (!humanTurn(now.game)) return;
-      if (!this.#side.nudge(now)) this.#glowHand();
+      if (!this.#hud.nudge(now)) this.#glowHand();
     });
   }
 
@@ -342,7 +351,8 @@ export class TableScene extends BaseScene {
     const x0 = fan.x + 40;
     const fy = fan.y + 64;
     const finger = this.add.circle(x0, fy, 11, C.amber, 0.85).setStrokeStyle(2, C.bone);
-    const tag = this.add.container(Math.min(fan.x + fan.w / 2, x0 + w / 2), fan.y - SELECT_LIFT - h, [plate, label]);
+    // above the band (the sign and the buttons) that sits over the hand
+    const tag = this.add.container(Math.min(fan.x + fan.w / 2, x0 + w / 2), this.#t.info.y - 6 - h / 2, [plate, label]);
     this.#coach = this.add.container(0, 0, [tag, finger]);
     const sweep = ms(MOTION.settle);
     if (sweep) {
