@@ -20,7 +20,7 @@ const travelled = (p: Phaser.Input.Pointer): number => p.getDistance() / zoomOf(
 
 /** A tap target: a zone that calls `onTap` on a press-and-release that did not travel. */
 function tapZone(scene: Phaser.Scene, w: number, h: number, onTap: (p: Phaser.Input.Pointer) => void, onPress?: (down: boolean) => void): Phaser.GameObjects.Zone {
-  const z = scene.add.zone(0, 0, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+  const z = scene.add.zone(0, 0, w, h).setOrigin(0, 0).setInteractive();
   let down = false;
   z.on("pointerdown", () => {
     down = true;
@@ -176,7 +176,6 @@ export class Button extends Phaser.GameObjects.Container {
   setEnabled(on: boolean): this {
     if (on === this.#enabled) return this;
     this.#enabled = on;
-    if (this.#zone.input) this.#zone.input.cursor = on ? "pointer" : "default";
     this.#restyle();
     return this;
   }
@@ -288,7 +287,7 @@ export class Slider extends Phaser.GameObjects.Container {
     const track = scene.add.rectangle(r, TAP / 2 - 4, w - 2 * r, 8, 0x1a0f07).setOrigin(0, 0).setStrokeStyle(1, C.oakLight);
     this.#fill = scene.add.rectangle(r, TAP / 2 - 4, 0, 8, C.amber, 0.55).setOrigin(0, 0);
     this.#knob = scene.add.circle(r, TAP / 2, r, C.amber);
-    const zone = scene.add.zone(0, 0, w, TAP).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+    const zone = scene.add.zone(0, 0, w, TAP).setOrigin(0, 0).setInteractive();
     this.add([track, this.#fill, this.#knob, zone]);
     let dragging = false;
     const at = (p: Phaser.Input.Pointer): void => {

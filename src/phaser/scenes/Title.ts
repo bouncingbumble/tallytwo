@@ -212,7 +212,7 @@ export class TitleScene extends BaseScene {
     const lineW = Math.min(W - 32, 460);
     const box = this.add.container(Math.floor((W - lineW) / 2), 6);
     const line = text(this, lineW / 2, TAP / 2, "", { size: FS_BODY, color: CSS.amber, align: "center", wrap: lineW }).setOrigin(0.5, 0.5);
-    const hit = this.add.zone(0, 0, lineW, TAP).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+    const hit = this.add.zone(0, 0, lineW, TAP).setOrigin(0, 0).setInteractive();
     box.add([line, hit]);
     let iosSteps = false;
     const show = (): void => {

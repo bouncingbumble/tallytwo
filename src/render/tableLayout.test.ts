@@ -7,12 +7,11 @@ import { BADGE_H, EDGE, HAND_H, HAND_REACH, SLOT_H, clearFor, controlsWidth, pil
 
 const at = (vw: number, vh: number, buttons = 1) => tableLayout({ width: fitScale(vw, vh).logicalWidth, clearL: 0, clearR: 0, buttons });
 
-test("the fan strip and the 13-card fan step on SE, iPhone 15 and a desktop window", () => {
+test("the fan strip and the 13-card fan step on SE and iPhone 15", () => {
   const se = at(667, 375);
   expect(se.fan.w).toBe(734);
   expect(fanLayout(13, se.fan.w).step).toBe(53);
   expect(fanLayout(13, at(852, 393).fan.w).step).toBe(64);
-  expect(fanLayout(13, at(1280, 800).fan.w).step).toBe(46);
 });
 
 test("the vertical budget: felt + 2 + hand row fills the 440-px canvas inside the padding", () => {
@@ -42,7 +41,7 @@ test("the play rows: Dusty on top, Marshal and Lucky a step lower against the ed
 test.each([
   ["iPhone SE", 667, 375],
   ["iPhone 15", 852, 393],
-  ["desktop", 1280, 800],
+  ["iPhone 15 Pro Max", 932, 430],
 ] as const)("%s: the band above the hand clears a selected card, the side rows' plays, and has room for the player's play", (_n, vw, vh) => {
   for (const n of [1, 2, 3]) {
     const t = at(vw, vh, n);

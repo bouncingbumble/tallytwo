@@ -80,16 +80,8 @@ export function renderOnDemand(game: Phaser.Game): void {
   };
   // the loop holds the step it was started with (bound at boot); point it at ours
   game.loop.callback = (time: number, delta: number) => game.step(time, delta);
-  // any input may press or drag something; nothing in the game changes on hover, so a mouse
-  // moving with no button down (a desktop pointer idling over the canvas) draws nothing
-  for (const type of ["pointerdown", "pointerup", "pointercancel", "wheel", "keydown"]) window.addEventListener(type, markDirty, { passive: true, capture: true });
-  window.addEventListener(
-    "pointermove",
-    (e: PointerEvent) => {
-      if (e.buttons !== 0 || e.pointerType !== "mouse") markDirty();
-    },
-    { passive: true, capture: true },
-  );
+  // any touch may press or drag something
+  for (const type of ["pointerdown", "pointermove", "pointerup", "pointercancel"]) window.addEventListener(type, markDirty, { passive: true, capture: true });
   // a scene starting or stopping
   game.scene.scenes.forEach((s) => {
     s.events.on(Phaser.Scenes.Events.CREATE, markDirty);

@@ -71,7 +71,7 @@ export class SettingsScene extends SheetScene {
       if (hl) c.add(hl);
       c.add(control(w - controlW, y + Math.round((h - TAP) / 2)));
       if (onLabel) {
-        const z = this.add.zone(0, y, labelW, h).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+        const z = this.add.zone(0, y, labelW, h).setOrigin(0, 0).setInteractive();
         z.on("pointerup", (p: Phaser.Input.Pointer) => {
           if (p.getDistance() / this.cameras.main.zoom < 10) onLabel();
         });

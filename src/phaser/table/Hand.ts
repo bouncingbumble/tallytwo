@@ -109,7 +109,7 @@ export class HandView {
     this.layer = scene.add.container(fan.x, top);
     // the touch zone: the fan's width, from above a lifted card to the bottom edge
     const zy = top - SELECT_LIFT;
-    const zone = scene.add.zone(fan.x, zy, fan.w, LOGICAL_H - zy).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+    const zone = scene.add.zone(fan.x, zy, fan.w, LOGICAL_H - zy).setOrigin(0, 0).setInteractive();
     zone.on("pointerdown", this.#down, this);
     scene.input.on("pointermove", this.#move, this);
     scene.input.on("pointerup", this.#up, this);

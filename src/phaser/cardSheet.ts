@@ -12,7 +12,7 @@
  * anti-aliased by the texture filter — which is what lets the game run without MSAA.
  *
  * Why power of two. WebGL 1 only mipmaps POT textures; the 3744x1536 atlas cannot have mipmaps,
- * so a 72x96 play card on a dpr-1 desktop (~0.45 texels per pixel) would shimmer. 4096x2048 can.
+ * so a 72x96 play card, drawn from ~2x its size on a phone, would shimmer. 4096x2048 can.
  *
  * Frames: `face-<card>`, `back`, and per card size `shadow-WxH`, `shadow-deep-WxH`,
  * `ring-in-WxH`, `ring-out-WxH`. Every frame carries its pad: draw it with sheetImage().

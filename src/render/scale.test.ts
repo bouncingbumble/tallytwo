@@ -12,17 +12,12 @@ describe("fitScale", () => {
     expect(se.logicalWidth).toBeCloseTo(782.6, 1);
     const i15 = fitScale(852, 393);
     expect(i15.logicalWidth).toBeCloseTo(953.9, 1);
-    const desktop = fitScale(1280, 800); // desktop Chrome: everything grows, the canvas gets narrower
-    expect(desktop.k).toBeCloseTo(800 / 440, 10);
-    expect(desktop.logicalWidth).toBeCloseTo(704, 0);
   });
   test("the scaled box is exactly the viewport, never letterboxed or capped", () => {
     for (const [w, h] of [
       [667, 375],
       [852, 393],
       [956, 440],
-      [1280, 800],
-      [1920, 1080],
     ]) {
       const { k, logicalWidth } = fitScale(w, h);
       expect(LOGICAL_H * k).toBeCloseTo(h, 9);

@@ -3,7 +3,7 @@
  * safe-area inset on BOTH sides in landscape, so the inset alone cannot say where the island
  * is; the device's rotation can. window.orientation is 90 when the phone is turned
  * counter-clockwise (its top, and the island, on the left) and -90 when clockwise;
- * screen.orientation.angle is the fallback (90 / 270); 0 or 180 means upright or a desktop.
+ * screen.orientation.angle is the fallback (90 / 270); 0 or 180 means upright.
  * Pure, so notch.test.ts runs under node.
  */
 export type NotchSide = "left" | "right" | null;

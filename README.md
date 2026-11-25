@@ -1,6 +1,6 @@
 # Tally Two
 
-Big Two — the Hong Kong climbing card game — played four-handed in a saloon: you against Dusty Vane, Marshal Cobb and Lucky Pearl. A Vite + **Phaser 4** + TypeScript game for a phone held sideways (iPhone Safari first) and desktop browsers. A pure `(state, action) => state` engine, a small framework-free store (`src/game/store.ts`) that runs the table, and Phaser scenes that draw what the store says. No UI framework, no state library.
+Big Two — the Hong Kong climbing card game — played four-handed in a saloon: you against Dusty Vane, Marshal Cobb and Lucky Pearl. A Vite + **Phaser 4** + TypeScript game for a phone held sideways (iPhone Safari first); mobile only. A pure `(state, action) => state` engine, a small framework-free store (`src/game/store.ts`) that runs the table, and Phaser scenes that draw what the store says. No UI framework, no state library.
 
 - `docs/ARCHITECTURE.md` — how the code fits together.
 - `docs/ASSETS.md` — what art and audio ship, how they are wired and how they were made.
@@ -45,7 +45,7 @@ npm i --no-save playwright     # once; the Chromium build must match the install
 npm run e2e
 ```
 
-`e2e/play.mjs` starts its own dev server on port 5199 and plays through the real canvas in headless Chromium, as a sideways iPhone SE (667x375, touch) and as a 1280x800 desktop window, in about 30 seconds. A canvas has no DOM to query, so it reads the game through `window.__tally` and `probe()` (`src/phaser/probe.ts`), which reports every control's and card's rect in logical px. It checks:
+`e2e/play.mjs` starts its own dev server on port 5199 and plays through the real canvas in headless Chromium, as a sideways iPhone SE (667x375, touch), in about 15 seconds. A canvas has no DOM to query, so it reads the game through `window.__tally` and `probe()` (`src/phaser/probe.ts`), which reports every control's and card's rect in logical px. It checks:
 
 - the canvas fills the viewport at k = height / 440 and nothing scrolls;
 - the title, How to play, Settings, the table and the poster have no text under 11 CSS px and no control under 44x44 CSS px;

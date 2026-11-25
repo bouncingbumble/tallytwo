@@ -2,12 +2,12 @@
  * "Add to Home Screen", offered on the Title so the game is one tap from playing offline.
  * Two paths, because the browsers differ:
  *
- * - **prompt**: Chromium (Android Chrome, desktop Chrome/Edge) fires `beforeinstallprompt`; we
+ * - **prompt**: Chromium (Android Chrome) fires `beforeinstallprompt`; we
  *   keep the event and `prompt()` it from the tap, which opens the browser's own install dialog.
  * - **ios**: Safari on iPhone/iPad has no install API at all, so the tap shows the two steps
  *   (Share, then Add to Home Screen) instead.
  * - **none**: already running from the Home Screen (standalone), inside a native shell or an
- *   iframe, or a browser with neither path (Firefox desktop, macOS Safari).
+ *   iframe, or a browser with neither path (Firefox for Android).
  *
  * `installMode()` is the pure decision (install.test.ts); `watchInstall()` wires the browser.
  */

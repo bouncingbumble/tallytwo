@@ -1,6 +1,5 @@
-// The end-to-end test: one round played through the real canvas, in headless Chromium, on two
-// profiles — an iPhone SE held sideways (667x375, touch) and a 1280x800 desktop
-// window. It starts its own Vite dev server, so nothing else needs to be running.
+// The end-to-end test: one round played through the real canvas, in headless Chromium, as an
+// iPhone SE held sideways (667x375, touch). It starts its own Vite dev server, so nothing else needs to be running.
 //
 //   npm i --no-save playwright      (once; the Chromium build must match the installed Playwright)
 //   npm run e2e
@@ -10,7 +9,7 @@
 // which reports the fit, the running scenes, the hand's card rects, every registered control's
 // rect (src/phaser/probe.ts) and every visible text's size, all in logical px.
 //
-// Per profile: the canvas fills the viewport at k = innerHeight / 440; no text under 11 CSS px
+// The canvas fills the viewport at k = innerHeight / 440; no text under 11 CSS px
 // and no control under 44x44 CSS px on the title, How to play, Settings, the table and the
 // poster; Settings opened from the title shows Done (not Quit game) and a switch is saved to
 // localStorage; a tap skips the deal; ?seed=3 deals seat 0 the 3♦ leftmost in a 13-card fan of
@@ -30,7 +29,6 @@ const MIN_TEXT_PX = 11;
 const MIN_TAP_PX = 44;
 const PROFILES = [
   { name: "phone", viewport: { width: 667, height: 375 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true },
-  { name: "desktop", viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 },
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

@@ -33,8 +33,8 @@ function angle(): number {
   return screen.orientation?.angle ?? 0;
 }
 
-/** Only touch-first devices are gated, so a narrow desktop window still plays. */
-const PORTRAIT_BLOCK_QUERY = "(orientation: portrait) and (pointer: coarse) and (hover: none)";
+/** The game is played sideways: held upright, the rotate gate shows. */
+const PORTRAIT_BLOCK_QUERY = "(orientation: portrait)";
 const upright = (): boolean => (typeof window.matchMedia === "function" ? window.matchMedia(PORTRAIT_BLOCK_QUERY).matches : false);
 
 export interface Insets {

@@ -7,7 +7,7 @@ test("installMode: the browser's prompt first, then the iOS steps, else nothing"
   expect(installMode({ ...base, canPrompt: true })).toBe("prompt");
   expect(installMode({ ...base, ios: true })).toBe("ios");
   expect(installMode({ ...base, ios: true, canPrompt: true })).toBe("prompt");
-  expect(installMode(base)).toBe("none"); // Firefox desktop, macOS Safari
+  expect(installMode(base)).toBe("none"); // Firefox for Android
 });
 
 test("installMode: never once installed, nor inside a shell or an iframe", () => {

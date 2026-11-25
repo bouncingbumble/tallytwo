@@ -179,11 +179,6 @@ export abstract class SheetScene extends BaseScene {
     };
     this.input.on("pointerup", up);
     this.input.on("pointerupoutside", up);
-    this.input.on("wheel", (_p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
-      if (this.#closing) return;
-      this.#settling?.stop();
-      this.#scrollTo(Math.min(this.#max, Math.max(0, this.#scroll + dy / (z / (window.devicePixelRatio || 1)))));
-    });
   }
 
   /** Let go: dismissed, or the panel springs back; a stretched end snaps in; a flick glides. */

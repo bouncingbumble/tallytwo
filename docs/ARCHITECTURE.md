@@ -100,4 +100,4 @@ A native WKWebView, an Android WebView or an iframe parent can wrap the game. `p
 | --- | --- |
 | `npm test` | Vitest in node, no DOM: the engine's rules and replay, the AI's legality and determinism, the store's turn loop on a fake clock, the selectors, settings parsing, the audio port against a fake `AudioContext`, the music latch, the layouts and gestures, the bridge and storage ports, the service worker against fake caches, the asset table against the disk, and the layering rules. |
 | `npm run sim -- 300` | 300 AI-only games through the real `reduce()`, which throws on any illegal action: 0 illegal actions and 0 stalls, plus win rates per difficulty. |
-| `npm run e2e` | `e2e/play.mjs`: one round through the real canvas in headless Chromium, as a sideways iPhone SE and as a desktop window (about 30 s). See the README. |
+| `npm run e2e` | `e2e/play.mjs`: one round through the real canvas in headless Chromium, as a sideways iPhone SE (about 15 s). See the README. |

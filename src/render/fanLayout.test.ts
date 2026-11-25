@@ -47,12 +47,11 @@ describe("fanLayout", () => {
 });
 
 describe("the index corners stay exposed on every device", () => {
-  // the phones held sideways (the SE with Safari's toolbars too) and a desktop window
+  // the phones held sideways (the SE with Safari's toolbars too)
   const DEVICES: readonly [string, number, number][] = [
     ["iPhone SE", 667, 375],
     ["iPhone SE, toolbars showing", 667, 331],
     ["iPhone 15", 852, 393],
-    ["desktop", 1280, 800],
   ];
   test.each(DEVICES)("%s: a 13-card fan shows at least a corner index of every card", (_name, vw, vh) => {
     const { logicalWidth } = fitScale(vw, vh);
