@@ -121,8 +121,8 @@ export const JITTER = 0.04;
 /** Level jitter per SFX play, ±1.5 dB, so a run of the same sound (the deal roll) is not a machine gun. */
 export const GAIN_JITTER_DB = 1.5;
 /**
- * Where each seat sits, as a stereo pan: seat 1 at the felt's left edge, seat 2 across the top,
- * seat 3 at the right edge (render/tableLayout.ts), the player at the bottom centre. Subtle
+ * Where each seat sits, as a stereo pan: the opponents' chips run left to right across the top
+ * (render/tableLayout.ts badges 1, 2, 3), the player is at the bottom centre. Subtle
  * on purpose: a card played by the left seat comes from a little left of centre.
  */
 export const SEAT_PAN: readonly number[] = [0, -0.35, 0, 0.35];

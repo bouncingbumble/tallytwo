@@ -2,13 +2,11 @@
  * The table's geometry, as whole logical px of the 440-px canvas (render/scale.ts). Pure, zero
  * DOM, unit-tested (tableLayout.test.ts).
  *
- *     corner      chip       menu      an oval of felt on the wood, edge to edge: round and tally
- *     chip  ... trick ...    chip      on a plaque in the top-left corner, the menu on one in the
- *                mine      buttons      top-right; the middle opponent across the top, the other
- *     hand .....................      two standing at the left and right edges, each beside where
- *                                      their cards land; the player's own play in the middle
- *                                      under the top one's, and the buttons just above the hand
- *                                      on the right
+ *     corner chip chip chip menu      an oval of felt on the wood, edge to edge: across the top,
+ *     ...... trick .........      round and tally on a plaque, the three opponents' chips and
+ *              mine      buttons      the menu on a plaque; the trick staggered beneath, the
+ *     hand ....................      player's own play in the middle under the top one's, and the
+ *                                      buttons just above the hand on the right
  *
  * The table runs edge to edge with only EDGE (16) to clear the rounded corners. The notch /
  * Dynamic Island is cleared only where it is: the corner and the trick step in by `clearL` when
@@ -40,9 +38,8 @@ export const CORNER_W = 96;
 export const MENU_W = 60;
 /** The top row: a slim chip, one 56-px portrait tall plus 2 px above and below. */
 export const BADGE_H = 60;
-/** The middle opponent's chip across the top, and the side chips standing at the edges. */
-export const TOP_CHIP_W = 210;
-export const SIDE_CHIP_W = 96;
+/** The trick keeps this far in from the felt's sides, inside the oval's curve. */
+export const PLAYS_INSET = 16;
 /** Gap between the badges, and between the badges and the trick area. */
 export const BADGE_GAP = 6;
 export const BADGE_ROW_GAP = 2;
@@ -84,7 +81,7 @@ export interface TableLayout {
   corner: Rect;
   /** The menu button's square, top-right of the felt. */
   menu: Rect;
-  /** The opponents' chips, by seat: 1 standing at the left edge, 2 across the top, 3 standing at the right edge. */
+  /** The opponents' chips, by seat, left to right across the top. */
   badges: Record<number, Rect>;
   /** The trick's area under the badges. */
   plays: Rect;
@@ -128,15 +125,12 @@ export function tableLayout({ width, clearL, clearR, buttons }: TableInput): Tab
 
   const playsY = top + BADGE_H + BADGE_ROW_GAP;
   const playsH = Math.max(SLOT_H, felt.y + felt.h - FELT_PAD.bottom - playsY);
-  const sideY = playsY + 2;
-  const sideH = Math.max(0, bandY - BAND_GAP - sideY);
-  const badges: Record<number, Rect> = {
-    2: { x: Math.round(innerX + (innerW - TOP_CHIP_W) / 2), y: top, w: TOP_CHIP_W, h: BADGE_H },
-    1: { x: innerX, y: sideY, w: SIDE_CHIP_W, h: sideH },
-    3: { x: innerR - SIDE_CHIP_W, y: sideY, w: SIDE_CHIP_W, h: sideH },
-  };
-  const px = innerX + SIDE_CHIP_W + BADGE_GAP;
-  const plays = { x: px, y: playsY, w: Math.max(0, innerR - SIDE_CHIP_W - BADGE_GAP - px), h: playsH };
+  // the three chips in one row between the corner's plaque and the menu's
+  const badgesX = corner.x + CORNER_W + BADGE_GAP;
+  const colW = Math.floor((menu.x - BADGE_GAP - badgesX - 2 * BADGE_GAP) / 3);
+  const badges: Record<number, Rect> = {};
+  for (let i = 0; i < 3; i++) badges[i + 1] = { x: badgesX + i * (colW + BADGE_GAP), y: top, w: colW, h: BADGE_H };
+  const plays = { x: innerX + PLAYS_INSET, y: playsY, w: Math.max(0, innerW - 2 * PLAYS_INSET), h: playsH };
   const controlsW = Math.min(controlsWidth(Math.max(1, buttons)), innerW);
   const controls = { x: innerR - controlsW, y: bandY, w: controlsW, h: BAND_H };
 

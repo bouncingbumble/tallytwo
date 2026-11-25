@@ -207,9 +207,7 @@ export class TableScene extends BaseScene {
     }
     // the trick under the badges: a play flies out from behind its portrait, or from the very spot in the hand
     this.#trick = new TrickView(this, t, (seat, card) => (seat === HUMAN ? (this.#hand?.poseOf(card) ?? null) : (this.#seats.find((s) => s.seat === seat)?.faceCentre() ?? null)));
-    // the side chips face in across the felt, the top one down
-    const facing = (seat: number) => (seat === 1 ? "right" : seat === 3 ? "left" : "down");
-    for (const seat of [1, 2, 3]) this.#seats.push(new SeatView(this, seat, t.badges[seat], facing(seat)));
+    for (const seat of [1, 2, 3]) this.#seats.push(new SeatView(this, seat, t.badges[seat]));
 
     // won tricks sweep into the winner's portrait, or down into the hand for the player
     this.#trick.setSweep(

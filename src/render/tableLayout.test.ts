@@ -22,13 +22,13 @@ test("the vertical budget: felt + 2 + hand row fills the 440-px canvas inside th
   // the felt runs edge to edge
   expect(t.felt.x).toBe(EDGE);
   expect(t.felt.x + t.felt.w).toBe(Math.floor(fitScale(852, 393).logicalWidth) - EDGE);
-  // the middle opponent's slim chip along the felt's top edge, the trick beneath
-  expect(t.badges[2].h).toBe(BADGE_H);
-  expect(t.plays.y).toBe(t.badges[2].y + BADGE_H + 2);
+  // the three chips in a row across the top, the trick beneath
+  for (const s of [1, 2, 3]) expect(t.badges[s]).toMatchObject({ y: t.corner.y, h: BADGE_H });
+  expect(t.plays.y).toBe(t.badges[1].y + BADGE_H + 2);
   expect(t.plays.h).toBe(242);
 });
 
-test("the play rows: the top opponent's on top, the side opponents' a step lower beside their chips, the human flush with the bottom", () => {
+test("the play rows: the middle opponent's on top, the outer two a step lower against the edges, the human flush with the bottom", () => {
   const t = at(852, 393);
   expect(t.slots[2].y).toBe(t.plays.y);
   expect(t.slots[0].y + SLOT_H).toBe(t.plays.y + t.plays.h);
@@ -58,19 +58,11 @@ test.each([
     const topC = t.plays.x + t.plays.w / 2;
     if (n < 3) expect(Math.abs(mineC - topC)).toBeLessThanOrEqual(1);
     else expect(mineC).toBeLessThanOrEqual(topC + 1);
-    // the middle chip between the corner and the menu; the side chips at the edges, clear of the band
-    expect(t.badges[2].x).toBeGreaterThanOrEqual(t.corner.x + t.corner.w);
-    expect(t.badges[2].x + t.badges[2].w).toBeLessThanOrEqual(t.menu.x);
-    expect(t.badges[1].x).toBe(t.corner.x);
-    expect(t.badges[3].x + t.badges[3].w).toBe(t.menu.x + t.menu.w);
-    for (const s of [1, 3]) {
-      expect(t.badges[s].y).toBeGreaterThanOrEqual(t.corner.y + t.corner.h);
-      expect(t.badges[s].y + t.badges[s].h).toBeLessThanOrEqual(t.controls.y);
-      expect(t.badges[s].h).toBeGreaterThan(t.badges[s].w);
-    }
-    // the trick between the side chips
-    expect(t.plays.x).toBeGreaterThan(t.badges[1].x + t.badges[1].w);
-    expect(t.plays.x + t.plays.w).toBeLessThan(t.badges[3].x);
+    // round and tally, the three chips and the menu share the top row without overlapping
+    expect(t.badges[1].x).toBeGreaterThanOrEqual(t.corner.x + t.corner.w);
+    expect(t.badges[2].x).toBeGreaterThan(t.badges[1].x + t.badges[1].w);
+    expect(t.badges[3].x).toBeGreaterThan(t.badges[2].x + t.badges[2].w);
+    expect(t.badges[3].x + t.badges[3].w).toBeLessThanOrEqual(t.menu.x);
   }
 });
 
