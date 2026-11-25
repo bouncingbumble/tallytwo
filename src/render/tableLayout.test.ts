@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 import { fanLayout } from "./fanLayout";
 import { LOGICAL_H } from "./scale";
 import { fitScale } from "./scale";
-import { BADGE_H, EDGE, HAND_H, HAND_REACH, MINE_W, SLOT_H, clearFor, controlsWidth, pileLayout, tableLayout } from "./tableLayout";
+import { BADGE_H, EDGE, HAND_H, HAND_OVERHANG, MINE_W, SLOT_H, clearFor, controlsWidth, pileLayout, tableLayout } from "./tableLayout";
 
 const at = (vw: number, vh: number, buttons = 1) => tableLayout({ width: fitScale(vw, vh).logicalWidth, clear: 0, buttons });
 
@@ -42,11 +42,11 @@ test.each([
   ["iPhone SE", 667, 375],
   ["iPhone 15", 852, 393],
   ["iPhone 15 Pro Max", 932, 430],
-] as const)("%s: the band above the hand clears a selected card, the side rows' plays, and has room for the player's play", (_n, vw, vh) => {
+] as const)("%s: the band sits just above the resting cards, below the side rows' plays, with room for the player's play", (_n, vw, vh) => {
   for (const n of [1, 2, 3]) {
     const t = at(vw, vh, n);
-    // the band sits above where a lifted card reaches, and below Marshal's and Lucky's plays
-    expect(t.controls.y + t.controls.h).toBeLessThanOrEqual(t.handRow.y - HAND_REACH);
+    // the band sits just above the resting cards' tops, and below the side opponents' plays
+    expect(t.controls.y + t.controls.h).toBe(t.handRow.y - HAND_OVERHANG - 4);
     expect(t.slots[1].y + SLOT_H).toBeLessThanOrEqual(t.controls.y);
     // the buttons at the right edge; the player's play clear of them, room for five cards
     expect(t.controls.w).toBe(controlsWidth(n));

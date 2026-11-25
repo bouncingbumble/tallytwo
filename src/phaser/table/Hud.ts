@@ -1,8 +1,8 @@
 /**
  * Everything on the table that is not a card or a chip (render/tableLayout.ts): round and tally
  * on a plaque in the top-left corner, the menu on one in the top-right, and the buttons just above
- * the hand on the right, side by side: Pass, Play when Settings › Flick to play is off (a flick
- * plays otherwise), Hint when Settings › Hints is on. Every enablement rule is a store value; the
+ * the hand on the right, side by side: Pass, Play (Settings › Play button, on by default, and
+ * always while Flick to play is off), Hint when Settings › Hints is on. Every enablement rule is a store value; the
  * only decision made here is which button was tapped.
  */
 import Phaser from "phaser";
@@ -17,8 +17,9 @@ import { target } from "../probe";
 import { Button, IconButton } from "../widgets";
 
 /** Which buttons the band shows, left to right, for these settings. */
-export function bandButtons(o: Pick<Opts, "flick" | "hints">): ("hint" | "pass" | "play")[] {
-  return [...(o.hints ? (["hint"] as const) : []), "pass", ...(o.flick ? [] : (["play"] as const))];
+export function bandButtons(o: Pick<Opts, "flick" | "hints" | "playButton">): ("hint" | "pass" | "play")[] {
+  const play = o.playButton || !o.flick;
+  return [...(o.hints ? (["hint"] as const) : []), "pass", ...(play ? (["play"] as const) : [])];
 }
 
 export class HudView {
@@ -73,7 +74,7 @@ export class HudView {
     target(scene, "table.hint", this.#hint, { w: CTRL_BTN_W, h: TAP }, () => this.#hint.enabled);
   }
 
-  update(v: GameView, opts: Pick<Opts, "flick" | "hints">): void {
+  update(v: GameView, opts: Pick<Opts, "flick" | "hints" | "playButton">): void {
     const g = v.game;
     if (!g) return;
     // each line centred on the plaque

@@ -12,7 +12,7 @@
  * Dynamic Island is cleared by `clear` on both sides alike, wherever it is, so the table stays
  * centred on the screen: the oval is drawn edge to edge, and everything on it steps in.
  */
-import { CARD_H, PILE_STEP, SELECT_LIFT } from "./fanLayout";
+import { CARD_H, PILE_STEP } from "./fanLayout";
 import { LOGICAL_H, PLAY_CARD_H, PLAY_CARD_W, PLAY_SLACK_PT } from "./scale";
 
 export interface Rect {
@@ -29,8 +29,8 @@ export const ROW_GAP = 2;
 export const PAD_Y = 2;
 /** The hand row: the 128-px cards overhang the felt's edge by 6 px. */
 export const HAND_H = CARD_H - 6;
-/** How far the hand's cards reach up over the felt: the overhang, plus a selected card's lift. */
-export const HAND_REACH = 6 + SELECT_LIFT;
+/** How far the hand's cards reach up over the felt at rest: the overhang. */
+export const HAND_OVERHANG = 6;
 /** The felt's inner padding: top, sides, bottom. */
 export const FELT_PAD = { top: 2, x: 8, bottom: 6 } as const;
 /** The top-left corner (round and tally) and the top-right one (the menu), beside the badges. */
@@ -52,7 +52,10 @@ export const FACE_ASPECT = 96 / 104;
 export const SLOT_H = PLAY_CARD_H + PLAY_SLACK_PT;
 /** A five-card hand in a narrow slot overlaps more than PILE_STEP, but never below this. */
 export const MIN_PILE_STEP = 12;
-/** The band above the hand: one control tall, clear of a selected card by BAND_GAP. */
+/**
+ * The band just above the hand: one control tall, BAND_GAP over the resting cards. A selected card
+ * under the buttons lifts behind them (the buttons are drawn above the hand and take the tap).
+ */
 export const BAND_H = 60;
 export const BAND_GAP = 4;
 /** The buttons: Pass, with Play when Flick to play is off and Hint when Hints are on, side by side. */
@@ -118,7 +121,7 @@ export function tableLayout({ width, clear, buttons }: TableInput): TableLayout 
   const menu = { x: innerR - MENU_W, y: top, w: MENU_W, h: BADGE_H };
   // the band: just above where a selected card reaches
   const handRow = { x: EDGE, y: felt.y + felt.h + ROW_GAP, w: mainW, h: HAND_H };
-  const bandY = handRow.y - HAND_REACH - BAND_GAP - BAND_H;
+  const bandY = handRow.y - HAND_OVERHANG - BAND_GAP - BAND_H;
 
   const playsY = top + BADGE_H + BADGE_ROW_GAP;
   const playsH = Math.max(SLOT_H, felt.y + felt.h - FELT_PAD.bottom - playsY);

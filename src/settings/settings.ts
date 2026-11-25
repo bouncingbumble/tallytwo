@@ -37,6 +37,8 @@ export interface Opts {
   swipe: boolean;
   /** Drag the selected cards up onto the felt to play them. */
   flick: boolean;
+  /** The Play button beside Pass. Always shown while flick is off: there must be a way to play. */
+  playButton: boolean;
   /** The one-time "swipe to pick several" coach mark has been shown. */
   swipeHintSeen: boolean;
 }
@@ -57,6 +59,7 @@ export const DEFAULTS: Settings = {
     motion: "auto",
     swipe: true,
     flick: true,
+    playButton: true,
     swipeHintSeen: false,
   },
 };
@@ -115,6 +118,7 @@ export function parseSettings(raw: string | null | undefined): Settings {
       motion: oneOf<MotionPref>(o.motion, MOTION_PREFS, o.reduceMotion === true ? "reduced" : D.opts.motion),
       swipe: bool(o.swipe, D.opts.swipe),
       flick: bool(o.flick, D.opts.flick),
+      playButton: bool(o.playButton, D.opts.playButton),
       swipeHintSeen: bool(o.swipeHintSeen, D.opts.swipeHintSeen),
     },
   };

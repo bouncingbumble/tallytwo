@@ -51,7 +51,7 @@ The buckets are enforced:
 | --- | --- |
 | `Boot` | Loads every image from `assets/manifest.ts` and waits for the Rye font. |
 | `Title` | The saloon front: Deal me in, How to play, Settings; the "New version ready" / "add to Home Screen" line. |
-| `Table` | The round. `table/Seat` (an opponent's badge, barks, thinking dots), `table/Trick` (the plays on the felt), `table/Hand` (the fan and its gestures), `table/Hud` (round and tally top-left, the menu top-right, and above the hand Pass / Play / Hint side by side; Play only with Flick to play off), `table/Deal` (the deal animation), `table/Saloon` (the room behind the hand, baked into one texture). |
+| `Table` | The round. `table/Seat` (an opponent's badge, barks, thinking dots), `table/Trick` (the plays on the felt), `table/Hand` (the fan and its gestures), `table/Hud` (round and tally top-left, the menu top-right, and above the hand Pass / Play / Hint side by side; Play unless Settings › Play button is off), `table/Deal` (the deal animation), `table/Saloon` (the room behind the hand, baked into one texture). |
 | `Poster` | The WANTED poster after a round, the FINAL TALLY poster after the eighth. |
 | `Settings`, `HowTo` | Sheets (`scenes/sheet.ts`): a panel over a dim, scrolling with momentum, closed by ✕, a tap on the dim or a pull down. |
 | `Crash` | An engine throw or a scene error, with the game log to copy and Saddle up. |

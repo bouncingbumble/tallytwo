@@ -10,7 +10,7 @@ Big Two — the Hong Kong climbing card game — played four-handed in a saloon:
 
 Thirteen cards each; whoever holds the 3♦ leads the round and must play it. Play singles, pairs or five-card hands that beat what is on the table, or pass; a seat that passed may play again when the trick comes back round, and three passes clear the trick to whoever played last. The first to empty their hand wins the round and collects one point per card from each loser (doubled at ten or more cards, tripled at thirteen). A match is eight rounds.
 
-Settings: opponents (Greenhorn, Regular, Card sharp), Game speed (slow, normal, fast), Hints (the Hint button), wrap-around straights, card sounds on or off, music and card-sound volume, motion (auto, full, reduced), swipe to select and flick to play (off, a Play button appears beside Pass). A first-time player starts on Greenhorn with hints on.
+Settings: opponents (Greenhorn, Regular, Card sharp), Game speed (slow, normal, fast), Hints (the Hint button), wrap-around straights, card sounds on or off, music and card-sound volume, motion (auto, full, reduced), swipe to select, flick to play, and the Play button (on by default; always shown while flick to play is off). A first-time player starts on Greenhorn with hints on.
 
 ## Run it
 

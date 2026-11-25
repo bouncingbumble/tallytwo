@@ -32,7 +32,7 @@ test("an earlier blob with changed values keeps every one that still exists", ()
   const opts = { difficulty: "hard", speed: "slow", music: false, sfx: false, reduceMotion: true }; // the retired autoPass and sortBy are dropped: the player is never passed for, and a fresh deal is always in value order
   const s = parseSettings(JSON.stringify({ rules, opts }));
   expect(s.rules).toEqual({ straightWrap: true }); // passLocksOut, mustLeadWith3D, laterRoundLead and flushSuitFirst are no longer flags (flushes always rank by suit first)
-  expect(s.opts).toEqual({ difficulty: "hard", gameSpeed: "slow", hints: false, sfx: false, volume: { music: 0, sfx: 1 }, motion: "reduced", swipe: true, flick: true, swipeHintSeen: false }); // the old piano switch off -> music volume 0; the old reduceMotion on -> motion "reduced"
+  expect(s.opts).toEqual({ difficulty: "hard", gameSpeed: "slow", hints: false, sfx: false, volume: { music: 0, sfx: 1 }, motion: "reduced", swipe: true, flick: true, playButton: true, swipeHintSeen: false }); // the old piano switch off -> music volume 0; the old reduceMotion on -> motion "reduced"
 });
 
 test("motion: auto by default, only auto / full / reduced accepted; a saved motion beats the old reduceMotion", () => {
@@ -179,4 +179,10 @@ describe("the first-time player", () => {
     await s.hydrate();
     expect(s.settings).toEqual(DEFAULTS);
   });
+});
+
+test("the Play button: on by default (a blob from before it existed gets it), kept when saved off", () => {
+  expect(DEFAULTS.opts.playButton).toBe(true);
+  expect(parseSettings(JSON.stringify({ opts: { flick: true } })).opts.playButton).toBe(true);
+  expect(parseSettings(JSON.stringify({ opts: { playButton: false } })).opts.playButton).toBe(false);
 });

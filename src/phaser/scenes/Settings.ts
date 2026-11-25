@@ -107,6 +107,7 @@ export class SettingsScene extends SheetScene {
     switchRow(t.hints, t.hintsHint, () => opts().hints, (v) => settings.setOpts({ hints: v }));
     switchRow(t.swipe, t.swipeHint, () => opts().swipe, (v) => settings.setOpts({ swipe: v }));
     switchRow(t.flick, t.flickHint, () => opts().flick, (v) => settings.setOpts({ flick: v }));
+    switchRow(t.playButton, t.playButtonHint, () => opts().playButton, (v) => settings.setOpts({ playButton: v }));
     switchRow(t.sfx, undefined, () => opts().sfx, (v) => settings.setOpts({ sfx: v }));
     row(`${t.volume} · ${t.volumeMusic}`, undefined, SLIDER_W, (x, ry) => new Slider(this, x, ry, SLIDER_W, opts().volume.music, (v) => setVolume({ music: v })));
     row(`${t.volume} · ${t.volumeSfx}`, undefined, SLIDER_W, (x, ry) => new Slider(this, x, ry, SLIDER_W, opts().volume.sfx, (v) => setVolume({ sfx: v })));
