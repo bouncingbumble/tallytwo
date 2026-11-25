@@ -33,7 +33,7 @@ The buckets are enforced:
              └──────┬──────────────▲────────────┘
                     │ view          │ act / toggleCard / setSelection
                     ▼               │
-             Phaser scenes (Title, Table, Poster, Settings, HowTo, Crash, Rotate)
+             Phaser scenes (Title, Table, Poster, Settings, HowTo, Crash)
 ```
 
 - **`GameStore`** (`game/store.ts`) holds one `AppState` (`appReduce` over the engine's `reduce`), the selection, any crash report, the barks and the final-round banner. `view` is a snapshot object that changes identity only when something in it changed; the scenes render from it. `act(action)` dispatches; an engine throw becomes a `CrashReport` (shown by the Crash scene with a replayable game log), never an exception.
@@ -45,7 +45,7 @@ The buckets are enforced:
 
 ## The scenes
 
-`phaser/director.ts` decides what runs from the store and a few observables (`platform/env.ts`): the Crash sheet over everything when there is a crash or an uncaught scene error; the Title when there is no game, else the Table with the Poster over it once the round is scored; the Settings or How to play sheet on top; the Rotate gate over all of it on a phone held upright. It also folds a hidden tab, the host's `pause`, the Rotate gate and a lost WebGL context into the store's pause, owns the moves between screens (through the title's doors, a fade up out of the dark), and restarts every running scene when the viewport changes — a restart is told it is one and keeps its place (a sheet's scroll, the cards' poses).
+`phaser/director.ts` decides what runs from the store and a few observables (`platform/env.ts`): the Crash sheet over everything when there is a crash or an uncaught scene error; the Title when there is no game, else the Table with the Poster over it once the round is scored; the Settings or How to play sheet on top. It also folds a hidden tab, the host's `pause`, a phone held upright (the page's own "Turn your phone sideways" element covers the canvas then, `platform/rotateGate.ts`, shown by a CSS orientation query) and a lost WebGL context into the store's pause, owns the moves between screens (through the title's doors, a fade up out of the dark), and restarts every running scene when the viewport changes (not while upright) — a restart is told it is one and keeps its place (a sheet's scroll, the cards' poses).
 
 | Scene | What it is |
 | --- | --- |
@@ -55,7 +55,6 @@ The buckets are enforced:
 | `Poster` | The WANTED poster after a round, the FINAL TALLY poster after the eighth. |
 | `Settings`, `HowTo` | Sheets (`scenes/sheet.ts`): a panel over a dim, scrolling with momentum, closed by ✕, a tap on the dim or a pull down. |
 | `Crash` | An engine throw or a scene error, with the game log to copy and Saddle up. |
-| `Rotate` | "Turn your phone sideways". |
 
 `phaser/services.ts` is what the scenes reach: the two stores, the open sheet, the seed, the update and install offers. Scenes never construct them.
 

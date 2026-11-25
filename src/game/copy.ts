@@ -9,6 +9,11 @@ export const COPY = {
     install: "Play offline · add to Home Screen",
     installIOS: "Tap Share (or ··· › Share), then “Add to Home Screen”",
   },
+  /** The gate shown while a phone is held upright (platform/rotateGate.ts). */
+  rotate: {
+    title: "Turn your phone sideways",
+    body: "Tally Two is played with your phone held horizontally.",
+  },
   topbar: {
     round: "Round",
     /** The top-left corner: "You +3". */

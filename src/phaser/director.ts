@@ -1,9 +1,10 @@
 /**
  * Which scenes run: the crash or error sheet over everything; the title when there is no game, else
- * the table with the poster over it once the round is scored; the settings or how-to sheet on top;
- * the rotate gate over all of it on an upright phone. Also the pause (a hidden tab, the shell's
- * `pause`, the rotate gate, a lost WebGL context), the canvas size, and a rebuild of every running
- * scene when the viewport changes.
+ * the table with the poster over it once the round is scored; the settings or how-to sheet on top.
+ * Also the pause (a hidden tab, the shell's `pause`, a phone held upright — the page's rotate gate
+ * covers the canvas then, platform/rotateGate.ts — a lost WebGL context), the canvas size, and a
+ * rebuild of every running scene when the viewport changes (held back while upright: nothing is
+ * seen behind the gate, and the table is never laid out for a portrait screen).
  *
  * It also owns the moves between screens, so the scenes stay unaware of them: the title's own exit
  * is its doors (the camera goes in through them and darkens, Title.ts); the table then fades up out
@@ -44,7 +45,7 @@ export function transition(game: Phaser.Game, from: string, to: string, kind: Tr
 
 /** Bottom to top. */
 const BASE = ["Title", "Table"] as const;
-const OVERLAYS = ["Poster", "Settings", "HowTo", "Crash", "Rotate"] as const;
+const OVERLAYS = ["Poster", "Settings", "HowTo", "Crash"] as const;
 type Key = (typeof BASE)[number] | (typeof OVERLAYS)[number];
 
 export function direct(game: Phaser.Game): void {
@@ -115,22 +116,23 @@ export function direct(game: Phaser.Game): void {
     // Quit from the settings sheet closes it; a crash closes any sheet
     if (broken && sheet !== "none") app.sheet.set("none");
 
-    const upright = env.upright.get();
-    if (upright && !running("Rotate")) start("Rotate");
-    if (!upright) stop("Rotate");
-    app.game.setPaused(env.hidden.get() || env.shellPaused.get() || upright || glLost.get());
+    app.game.setPaused(env.hidden.get() || env.shellPaused.get() || env.upright.get() || glLost.get());
     order();
   };
 
-  // a viewport change: resize the canvas, then rebuild every running scene at the new size
+  // a viewport change: resize the canvas, then rebuild every running scene at the new size; while
+  // upright only noted, and done once the phone is sideways again
+  let stale = false;
   const resize = () => {
+    if (env.upright.get()) {
+      stale = true;
+      return;
+    }
+    stale = false;
     sizeGame(game);
     applyArtFilter(game, ART_KEYS);
-    // a restart is queued; a scene the same change is about to stop (the rotate gate on turning
-    // the phone sideways) must not be restarted after that stop
-    const wanted = (k: Key): boolean => (k === "Rotate" ? env.upright.get() : true);
     for (const k of [...BASE, ...OVERLAYS]) {
-      if (!running(k) || !wanted(k)) continue;
+      if (!running(k)) continue;
       const s = mgr.getScene(k) as BaseScene | null;
       if (!s) continue;
       const data: SceneData & { animate?: boolean } = { resumed: true, carry: s.carry() };
@@ -143,6 +145,9 @@ export function direct(game: Phaser.Game): void {
   applyArtFilter(game, ART_KEYS);
   for (const src of [app.game, app.sheet, app.fault, env.upright, env.hidden, env.shellPaused, glLost]) src.subscribe(sync);
   env.fit.subscribe(resize);
+  env.upright.subscribe(() => {
+    if (!env.upright.get() && stale) resize();
+  });
   env.insets.subscribe(resize);
   env.notch.subscribe(resize);
   sync();

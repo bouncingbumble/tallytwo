@@ -18,6 +18,7 @@ import { bridgeStorage } from "./platform/bridgeStorage";
 import { frameClock } from "./platform/clock";
 import { workerThink } from "./platform/think";
 import { env, installEnv } from "./platform/env";
+import { installRotateGate } from "./platform/rotateGate";
 import { install, watchInstall } from "./platform/install";
 import { registerOffline, updates } from "./platform/offline";
 import { webStorage } from "./platform/webStorage";
@@ -30,7 +31,6 @@ import { BootScene } from "./phaser/scenes/Boot";
 import { CrashScene } from "./phaser/scenes/Crash";
 import { HowToScene } from "./phaser/scenes/HowTo";
 import { PosterScene } from "./phaser/scenes/Poster";
-import { RotateScene } from "./phaser/scenes/Rotate";
 import { SettingsScene } from "./phaser/scenes/Settings";
 import { TableScene } from "./phaser/scenes/Table";
 import { TitleScene } from "./phaser/scenes/Title";
@@ -53,6 +53,7 @@ function boot(): void {
   // start the Rye download now, alongside the image loads, not after them (BootScene waits for it)
   void document.fonts.load('26px "Rye"').catch(() => {});
   installEnv();
+  installRotateGate();
   const audio = new WebAudio();
   audio.preload(); // the card sounds' bytes, before the first tap makes a context (WebAudio.ts)
   // iOS 17+: Web Audio as "ambient" — the ring/silent switch mutes it and the player's own music
@@ -110,7 +111,7 @@ function boot(): void {
     input: { activePointers: 2 },
     banner: false,
     disableContextMenu: true,
-    scene: [BootScene, TitleScene, TableScene, PosterScene, SettingsScene, HowToScene, CrashScene, RotateScene],
+    scene: [BootScene, TitleScene, TableScene, PosterScene, SettingsScene, HowToScene, CrashScene],
   });
   // A throw inside a scene carries no CrashReport: show it on the error sheet instead of a frozen canvas.
   window.addEventListener("error", (e) => fault.set(e.error instanceof Error ? e.error : new Error(String(e.message))));
