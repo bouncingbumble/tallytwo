@@ -55,7 +55,7 @@ describe("the index corners stay exposed on every device", () => {
   ];
   test.each(DEVICES)("%s: a 13-card fan shows at least a corner index of every card", (_name, vw, vh) => {
     const { logicalWidth } = fitScale(vw, vh);
-    const t = tableLayout({ width: logicalWidth, clearL: 0, clearR: 0, buttons: 1 });
+    const t = tableLayout({ width: logicalWidth, clear: 0, buttons: 1 });
     const f = fanLayout(13, t.fan.w);
     expect(f.step).toBeGreaterThanOrEqual(CORNER_INDEX_ART);
     expect(f.x0 + f.span).toBeLessThanOrEqual(t.fan.w);

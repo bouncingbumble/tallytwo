@@ -43,7 +43,7 @@ Every message, both ways, is
 | `pause` | `{}` (optional) | no AI timer fires and the audio context suspends until `resume`. Send it on `applicationWillResignActive` / `onPause`; the hidden-tab pause still works on its own. |
 | `resume` | `{}` (optional) | the AI loop and the audio resume. |
 | `settings` | `{ id, json }` | the reply to `settings:get` (`json`: the stored string, or `null` when nothing is stored yet) and to `settings:set` (echo the json). `id` must be the request's. |
-| `insets` | `{ top, right, bottom, left }` | CSS px of the web view. They replace the browser's `env(safe-area-inset-*)`: the table divides them by k into logical px and clears the notch on the side it is on. Resend on rotation. Negative values clamp to 0. |
+| `insets` | `{ top, right, bottom, left }` | CSS px of the web view. They replace the browser's `env(safe-area-inset-*)`: the table divides them by k into logical px and clears the larger side's inset on both sides, so it stays centred. Resend on rotation. Negative values clamp to 0. |
 
 Anything else is dropped silently.
 

@@ -5,7 +5,7 @@ import { LOGICAL_H } from "./scale";
 import { fitScale } from "./scale";
 import { BADGE_H, EDGE, HAND_H, HAND_REACH, MINE_W, SLOT_H, clearFor, controlsWidth, pileLayout, tableLayout } from "./tableLayout";
 
-const at = (vw: number, vh: number, buttons = 1) => tableLayout({ width: fitScale(vw, vh).logicalWidth, clearL: 0, clearR: 0, buttons });
+const at = (vw: number, vh: number, buttons = 1) => tableLayout({ width: fitScale(vw, vh).logicalWidth, clear: 0, buttons });
 
 test("the fan strip and the 13-card fan step on SE and iPhone 15", () => {
   const se = at(667, 375);
@@ -66,16 +66,26 @@ test.each([
   }
 });
 
-test("the notch: only its own side is cleared, by the inset beyond EDGE", () => {
-  expect(clearFor(59, 59, "left")).toEqual({ clearL: 59 - EDGE, clearR: 0 });
-  expect(clearFor(59, 59, "right")).toEqual({ clearL: 0, clearR: 59 - EDGE });
-  expect(clearFor(0, 0, null)).toEqual({ clearL: 0, clearR: 0 });
+test("the notch: cleared by the inset beyond EDGE on both sides alike, so the table stays centred", () => {
+  expect(clearFor(59, 0)).toBe(59 - EDGE);
+  expect(clearFor(0, 59)).toBe(59 - EDGE);
+  expect(clearFor(59, 59)).toBe(59 - EDGE);
+  expect(clearFor(0, 0)).toBe(0);
+  const W = Math.floor(fitScale(852, 393).logicalWidth);
   const plain = at(852, 393);
-  const notched = tableLayout({ width: fitScale(852, 393).logicalWidth, clearL: 0, clearR: 43, buttons: 1 });
+  const notched = tableLayout({ width: fitScale(852, 393).logicalWidth, clear: 43, buttons: 1 });
   expect(notched.felt.w).toBe(plain.felt.w);
+  expect(notched.corner.x).toBe(plain.corner.x + 43);
   expect(notched.menu.x).toBe(plain.menu.x - 43);
   expect(notched.controls.x).toBe(plain.controls.x - 43);
-  expect(notched.fan.w).toBe(plain.fan.w - 43);
+  expect(notched.fan.w).toBe(plain.fan.w - 86);
+  // every row is centred on the screen: the corner and menu, the chips, the trick, the fan, the player's play
+  const mid = (x: number, w: number) => x + w / 2;
+  expect(notched.corner.x).toBe(W - notched.menu.x - notched.menu.w);
+  expect(Math.abs(mid(notched.badges[2].x, notched.badges[2].w) - W / 2)).toBeLessThanOrEqual(1);
+  expect(Math.abs(mid(notched.plays.x, notched.plays.w) - W / 2)).toBeLessThanOrEqual(1);
+  expect(Math.abs(mid(notched.fan.x, notched.fan.w) - W / 2)).toBeLessThanOrEqual(1);
+  expect(Math.abs(mid(notched.slots[0].x, notched.slots[0].w) - W / 2)).toBeLessThanOrEqual(1);
 });
 
 test("pileLayout: 30-px steps, squeezed to 12 at least, aligned under the badge", () => {

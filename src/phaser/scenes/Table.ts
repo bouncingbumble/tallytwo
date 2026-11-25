@@ -176,9 +176,9 @@ export class TableScene extends BaseScene {
     const { W, H } = this;
     const f = fit();
     const ins = env.insets.get();
-    const { clearL, clearR } = clearFor(ins.left / f.k, ins.right / f.k, env.notch.get());
+    const clear = clearFor(ins.left / f.k, ins.right / f.k);
     this.#buttons = bandButtons(this.app.settings.opts).length;
-    const t = (this.#t = tableLayout({ width: W, clearL, clearR, buttons: this.#buttons }));
+    const t = (this.#t = tableLayout({ width: W, clear, buttons: this.#buttons }));
     this.#seats = [];
     this.#last = null;
     this.#announce = null;

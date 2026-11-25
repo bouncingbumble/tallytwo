@@ -9,8 +9,8 @@
  *                                      buttons just above the hand on the right
  *
  * The table runs edge to edge with only EDGE (16) to clear the rounded corners. The notch /
- * Dynamic Island is cleared only where it is: the corner and the trick step in by `clearL` when
- * it is on the left, the menu and the buttons by `clearR` when it is on the right.
+ * Dynamic Island is cleared by `clear` on both sides alike, wherever it is, so the table stays
+ * centred on the screen: the oval is drawn edge to edge, and everything on it steps in.
  */
 import { CARD_H, PILE_STEP, SELECT_LIFT } from "./fanLayout";
 import { LOGICAL_H, PLAY_CARD_H, PLAY_CARD_W, PLAY_SLACK_PT } from "./scale";
@@ -34,8 +34,9 @@ export const HAND_REACH = 6 + SELECT_LIFT;
 /** The felt's inner padding: top, sides, bottom. */
 export const FELT_PAD = { top: 2, x: 8, bottom: 6 } as const;
 /** The top-left corner (round and tally) and the top-right one (the menu), beside the badges. */
-export const CORNER_W = 96;
-export const MENU_W = 60;
+export const CORNER_W = 84;
+/** The same width as the corner, so the chips between them sit in the middle of the screen. */
+export const MENU_W = CORNER_W;
 /** The top row: a slim chip, one 56-px portrait tall plus 2 px above and below. */
 export const BADGE_H = 60;
 /** The trick keeps this far in from the felt's sides, inside the oval's curve. */
@@ -68,9 +69,8 @@ export const MIDDLE_STAGGER = 57;
 export interface TableInput {
   /** The canvas width in logical px (render/scale.ts fitScale). */
   width: number;
-  /** Notch clearance on each side, logical px (clearFor). */
-  clearL: number;
-  clearR: number;
+  /** Notch clearance, logical px, applied to both sides (clearFor). */
+  clear: number;
   /** How many buttons the band shows (1-3). */
   buttons: number;
 }
@@ -96,25 +96,22 @@ export interface TableLayout {
 }
 
 /**
- * The notch clearance beyond EDGE on each side, from the safe-area insets in logical px. iOS
- * reports the island's inset on both long edges; only the island's side keeps it.
+ * The notch clearance beyond EDGE, from the safe-area insets in logical px: the larger side's,
+ * kept on both sides so the table never sits off centre (turning the phone over moves the
+ * island, not the layout).
  */
-export function clearFor(safeL: number, safeR: number, notch: "left" | "right" | null): { clearL: number; clearR: number } {
-  const clearL = Math.max(0, Math.round(safeL - EDGE));
-  const clearR = Math.max(0, Math.round(safeR - EDGE));
-  if (notch === "left") return { clearL, clearR: 0 };
-  if (notch === "right") return { clearL: 0, clearR };
-  return { clearL, clearR };
+export function clearFor(safeL: number, safeR: number): number {
+  return Math.max(0, Math.round(Math.max(safeL, safeR) - EDGE));
 }
 
-export function tableLayout({ width, clearL, clearR, buttons }: TableInput): TableLayout {
+export function tableLayout({ width, clear, buttons }: TableInput): TableLayout {
   const W = Math.floor(width);
   const mainW = Math.max(0, W - 2 * EDGE);
   const feltH = LOGICAL_H - 2 * PAD_Y - ROW_GAP - HAND_H;
   const felt = { x: EDGE, y: PAD_Y, w: mainW, h: feltH };
 
-  const innerX = felt.x + FELT_PAD.x + clearL;
-  const innerR = felt.x + felt.w - FELT_PAD.x - clearR;
+  const innerX = felt.x + FELT_PAD.x + clear;
+  const innerR = felt.x + felt.w - FELT_PAD.x - clear;
   const innerW = Math.max(0, innerR - innerX);
   const top = felt.y + FELT_PAD.top;
   const corner = { x: innerX, y: top, w: CORNER_W, h: BADGE_H };
@@ -148,7 +145,7 @@ export function tableLayout({ width, clearL, clearR, buttons }: TableInput): Tab
     0: { x: mineX, y: plays.y + bottom, w: Math.max(PLAY_CARD_W, Math.min(MINE_W, controls.x - BAND_SPLIT - mineX)), h: SLOT_H },
   };
 
-  const fan = { x: handRow.x + HAND_PAD_X + clearL, y: handRow.y, w: Math.max(0, mainW - 2 * HAND_PAD_X - clearL - clearR), h: HAND_H };
+  const fan = { x: handRow.x + HAND_PAD_X + clear, y: handRow.y, w: Math.max(0, mainW - 2 * HAND_PAD_X - 2 * clear), h: HAND_H };
   return { felt, corner, menu, badges, plays, slots, controls, handRow, fan };
 }
 
