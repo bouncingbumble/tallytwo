@@ -18,7 +18,7 @@ import { PLAY_CARD_H, PLAY_CARD_W } from "../../render/scale";
 import { poolOf } from "../cardPool";
 import { shouldCoach } from "../../render/handGesture";
 import { env } from "../../platform/env";
-import { TOP_LAYOUTS, type TableLayout, type TopLayout, clearFor, tableLayout } from "../../render/tableLayout";
+import { type TableLayout, clearFor, tableLayout } from "../../render/tableLayout";
 import { CardView } from "../cards";
 import { flipFrom } from "../fx";
 import { ANNOUNCE_ANIM_MS, ms } from "../motion";
@@ -43,10 +43,83 @@ const POOL_TRICK = 24;
 const POOL_LEFTOVERS = 36;
 const POOL_BACKS = 56;
 
-/** Where the opponents sit: `?top=around` to try the second arrangement, "bar" otherwise. */
-function topLayout(): TopLayout {
-  const q = new URLSearchParams(location.search).get("top");
-  return TOP_LAYOUTS.find((t) => t === q) ?? "bar";
+/** The padded rail round the felt (logical px). */
+const RAIL = 11;
+
+/** A stadium: a rectangle whose short ends are half-circles. */
+function stadium(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+  const r = Math.min(h / 2, w / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2);
+  ctx.lineTo(x + r, y + h);
+  ctx.arc(x + r, y + r, r, Math.PI / 2, (3 * Math.PI) / 2);
+  ctx.closePath();
+}
+
+/**
+ * The table top: a shadow on the wood, a padded leather rail, and inside it the felt tile under
+ * a lamp-lit vignette with a soft dark edge.
+ */
+function paintTable(scene: Phaser.Scene, ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  // the rail, casting its shadow on the floor boards
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetY = 3;
+  stadium(ctx, 1, 1, w - 2, h - 4);
+  const rail = ctx.createLinearGradient(0, 0, 0, h);
+  rail.addColorStop(0, "#5a3820");
+  rail.addColorStop(0.5, "#3f2614");
+  rail.addColorStop(1, "#2a180b");
+  ctx.fillStyle = rail;
+  ctx.fill();
+  ctx.restore();
+  // the rail's padding: a highlight along its crown, a dark seam where it meets the felt
+  ctx.save();
+  stadium(ctx, 1 + RAIL / 2, 1 + RAIL / 2, w - 2 - RAIL, h - 4 - RAIL);
+  ctx.strokeStyle = "rgba(255, 214, 160, 0.12)";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.restore();
+  ctx.save();
+  stadium(ctx, 1, 1, w - 2, h - 4);
+  ctx.strokeStyle = "#140b04";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+
+  // the felt inside the rail
+  const fx = 1 + RAIL;
+  const fy = 1 + RAIL;
+  const fw = w - 2 - 2 * RAIL;
+  const fh = h - 4 - 2 * RAIL;
+  ctx.save();
+  stadium(ctx, fx, fy, fw, fh);
+  ctx.clip();
+  ctx.fillStyle = CSS.felt;
+  ctx.fillRect(fx, fy, fw, fh);
+  ctx.fillStyle = artPattern(scene, ctx, "felt", 32) ?? CSS.felt;
+  ctx.fillRect(fx, fy, fw, fh);
+  ctx.save();
+  ctx.translate(fx + fw / 2, fy + fh * 0.42);
+  ctx.scale(0.62 * fw, 0.75 * fh);
+  const lamp = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+  lamp.addColorStop(0, "rgba(90, 160, 110, 0.3)");
+  lamp.addColorStop(0.55, "rgba(20, 60, 40, 0.08)");
+  lamp.addColorStop(1, "rgba(4, 18, 12, 0.5)");
+  ctx.fillStyle = lamp;
+  ctx.fillRect(-1, -1, 2, 2);
+  ctx.restore();
+  // a soft dark edge under the rail
+  ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+  ctx.shadowBlur = 18;
+  ctx.lineWidth = 20;
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
+  stadium(ctx, fx - 10, fy - 10, fw + 20, fh + 20);
+  ctx.stroke();
+  ctx.restore();
 }
 
 /** The your-turn glow's height above the hand row (logical px). */
@@ -105,8 +178,7 @@ export class TableScene extends BaseScene {
     const ins = env.insets.get();
     const { clearL, clearR } = clearFor(ins.left / f.k, ins.right / f.k, env.notch.get());
     this.#buttons = bandButtons(this.app.settings.opts).length;
-    const top = topLayout();
-    const t = (this.#t = tableLayout({ width: W, clearL, clearR, buttons: this.#buttons, top }));
+    const t = (this.#t = tableLayout({ width: W, clearL, clearR, buttons: this.#buttons }));
     this.#seats = [];
     this.#last = null;
     this.#announce = null;
@@ -120,40 +192,13 @@ export class TableScene extends BaseScene {
       ctx.fillStyle = artPattern(this, ctx, "wood", 96) ?? CSS.oakDeep;
       ctx.fillRect(0, 0, w, h);
       const g = ctx.createLinearGradient(0, 0, 0, h);
-      g.addColorStop(0, "rgba(42, 26, 15, 0.72)");
-      g.addColorStop(1, "rgba(28, 17, 8, 0.86)");
+      g.addColorStop(0, "rgba(52, 32, 16, 0.5)");
+      g.addColorStop(1, "rgba(28, 17, 8, 0.7)");
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
     });
-    // the felt: the tile under a lamp-lit vignette, a dark rim and an inner shadow
-    painted(this, "felt", t.felt.x - bleed, t.felt.y, t.felt.w + 2 * bleed, t.felt.h, (ctx, w, h) => {
-      roundRect(ctx, 0, 0, w, h, 8);
-      ctx.save();
-      ctx.clip();
-      ctx.fillStyle = CSS.felt;
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = artPattern(this, ctx, "felt", 32) ?? CSS.felt;
-      ctx.fillRect(0, 0, w, h);
-      ctx.save();
-      ctx.translate(w / 2, h * 0.38);
-      ctx.scale(1.2 * w, 0.9 * h);
-      const r = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
-      r.addColorStop(0, "rgba(90, 160, 110, 0.3)");
-      r.addColorStop(0.48, "rgba(20, 60, 40, 0.1)");
-      r.addColorStop(1, "rgba(4, 18, 12, 0.55)");
-      ctx.fillStyle = r;
-      ctx.fillRect(-1, -1, 2, 2);
-      ctx.restore();
-      // inset 0 0 40px rgba(0,0,0,.45): a soft dark edge
-      ctx.shadowColor = "rgba(0,0,0,0.45)";
-      ctx.shadowBlur = 40;
-      ctx.lineWidth = 40;
-      ctx.strokeStyle = "rgba(0,0,0,0.45)";
-      roundRect(ctx, -20, -20, w + 40, h + 40, 28);
-      ctx.stroke();
-      ctx.restore();
-      insetStroke(ctx, w, h, 8, 5, "#2b1a0c");
-    });
+    // the table: an oval of felt in a padded leather rail, on the wood (paintTable)
+    painted(this, "felt", t.felt.x, t.felt.y, t.felt.w, t.felt.h, (ctx, w, h) => paintTable(this, ctx, w, h));
 
     const { game, sheet } = this.app;
     if (!this.#prewarm) {
@@ -162,7 +207,8 @@ export class TableScene extends BaseScene {
     }
     // the trick under the badges: a play flies out from behind its portrait, or from the very spot in the hand
     this.#trick = new TrickView(this, t, (seat, card) => (seat === HUMAN ? (this.#hand?.poseOf(card) ?? null) : (this.#seats.find((s) => s.seat === seat)?.faceCentre() ?? null)));
-    const facing = (seat: number) => (top === "around" && seat === 1 ? "right" : top === "around" && seat === 3 ? "left" : "down");
+    // the side chips face in across the felt, the top one down
+    const facing = (seat: number) => (seat === 1 ? "right" : seat === 3 ? "left" : "down");
     for (const seat of [1, 2, 3]) this.#seats.push(new SeatView(this, seat, t.badges[seat], facing(seat)));
 
     // won tricks sweep into the winner's portrait, or down into the hand for the player

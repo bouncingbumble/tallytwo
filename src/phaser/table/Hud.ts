@@ -57,16 +57,18 @@ export class HudView {
   constructor(scene: Phaser.Scene, t: TableLayout, store: GameStore, onMenu: () => void) {
     this.scene = scene;
     this.#t = t;
+    // the score and the menu on brass-edged plaques in the wood's top corners
     const c = t.corner;
-    const x = c.x + 4;
-    const y = c.y + 4;
-    this.#round = text(scene, x, y, COPY.topbar.round + " ", { size: FS_MIN, color: CSS.dust });
-    this.#roundN = text(scene, x, y, "", { size: FS_MIN, color: CSS.bone, bold: true });
+    painted(scene, "plaque", c.x, c.y, c.w, c.h, paintPlaque, PLAQUE_PAD);
+    const y = c.y + 7;
+    this.#round = text(scene, 0, y, COPY.topbar.round + " ", { size: FS_MIN, color: CSS.dust });
+    this.#roundN = text(scene, 0, y, "", { size: FS_MIN, color: CSS.bone, bold: true });
     // "You +3" on the second line, the number in the same amber as the opponents' card counts
-    this.#you = text(scene, x, y + 24, COPY.topbar.you + " ", { size: FS_MIN, color: CSS.dust });
-    this.#tallyN = text(scene, x, y + 21, "", { size: FS_EM, color: CSS.amber, bold: true });
+    this.#you = text(scene, 0, y + 25, COPY.topbar.you + " ", { size: FS_MIN, color: CSS.dust });
+    this.#tallyN = text(scene, 0, y + 22, "", { size: FS_EM, color: CSS.amber, bold: true });
     const m = t.menu;
-    target(scene, "table.menu", new IconButton(scene, m.x + m.w - TAP + 6, m.y - 4, "menu", onMenu), { w: TAP, h: TAP });
+    painted(scene, "plaque", m.x, m.y, m.w, m.h, paintPlaque, PLAQUE_PAD);
+    target(scene, "table.menu", new IconButton(scene, m.x + (m.w - TAP) / 2, m.y + (m.h - TAP) / 2, "menu", onMenu), { w: TAP, h: TAP });
 
     // the band's info panel: a dark wash under the sign and the status
     const r = t.info;
@@ -105,10 +107,18 @@ export class HudView {
   update(v: GameView, opts: Pick<Opts, "flick" | "hints">): void {
     const g = v.game;
     if (!g) return;
+    // each line centred on the plaque
     const c = this.#t.corner;
-    this.#roundN.setText(String(g.round)).setX(c.x + 4 + Math.round(this.#round.width) - 2);
+    const centre = (label: Phaser.GameObjects.Text, n: Phaser.GameObjects.Text, s: string) => {
+      n.setText(s);
+      const lw = Math.round(label.width) - 2;
+      const x = c.x + Math.round((c.w - lw - Math.round(n.width)) / 2);
+      label.setX(x);
+      n.setX(x + lw);
+    };
+    centre(this.#round, this.#roundN, String(g.round));
     const total = g.totals[HUMAN];
-    this.#tallyN.setText((total > 0 ? "+" : "") + total).setX(c.x + 4 + Math.round(this.#you.width) - 2);
+    centre(this.#you, this.#tallyN, (total > 0 ? "+" : "") + total);
 
     // the buttons, right-aligned in the band, side by side
     this.#shown = bandButtons(opts);
@@ -199,6 +209,36 @@ function oneLine(t: Phaser.GameObjects.Text, s: string, maxW: number): void {
     words.pop();
     t.setText(words.join(" ").replace(/[\s,.;:—-]+$/, "") + "…");
   }
+}
+
+/** Room round a plaque for its drop shadow. */
+const PLAQUE_PAD = 8;
+
+/** A plaque: dark polished wood with a brass edge and a drop shadow, raised off the boards. */
+function paintPlaque(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 3;
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, "#4a2d17");
+  g.addColorStop(1, "#24140a");
+  ctx.fillStyle = g;
+  roundRect(ctx, 0, 0, w, h, 7);
+  ctx.fill();
+  ctx.restore();
+  // the brass edge, a dark line inside it, and a sheen across the top
+  ctx.strokeStyle = "#b07a2c";
+  ctx.lineWidth = 2;
+  roundRect(ctx, 1, 1, w - 2, h - 2, 6);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.6)";
+  ctx.lineWidth = 1;
+  roundRect(ctx, 2.5, 2.5, w - 5, h - 5, 4.5);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(255, 220, 170, 0.07)";
+  roundRect(ctx, 3, 3, w - 6, h / 2 - 3, 4);
+  ctx.fill();
 }
 
 /** The info panel's box: a dark wash with a faint edge. */
