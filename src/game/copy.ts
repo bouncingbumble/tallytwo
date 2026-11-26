@@ -55,7 +55,8 @@ export const COPY = {
     tally: "Tally",
     nextRound: "Next round",
     newMatch: "New match",
-    saddleUp: "Saddle up",
+    /** Leave the table for the title. */
+    quit: "Hit the bar (quit)",
   },
   settings: {
     title: "Settings",

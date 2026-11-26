@@ -151,11 +151,11 @@ export class PosterScene extends BaseScene {
     const primary = final
       ? new Button(this, 0, by, bw, TAP, COPY.poster.newMatch, { kind: "primary", onClick: go(() => game.act({ type: "NEW_MATCH", seed: newSeed(1), rules: settings.rules })), onDisabledTap: skip })
       : new Button(this, 0, by, bw, TAP, COPY.poster.nextRound, { kind: "primary", onClick: go(() => game.act({ type: "NEXT_ROUND", seed: newSeed(g.round + 1) })), onDisabledTap: skip });
-    const saddle = new Button(this, bw + 8, by, inner - bw - 8, TAP, COPY.poster.saddleUp, { kind: "ghostDark", onClick: go(() => game.act({ type: "QUIT" })), onDisabledTap: skip });
-    this.#buttons = [primary, saddle];
-    layer.add([primary, saddle]);
+    const quit = new Button(this, bw + 8, by, inner - bw - 8, TAP, COPY.poster.quit, { kind: "ghostDark", onClick: go(() => game.act({ type: "QUIT" })), onDisabledTap: skip });
+    this.#buttons = [primary, quit];
+    layer.add([primary, quit]);
     target(this, "poster.next", primary, { w: bw, h: TAP }, () => primary.enabled);
-    target(this, "poster.saddle", saddle, { w: inner - bw - 8, h: TAP }, () => saddle.enabled);
+    target(this, "poster.quit", quit, { w: inner - bw - 8, h: TAP }, () => quit.enabled);
     const ph = by + TAP + 14 + PAD;
 
     // the paper: a colour under a dot grid and a gradient, two pins; centred, so it turns about its middle
