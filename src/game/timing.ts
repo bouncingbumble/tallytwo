@@ -238,10 +238,19 @@ export const ROUND_END = {
   revealHoldMs: 1500,
 } as const;
 
-/** The poster: rows arrive one after another, then the numbers count up. */
+/**
+ * The poster: rows arrive one after another in last round's order; a beat to read them, then the
+ * numbers count up; a beat on the new totals, then the rows re-sort by them.
+ */
 export const POSTER = {
   rowStaggerMs: 60,
+  /** Rows in, before the count starts. */
+  countHoldMs: 1500,
   countMs: 700,
+  /** Count done, before the rows re-sort. */
+  reorderHoldMs: 1000,
+  /** The rows sliding to their new places. */
+  reorderMs: 600,
   /** A tick sound plays at most this often while the numbers count. */
   tickMs: 70,
 } as const;

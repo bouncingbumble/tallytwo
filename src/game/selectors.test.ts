@@ -40,6 +40,7 @@ import {
   revealLeftovers,
   roundDeltas,
   roundWinner,
+  rowsBeforeRound,
   scoreRows,
   sortHand,
   suitSortRuns,
@@ -323,6 +324,16 @@ test("scoreRows: the poster's rows, highest tally first, ties in seat order", ()
   expect(rows.map((r) => r.seat)).toEqual([1, 2, 0, 3]);
   expect(rows[0]).toEqual({ seat: 1, name: "Dusty Vane", cards: 13, delta: 2, total: 8 });
   expect(rows.map((r) => r.total)).toEqual([8, 8, -3, -13]);
+});
+
+test("rowsBeforeRound: the poster starts in last round's order, then re-sorts to scoreRows", () => {
+  const g = { ...humanLead(), phase: "scored" as const, totals: [5, 11, 3, -19] };
+  // before this round: 13, 17, -16, -14 -> Dusty, You, Marshal, Lucky
+  const rows = scoreRows(g, [-8, -6, 19, -5]);
+  expect(rowsBeforeRound(rows).map((r) => r.seat)).toEqual([1, 0, 3, 2]);
+  expect(rows.map((r) => r.seat)).toEqual([1, 0, 2, 3]);
+  // ties in seat order
+  expect(rowsBeforeRound(scoreRows({ ...g, totals: [1, 1, 1, 1] }, [0, 0, 0, 0])).map((r) => r.seat)).toEqual([0, 1, 2, 3]);
 });
 
 test("tensionFor: on at 3 cards in any hand, off at 4, held through roundover, off once scored", () => {

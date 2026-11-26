@@ -231,6 +231,9 @@ export interface ScoreRow {
   delta: number;
   total: number;
 }
+/** The same rows in the order the tallies stood before this round: where the poster starts them. */
+export const rowsBeforeRound = (rows: readonly ScoreRow[]): ScoreRow[] => rows.slice().sort((a, b) => b.total - b.delta - (a.total - a.delta) || a.seat - b.seat);
+
 export function scoreRows(g: GameState, deltas: readonly number[]): ScoreRow[] {
   return g.players
     .map((p, i) => ({ seat: i, name: p.name, cards: p.hand.length, delta: deltas[i], total: g.totals[i] }))

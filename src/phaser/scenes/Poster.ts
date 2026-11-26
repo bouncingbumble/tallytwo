@@ -1,22 +1,24 @@
 /**
  * The end-of-round WANTED poster and, when matchOver() says the match is done, the
  * FINAL TALLY poster in the same frame: the match winner instead of the round winner, "$N over M
- * rounds" instead of the reward, New match in place of Next round. Rows sorted by tally, highest
- * first (selectors.scoreRows). Shown over the table while game.phase === "scored".
+ * rounds" instead of the reward, New match in place of Next round. Rows start in last round's
+ * order (selectors.rowsBeforeRound) and end sorted by tally, highest first (selectors.scoreRows).
+ * Shown over the table while game.phase === "scored".
  *
  * Wider than it is tall on a sideways phone: the heading across the top, the face, the winner and
  * the reward on the left, the table on the right, the buttons across the bottom.
  *
  * Motion: the paper drops in on a spring, a little turned, and settles square; the rows arrive one
- * after another; then the round's numbers count up from 0 and the tallies from last round's,
- * ticking. The buttons wake when the count is done — or at once, with everything at its final
- * value, on a tap anywhere. A button lifts the poster away before it acts. The final poster has an
+ * after another; a beat (POSTER.countHoldMs), then the round's numbers count up from 0 and the
+ * tallies from last round's, ticking; another beat (POSTER.reorderHoldMs), then the rows slide into
+ * their new order by tally. The buttons wake when the rows are in place — or at once, with
+ * everything final, on a tap anywhere. A button lifts the poster away before it acts. The final poster has an
  * amber rule and a few glints round the winner's frame.
  */
 import type Phaser from "phaser";
 import { COPY } from "../../game/copy";
 import { newSeed } from "../../game/seeds";
-import { HUMAN, matchOver, matchWinner, portraitFor, roundDeltas, roundWinner, scoreRows } from "../../game/selectors";
+import { HUMAN, matchOver, matchWinner, portraitFor, roundDeltas, roundWinner, rowsBeforeRound, scoreRows } from "../../game/selectors";
 import { EASE, MOTION, POSTER } from "../../game/timing";
 import { art } from "../art";
 import { pop } from "../fx";
@@ -50,6 +52,12 @@ export class PosterScene extends BaseScene {
   #counters: Counter[] = [];
   #counting = false;
   #leaving = false;
+  /** Each row and where it ends up once re-sorted by tally. */
+  #rows: { view: Phaser.GameObjects.Container; finalY: number }[] = [];
+  /** The pending re-sort, so a tap can cancel it. */
+  #reorder: Phaser.Time.TimerEvent | null = null;
+  /** Everything is final and the buttons are awake. */
+  #settled = false;
 
   constructor() {
     super("Poster");
@@ -68,12 +76,17 @@ export class PosterScene extends BaseScene {
     this.#counters = [];
     this.#counting = false;
     this.#leaving = false;
+    this.#rows = [];
+    this.#reorder = null;
+    this.#settled = false;
     if (!g || g.phase !== "scored" || !deltas || roundWin === null) return;
 
     const final = matchOver(g);
     const winner = final ? matchWinner(g) : roundWin;
     const title = final ? COPY.poster.finalTally : COPY.poster.wanted;
-    const rows = scoreRows(g, deltas);
+    const ranked = scoreRows(g, deltas);
+    // laid out in last round's order; each row slides to its place in `ranked` after the count
+    const rows = rowsBeforeRound(ranked);
     const pw = Math.min(620, W - 32);
     const inner = pw - 2 * PAD;
     const leftW = Math.floor(((inner - 18) * 1) / 2.4);
@@ -126,6 +139,7 @@ export class PosterScene extends BaseScene {
     heads.forEach((hd, i) => layer.add(text(this, tx + cols[i], ty, hd, { size: FS_MIN, color: CSS.paperMuted, bold: true }).setOrigin(i === 0 ? 0 : 1, 0)));
     ty += 22;
     const rowViews: Phaser.GameObjects.Container[] = [];
+    const rowsTop = ty;
     for (const r of rows) {
       const row = this.add.container(tx, ty);
       row.add(this.add.rectangle(0, 0, rightW, 1, 0x2a1a0f, 0.2).setOrigin(0, 0));
@@ -139,6 +153,7 @@ export class PosterScene extends BaseScene {
       });
       layer.add(row);
       rowViews.push(row);
+      this.#rows.push({ view: row, finalY: rowsTop + ranked.findIndex((x) => x.seat === r.seat) * rowH });
       ty += rowH;
     }
 
@@ -190,7 +205,7 @@ export class PosterScene extends BaseScene {
       r.setAlpha(0).setX(r.x + ROW_SLIDE);
       this.tweens.add({ targets: r, alpha: 1, x: r.x - ROW_SLIDE, delay: drop * 0.6 + i * POSTER.rowStaggerMs, duration: ms(MOTION.uiIn), ease: EASE.enter });
     });
-    const countFrom = drop * 0.6 + rows.length * POSTER.rowStaggerMs + ms(MOTION.uiIn);
+    const countFrom = drop * 0.6 + rows.length * POSTER.rowStaggerMs + ms(MOTION.uiIn) + POSTER.countHoldMs;
     const p = { t: 0 };
     let lastTick = -Infinity;
     this.tweens.add({
@@ -214,8 +229,27 @@ export class PosterScene extends BaseScene {
           this.app.game.audio.play("deal");
         }
       },
-      onComplete: () => this.#done(),
+      onComplete: () => {
+        this.#reorder = this.time.delayedCall(POSTER.reorderHoldMs, () => this.#resort());
+      },
     });
+  }
+
+  /** The rows slide into their order by tally; a row that climbs passes over the others. */
+  #resort(): void {
+    this.#reorder = null;
+    const d = ms(POSTER.reorderMs);
+    const moving = this.#rows.filter((r) => r.view.y !== r.finalY);
+    if (!d || !moving.length) {
+      this.#done();
+      return;
+    }
+    // climbers on top
+    for (const r of moving.filter((m) => m.finalY < m.view.y)) r.view.parentContainer?.bringToTop(r.view);
+    moving.forEach((r, i) => {
+      this.tweens.add({ targets: r.view, y: r.finalY, duration: d, ease: EASE.inOut, onComplete: i === 0 ? () => this.#done() : undefined });
+    });
+    this.app.game.audio.play("deal");
   }
 
   /** Skip to the end: everything at rest, every number final, the buttons awake. */
@@ -226,9 +260,17 @@ export class PosterScene extends BaseScene {
   }
 
   #done(): void {
+    if (this.#settled) return;
+    this.#settled = true;
     this.#counting = false;
+    this.#reorder?.remove(false);
+    this.#reorder = null;
     this.#poster.setAngle(0);
     for (const c of this.#counters) c.t.setText(signed(c.to));
+    for (const r of this.#rows) {
+      this.tweens.killTweensOf(r.view);
+      r.view.setY(r.finalY);
+    }
     for (const b of this.#buttons) b.setEnabled(true);
     this.#buttons[0]?.nudge();
   }
