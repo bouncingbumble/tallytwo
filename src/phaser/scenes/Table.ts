@@ -124,8 +124,6 @@ function paintTable(scene: Phaser.Scene, ctx: CanvasRenderingContext2D, w: numbe
 
 /** The your-turn glow's height above the hand row (logical px). */
 const TURN_GLOW_H = 26;
-/** How far the camera jolts when the round's winning play slaps down (logical px). */
-const SLAP_JOLT = 3;
 
 export class TableScene extends BaseScene {
   #t!: TableLayout;
@@ -325,14 +323,14 @@ export class TableScene extends BaseScene {
   }
 
   /**
-   * The round's last play: once it has landed it holds, then slaps down with a jolt of the camera;
+   * The round's last play: once it has landed it holds, then slaps down and its impact ripples across the felt (TrickView.slap);
    * on Greenhorn the losers' leftover cards then come out of their portraits face-up (the store
    * waits ROUND_END.revealHoldMs longer before the poster for it).
    */
   #roundEnd(seat: number, cards: number, g: NonNullable<GameView["game"]>): void {
     const reveal = revealLeftovers(g, this.app.settings.opts.difficulty);
     this.after(playLandMs(cards) + ROUND_END.holdMs, () => {
-      if (this.#trick.slap(seat) && ms(ROUND_END.slapMs)) this.cameras.main.shake(ms(ROUND_END.slapMs), SLAP_JOLT / this.H);
+      this.#trick.slap(seat);
       for (const s of reveal) this.#seats.find((v) => v.seat === s)?.revealLeftovers(g.players[s].hand, ms(ROUND_END.slapMs));
     });
   }

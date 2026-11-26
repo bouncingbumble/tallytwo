@@ -24,11 +24,23 @@ import type { CardView } from "../cards";
 import { poolOf } from "../cardPool";
 import { pop } from "../fx";
 import { ms } from "../motion";
-import { text } from "../paint";
+import { painted, text } from "../paint";
 import { CSS, FS_BODY } from "../theme";
 
 /** The round's winning play is slapped down from this scale. */
 const SLAP_SCALE = 1.15;
+/**
+ * Its impact, on the felt alone (the screen never shakes): a shockwave ring spreads out from under
+ * the cards, sparks burst from them, and the other plays are knocked a few px away and settle.
+ */
+const RING_PX = 64;
+const RING_SCALE = 4.5;
+const SPARKS = 10;
+const SPARK_PX = 9;
+const SPARK_REACH = [70, 130] as const;
+const KNOCK_PX = 5;
+/** How long the ring and the sparks run, as multiples of ROUND_END.slapMs. */
+const IMPACT_SPAN = 3;
 
 /** Top row, middle row (left and right), bottom row: the drawing order. */
 const SEATS = [2, 1, 3, 0];
@@ -65,6 +77,9 @@ export class TrickView {
   #onWon: ((seat: number) => void) | null = null;
   /** True while the deal is flying out: the felt's caption ("Cards are down.") waits for it. */
   #dealing = false;
+  /** The impact's ring (under the plays) and sparks (over them), painted up front and reused. */
+  #ring: Phaser.GameObjects.Image;
+  #sparks: Phaser.GameObjects.Image[];
 
   constructor(scene: Phaser.Scene, t: TableLayout, origin: (seat: number, card: number) => FlyOrigin | null) {
     this.scene = scene;
@@ -73,6 +88,10 @@ export class TrickView {
     this.layer = scene.add.container(0, 0);
     this.#empty = text(scene, t.plays.x + t.plays.w / 2, t.plays.y + t.plays.h / 2, "", { size: FS_BODY, color: CSS.feltText, align: "center", wrap: Math.max(40, t.plays.w - 48) }).setOrigin(0.5);
     this.layer.add(this.#empty);
+    this.#ring = painted(scene, "slam-ring", 0, 0, RING_PX, RING_PX, paintRing).setOrigin(0.5).setVisible(false);
+    this.layer.addAt(this.#ring, 0);
+    this.#sparks = Array.from({ length: SPARKS }, () => painted(scene, "slam-spark", 0, 0, SPARK_PX, SPARK_PX, paintSpark).setOrigin(0.5).setVisible(false));
+    this.layer.add(this.#sparks);
   }
 
   /** Hold the empty felt's caption back while the cards are being dealt; show it again once they are down. */
@@ -118,7 +137,8 @@ export class TrickView {
 
   /**
    * The round's winning play, once it has landed: it grows and comes down hard (ROUND_END.slapMs,
-   * scale 1.15 → 1). The table adds the camera's jolt. Returns false if that seat has nothing here.
+   * scale 1.15 → 1), and as it hits, the impact runs on the felt (#impact). Returns false if that
+   * seat has nothing here.
    */
   slap(seat: number): boolean {
     const grp = this.#groups.get(seat);
@@ -129,7 +149,39 @@ export class TrickView {
       c.setScale(SLAP_SCALE).setAngle(0);
       this.scene.tweens.add({ targets: c, scale: 1, duration: d, ease: EASE.exit });
     }
+    const { x, y } = centreOf(grp.cards);
+    this.scene.time.delayedCall(d * 0.8, () => this.#impact(seat, x, y, d));
     return true;
+  }
+
+  /** The slap's impact at (x, y): the ring, the sparks, and every other play knocked away from it. */
+  #impact(seat: number, x: number, y: number, d: number): void {
+    const { tweens } = this.scene;
+    const span = d * IMPACT_SPAN;
+    const ring = this.#ring;
+    tweens.killTweensOf(ring);
+    ring.setPosition(x, y).setScale(0.4).setAlpha(0.9).setVisible(true);
+    tweens.add({ targets: ring, scale: RING_SCALE, alpha: 0, duration: span, ease: EASE.exit, onComplete: () => ring.setVisible(false) });
+    this.#sparks.forEach((s, i) => {
+      const a = (i / SPARKS) * Math.PI * 2 + Math.random() * 0.5;
+      const r = SPARK_REACH[0] + Math.random() * (SPARK_REACH[1] - SPARK_REACH[0]);
+      tweens.killTweensOf(s);
+      // over every play on the felt, which were added to the layer after the sparks
+      this.layer.bringToTop(s);
+      s.setPosition(x, y).setScale(1.2).setAlpha(1).setVisible(true);
+      tweens.add({ targets: s, x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, scale: 0.3, alpha: 0, duration: span * (0.7 + Math.random() * 0.3), ease: EASE.exit, onComplete: () => s.setVisible(false) });
+    });
+    for (const [other, grp] of this.#groups) {
+      if (other === seat) continue;
+      const c = grp.container;
+      const rest = { x: c.x, y: c.y };
+      const at = centreOf(grp.cards);
+      const dx = at.x - x;
+      const dy = at.y - y;
+      const len = Math.hypot(dx, dy) || 1;
+      tweens.killTweensOf(c);
+      tweens.add({ targets: c, x: rest.x + (dx / len) * KNOCK_PX, y: rest.y + (dy / len) * KNOCK_PX, duration: d * 0.5, yoyo: true, ease: EASE.exit, onComplete: () => c.setPosition(rest.x, rest.y) });
+    }
   }
 
   /** One group per seat with a play on the felt: a seat that played again gets a new one, a seat with none loses its. */
@@ -265,4 +317,38 @@ export class TrickView {
     const top = inLayer(this.#latest);
     if (top) this.layer.bringToTop(top);
   }
+}
+
+/** The shockwave: a soft amber ring, brightest at its edge. */
+function paintRing(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const r = w / 2;
+  const g = ctx.createRadialGradient(r, h / 2, r * 0.55, r, h / 2, r);
+  g.addColorStop(0, "rgba(240, 180, 87, 0)");
+  g.addColorStop(0.78, "rgba(250, 196, 105, 0.85)");
+  g.addColorStop(1, "rgba(240, 180, 87, 0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+}
+
+/** A spark: a hot amber dot with a white core. */
+function paintSpark(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+  g.addColorStop(0, "rgba(255, 246, 220, 1)");
+  g.addColorStop(0.5, "rgba(240, 180, 87, 0.9)");
+  g.addColorStop(1, "rgba(240, 180, 87, 0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+}
+
+/** The middle of some cards on screen, in absolute logical px. */
+function centreOf(cards: readonly CardView[]): { x: number; y: number } {
+  let x = 0;
+  let y = 0;
+  for (const c of cards) {
+    const m = c.getWorldTransformMatrix();
+    x += m.tx;
+    y += m.ty;
+  }
+  const n = Math.max(1, cards.length);
+  return { x: x / n, y: y / n };
 }

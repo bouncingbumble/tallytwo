@@ -227,7 +227,7 @@ export const dealTotalMs = (cards = 52, hand = 13): number => (cards - 1) * DEAL
 export const ROUND_END = {
   /** After the last play lands, before the slap. */
   holdMs: 300,
-  /** The slap: the winning cards grow and come down, the camera jolts. */
+  /** The slap: the winning cards grow and come down; its impact on the felt runs about 3x this. */
   slapMs: 220,
   /** Each leftover card turns over this long after the one before it. */
   revealStaggerMs: 40,
