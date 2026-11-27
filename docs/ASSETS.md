@@ -116,7 +116,7 @@ The props were cut from the 768x768 B-4 and B-6 tileset sheets by their alpha bo
 
 ## App icons
 
-`public/icons/icon-512.png` and `icon-192.png` are composed from the art: the wood tile repeated, the card back centred (3x at 512, 1x at 192, nearest-neighbour), and a 2-px `#120A04` outline following the card's alpha. To recompose, downscale `wood.png` and `card_back.png` by 3 with nearest-neighbour first.
+`public/icons/icon-512.png` and `icon-192.png` are composed from the art by `scripts/make-icons.py` (Pillow): the wood tile repeated at 2x art pixels and darkened a little, Dusty Vane's framed portrait (`p_outlaw.png`) centred at 4x with a soft shadow and a 2-px `#120A04` outline following its alpha, all nearest-neighbour. The 192 is the 512 box-filtered down (the portrait has no whole scale at 192). The portrait's face sits inside the maskable icon's safe circle; only the frame's corners are trimmed by a round mask.
 
 ## Sources not in this repo
 
