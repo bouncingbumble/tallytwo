@@ -14,13 +14,24 @@ import { drawArt, insetStroke, painted, roundRect } from "../paint";
 import { lampGlow, saloonWall } from "../walls";
 
 export const ROOM_W = 900;
+/** Texels per art px in every sprite file. */
+const ART_TEXELS = 3;
 /** The floorboards' depth at the bottom of the strip. */
 const FLOOR_H = 18;
 /** Where the sconce hangs in the room (its glow is painted on the wall). */
 const SCONCE_X = 548;
 
-/** [prop, left in the room, top (a number) or "floor" (bottom 4) or a bottom offset {b}]. */
-const PROPS: readonly [AssetName, number, number | "floor" | { b: number }][] = [
+/**
+ * The poker table's sprite has a framed painting at its left (its first 132 of 684 texels, 44 art
+ * px): only the table and the side table to its right are drawn.
+ */
+const POKER_CROP_ART = 44;
+
+/**
+ * [prop, left in the room, top (a number) or "floor" (bottom 4) or a bottom offset {b}, and
+ * optionally how many art px to leave off the sprite's left edge].
+ */
+const PROPS: readonly [AssetName, number, number | "floor" | { b: number }, number?][] = [
   ["plant", 8, "floor"],
   ["stool_grey", 56, "floor"],
   ["piano", 92, "floor"],
@@ -29,12 +40,9 @@ const PROPS: readonly [AssetName, number, number | "floor" | { b: number }][] = 
   ["barrel", 246, "floor"],
   ["chips", 282, "floor"],
   ["back_bar", 300, 0],
-  ["stool", 330, "floor"],
-  ["stool", 480, "floor"],
   ["sconce", SCONCE_X, 4],
-  ["poker_table", 560, "floor"],
+  ["poker_table", 560 + POKER_CROP_ART, "floor", POKER_CROP_ART],
   ["fireplace", 800, { b: -4 }],
-  ["chair", 852, "floor"],
 ];
 
 export function drawSaloon(scene: Phaser.Scene, r: Rect): void {
@@ -60,12 +68,15 @@ export function drawSaloon(scene: Phaser.Scene, r: Rect): void {
     ctx.save();
     roundRect(ctx, 0, 0, w, h, 6);
     ctx.clip();
-    for (const [name, lx, place] of PROPS) {
-      const [pw, ph] = ART_SIZE[name] ?? [32, 32];
+    for (const [name, lx, place, cutL = 0] of PROPS) {
+      const [fullW, ph] = ART_SIZE[name] ?? [32, 32];
+      const pw = fullW - cutL;
       const x = left + lx;
       const y = place === "floor" ? h - 4 - ph : typeof place === "number" ? place : h - place.b - ph;
       if (x + pw <= 0 || x >= w || y + ph <= 0 || y >= h) continue;
-      drawArt(scene, ctx, name, x, y, pw, ph);
+      // the sprites are 3x: cut whole texel columns off the left
+      const crop = cutL ? { x: cutL * ART_TEXELS, y: 0, w: pw * ART_TEXELS, h: ph * ART_TEXELS } : undefined;
+      drawArt(scene, ctx, name, x, y, pw, ph, crop);
     }
     ctx.restore();
     insetStroke(ctx, w, h, 6, 2, "#120a04");
